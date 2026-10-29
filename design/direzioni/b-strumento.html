@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direzione B · Strumento</title>
+<link rel="stylesheet" href="proto.css">
+<style>
+  /* Direzione B — "Strumento": un apparecchio di precisione (Braun, Teenage Engineering).
+     Nero caldo, celle separate da linee di 1 px, niente angoli arrotondati né ombre, un solo colore
+     (arancione segnale) che vuol dire "Jarvis" e "serve te". La voce è la traccia di un oscilloscopio. */
+  :root {
+    --bg: #0c0c0a;
+    --line: #2b2a26;
+    --ink: #ecebe5;
+    --dim: #8e8c84;
+    --faint: #57564f;
+    --sig: #ff5a1f;
+    --cond: "Bahnschrift", "DIN Alternate", sans-serif;
+    --text: "Segoe UI Variable Text", "Segoe UI", sans-serif;
+    --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--line); color: var(--ink); overflow: hidden; -webkit-font-smoothing: antialiased;
+    display: grid; gap: 1px; height: 100vh;
+    grid-template-rows: 40px minmax(180px, 1fr) 214px 52px;
+    font: 13px/1.45 var(--text);
+  }
+  .row { display: grid; gap: 1px; }
+  .cell { background: var(--bg); padding: 12px 16px; min-width: 0; position: relative; }
+  .lbl { font: 10.5px/1 var(--mono); color: var(--faint); letter-spacing: .08em; text-transform: uppercase; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  header.row { grid-template-columns: 170px 1fr 150px 150px; }
+  header .cell { display: flex; align-items: center; gap: 10px; padding: 0 16px; font: 11px/1 var(--mono);
+                 color: var(--dim); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .brand { color: var(--ink) !important; font: 600 12px/1 var(--cond) !important; letter-spacing: .38em !important; }
+  .sq { width: 9px; height: 9px; background: var(--sig); flex: none; }
+  .led { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; }
+  .led.on { background: var(--ink); } .led.sig { background: var(--sig); }
+
+  .scope { background: var(--bg); position: relative; }
+  .scope canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .scope .lbl { position: absolute; }
+  .scope .ch { top: 12px; left: 16px; } .scope .sc { top: 12px; right: 16px; } .scope .tb { bottom: 10px; right: 16px; }
+
+  .mid.row { grid-template-columns: 300px 1fr 330px; }
+  .big { font: 600 58px/0.9 var(--cond); white-space: nowrap; font-stretch: condensed; font-variation-settings: "wdth" 75, "wght" 620;
+         text-transform: uppercase; letter-spacing: -.005em; margin-top: 16px; }
+  .big.sig { color: var(--sig); }
+  .hint { margin-top: 14px; font: 11px/1.5 var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+
+  .log { margin-top: 12px; display: grid; grid-template-columns: 44px 38px 1fr; gap: 7px 10px; align-items: baseline; }
+  .log .t { font: 11px/1 var(--mono); color: var(--faint); }
+  .log .w { font: 11px/1 var(--mono); color: var(--dim); }
+  .log .x { color: var(--dim); }
+  .log .x.j { color: var(--ink); font-size: 14px; }
+  .log .x.j .rest { color: var(--faint); }
+  .caret { display: inline-block; width: 7px; height: 13px; background: var(--ink); vertical-align: -2px;
+           animation: blink 1s steps(1) infinite; margin-left: 1px; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .tasks { margin-top: 12px; }
+  .task { display: grid; grid-template-columns: 26px 1fr auto; gap: 4px 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .task:first-child { border-top: 0; padding-top: 0; }
+  .task .id { font: 11px/1.3 var(--mono); color: var(--faint); }
+  .task .tt { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task .pc { font: 11px/1.3 var(--mono); color: var(--dim); }
+  .task .bar { grid-column: 2 / span 2; font: 11px/1 var(--mono); letter-spacing: 1px; color: var(--ink); }
+  .task .bar i { font-style: normal; color: var(--faint); }
+  .task.need .tt, .task.need .pc { color: var(--sig); }
+  .task .q { grid-column: 2 / span 2; color: var(--ink); font-size: 13px; }
+  .keys { grid-column: 2 / span 2; display: flex; gap: 6px; margin-top: 4px; }
+
+  button.key { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink);
+               background: var(--bg); border: 1px solid var(--line); padding: 8px 11px; cursor: pointer;
+               display: inline-flex; gap: 8px; align-items: center; }
+  button.key b { font-weight: 600; color: var(--bg); background: var(--ink); padding: 2px 5px; }
+  button.key.sig { border-color: var(--sig); color: var(--sig); }
+  button.key.sig b { background: var(--sig); }
+  button.key:hover { border-color: var(--dim); }
+
+  footer.row { grid-template-columns: 1fr auto; }
+  footer .cell { display: flex; align-items: center; }
+  footer input { flex: 1; font: 13px var(--mono); color: var(--ink); background: none; border: 0; outline: none; }
+  footer input::placeholder { color: var(--faint); }
+  footer .prompt { font: 13px var(--mono); color: var(--sig); margin-right: 10px; }
+  footer .k { gap: 6px; padding: 0 10px; }
+  body.riposo .mid, body.riposo footer { filter: brightness(.55); }
+</style>
+</head>
+<body>
+<header class="row">
+  <div class="cell brand"><span class="sq"></span>JARVIS</div>
+  <div class="cell">modello opus 5.5 · ripiego cloud pronto · scheda video <span id="gpu">5,9/8 gb</span></div>
+  <div class="cell mono" id="clock"></div>
+  <div class="cell"><span class="led on" id="led"></span><span id="stat">pronto</span></div>
+</header>
+
+<section class="scope">
+  <canvas id="osc"></canvas>
+  <div class="lbl ch" id="ch">voce · —</div>
+  <div class="lbl sc">±1,0</div>
+  <div class="lbl tb">40 ms/div</div>
+</section>
+
+<section class="mid row">
+  <div class="cell">
+    <div class="lbl">stato</div>
+    <div class="big" id="big">attesa</div>
+    <div class="hint" id="hint">di' «jarvis» · ctrl+alt+j</div>
+  </div>
+  <div class="cell">
+    <div class="lbl">conversazione</div>
+    <div class="log" id="log"></div>
+  </div>
+  <div class="cell">
+    <div class="lbl">compiti · <span class="mono">2</span></div>
+    <div class="tasks" id="tasks"></div>
+  </div>
+</section>
+
+<footer class="row">
+  <div class="cell"><span class="prompt">›</span><input placeholder="scrivi a jarvis" aria-label="Messaggio per Jarvis"></div>
+  <div class="cell k">
+    <button class="key"><b>J</b>parla</button>
+    <button class="key"><b>Z</b>riposo</button>
+    <button class="key"><b>K</b>ferma</button>
+  </div>
+</footer>
+
+<script src="proto.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const osc = $("osc");
+const BIG = { attesa: "attesa", ascolto: "ascolto", ragiono: "ragiono", parla: "parlo", conferma: "decidi tu", riposo: "riposo" };
+const HINT = { attesa: "di' «jarvis» · ctrl+alt+j", ascolto: "parla pure · pausa = fine", ragiono: "opus 5.5 · 0,8 s",
+               parla: "interrompimi quando vuoi", conferma: "s = sì · n = no", riposo: "scheda video libera · di' «jarvis»" };
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+function bar(p, n = 16) {
+  const k = Math.round(p * n);
+  return "■".repeat(k) + `<i>${"□".repeat(n - k)}</i>`;
+}
+function tasks(s) {
+  const t = P.text.task, a = P.text.ask, need = s === "conferma";
+  return `<div class="task"><span class="id">03</span><span class="tt">${t.title}</span><span class="pc">${Math.round(t.pct * 100)}%</span>
+            <span class="bar">${bar(t.pct)}</span></div>
+          <div class="task ${need ? "need" : ""}"><span class="id">02</span><span class="tt">${a.title}</span>
+            <span class="pc">${need ? "attende" : "in coda"}</span>
+            ${need ? `<span class="q">${a.q}</span><span class="keys"><button class="key sig"><b>S</b>sì</button><button class="key"><b>N</b>no</button></span>`
+                   : `<span class="bar">${bar(0)}</span>`}</div>`;
+}
+function onState(s) {
+  document.body.className = s;
+  $("big").textContent = BIG[s];
+  $("big").classList.toggle("sig", s === "conferma" || s === "parla");
+  $("hint").textContent = HINT[s];
+  $("tasks").innerHTML = tasks(s);
+  $("gpu").textContent = s === "riposo" ? "libera" : "5,9/8 gb";
+  $("stat").textContent = s === "riposo" ? "a riposo" : s === "conferma" ? "serve te" : "pronto";
+  $("led").className = "led " + (s === "riposo" ? "" : s === "conferma" || s === "parla" ? "sig" : "on");
+  $("ch").textContent = s === "parla" ? "voce · jarvis" : s === "ascolto" ? "voce · tu" : "voce · —";
+}
+function logHtml(s) {
+  const hm = clock();
+  if (s === "attesa" || s === "riposo")
+    return `<span class="t">17:21</span><span class="w">tu</span><span class="x">Ricordami di chiamare Luca alle sei.</span>
+            <span class="t">17:21</span><span class="w">jrv</span><span class="x j">Fatto. Alle diciotto le ricorderò di chiamare Luca.</span>`;
+  if (s === "ascolto") return `<span class="t">${hm}</span><span class="w">tu</span><span class="x">${P.text.partial}<span class="caret"></span></span>`;
+  const n = s === "parla" ? Math.floor(P.typed) : 0;
+  const j = s === "parla" ? `<span class="t">${hm}</span><span class="w">jrv</span><span class="x j">${esc(P.text.jarvis.slice(0, n))}<span class="rest">${esc(P.text.jarvis.slice(n))}</span></span>` : "";
+  return `<span class="t">${hm}</span><span class="w">tu</span><span class="x">${P.text.user}</span>${j}`;
+}
+
+let blipX = 0;
+function render(now, dt) {
+  const { ctx, w, h } = crisp(osc);
+  const t = now / 1000, s = P.state, mid = h / 2;
+  ctx.clearRect(0, 0, w, h);
+  // reticolo dell'oscilloscopio: 10 divisioni orizzontali, 6 verticali
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 10; i++) {
+    const x = Math.round((w * i) / 10) + 0.5;
+    ctx.strokeStyle = "rgba(236,235,229,.055)"; ctx.setLineDash([1, 4]);
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  for (let i = 1; i < 6; i++) {
+    const y = Math.round((h * i) / 6) + 0.5;
+    ctx.strokeStyle = i === 3 ? "rgba(236,235,229,.12)" : "rgba(236,235,229,.055)"; ctx.setLineDash(i === 3 ? [] : [1, 4]);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // la traccia
+  const speaking = s === "parla", listening = s === "ascolto";
+  const lv = P.levelS;
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = speaking ? "#ff5a1f" : s === "conferma" ? "rgba(255,90,31,.6)" : s === "riposo" ? "rgba(236,235,229,.25)" : "#ecebe5";
+  if (s === "riposo") ctx.setLineDash([2, 6]);
+  blipX = (blipX + dt * w * 0.22) % (w * 1.6);
+  ctx.beginPath();
+  for (let x = 0; x <= w; x += 2) {
+    const u = x / w;
+    let y = 0;
+    if (speaking || listening) {
+      const env = Math.sin(Math.PI * u) ** 0.6;  // la forma si apre al centro come su uno schermo vero
+      y = lv * env * h * 0.36 * (0.62 * Math.sin(u * 61 + t * 22) + 0.38 * Math.sin(u * 23 - t * 13)) * (0.7 + 0.3 * smooth(u * 4, t));
+    } else if (s === "ragiono") {
+      const d = (u - ((t * 0.55) % 1));  // un impulso che scorre: sta calcolando
+      y = Math.exp(-(d * d) / 0.0009) * h * 0.18 * Math.sin(u * 140);
+    } else if (s === "attesa" || s === "conferma") {
+      const d = (x - blipX) / w;  // battito lento: è vivo, anche quando tace
+      y = Math.exp(-(d * d) / 0.00025) * h * 0.08 * Math.sin(d * 300);
+    }
+    const py = mid - y;
+    x ? ctx.lineTo(x, py) : ctx.moveTo(x, py);
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+
+  $("clock").textContent = new Date().toLocaleTimeString("it-IT");
+  if (s === "parla" || s === "ascolto" || !render.last || render.lastState !== s) {
+    $("log").innerHTML = logHtml(s);
+    render.last = now; render.lastState = s;
+  }
+}
+proto(render, onState);
+</script>
+</body>
+</html>

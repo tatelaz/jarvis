@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direzione C · Cinema</title>
+<link rel="stylesheet" href="proto.css">
+<style>
+  /* Direzione C — "Cinema": quasi niente a schermo. Una linea di luce che vibra con la voce, quello che
+     Jarvis dice come sottotitoli di un film, i compiti in piccolo come i titoli di coda. Grana e vignetta. */
+  :root {
+    --bg: #050505;
+    --ink: #f4efe6;                  /* bianco carta, caldo */
+    --dim: rgba(244, 239, 230, .46);
+    --faint: rgba(244, 239, 230, .26);
+    --amber: #e3b26a;                /* ambra di pellicola, non segnaletica */
+    --serif: "Sitka Text", "Sitka", Georgia, serif;
+    --display: "Sitka Display", "Sitka Text", Georgia, serif;
+    --cond: "Bahnschrift", "DIN Alternate", sans-serif;
+    --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; }
+
+  .top { position: fixed; top: 20px; left: 26px; right: 26px; display: flex; justify-content: space-between;
+         font: 500 10.5px/1 var(--cond); letter-spacing: .6em; color: var(--faint); text-transform: uppercase; }
+  .top .time { letter-spacing: .18em; font-family: var(--mono); font-weight: 400; }
+
+  .cap { position: fixed; left: 50%; transform: translateX(-50%); width: min(800px, 88vw); text-align: center;
+         font: 500 10.5px/1.5 var(--cond); letter-spacing: .3em; text-transform: uppercase; color: var(--dim);
+         transition: opacity .5s; }
+  .sub { position: fixed; left: 50%; transform: translateX(-50%); width: min(780px, 86vw); text-align: center;
+         font: 400 26px/1.42 var(--display); letter-spacing: .002em; color: var(--ink); }
+  .sub span { transition: opacity .35s, filter .35s; }
+  .sub span.wait { opacity: 0; filter: blur(3px); }
+  .ask { font: italic 400 24px/1.4 var(--display); }
+  .ask .opts { margin-top: 18px; font: 400 15px/1 var(--serif); font-style: normal; letter-spacing: .04em; }
+  .ask .opts button { font: inherit; color: var(--ink); background: none; border: 0; padding: 4px 2px; margin: 0 14px;
+                      border-bottom: 1px solid var(--faint); cursor: pointer; }
+  .ask .opts button.yes { color: var(--amber); border-color: var(--amber); }
+  .caret { display: inline-block; width: 1px; height: 11px; background: var(--dim); margin-left: 3px; vertical-align: -1px;
+           animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .credits { position: fixed; left: 26px; bottom: 60px; font: 10.5px/1.9 var(--mono); color: var(--faint);
+             letter-spacing: .03em; white-space: pre; }
+  .credits .need { color: var(--amber); }
+  .ctl { position: fixed; right: 26px; bottom: 60px; font: italic 13px/1 var(--serif); color: var(--faint); }
+  .ctl button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0 0 0 16px; }
+  .ctl button:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+<canvas id="film"></canvas>
+<div class="top"><span>Jarvis</span><span class="time" id="time"></span></div>
+<div class="cap" id="cap"></div>
+<div class="sub" id="sub"></div>
+<div class="credits" id="credits"></div>
+<div class="ctl"><button>parla</button><button>riposo</button><button>ferma</button></div>
+
+<script src="proto.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const cv = $("film");
+let grain = null, lineY = 0;
+
+function makeGrain() {  // una tessera di grana, rimescolata a ogni fotogramma spostandola
+  const g = document.createElement("canvas"); g.width = g.height = 256;
+  const c = g.getContext("2d"), img = c.createImageData(256, 256);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = Math.random() * 255;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+  return g;
+}
+
+function credits(s) {
+  const need = s === "conferma";
+  const t = P.text.task, a = P.text.ask;
+  const l1 = `03  ${t.title.toLowerCase()} `.padEnd(46, ".") + ` ${Math.round(t.pct * 100)}%`;
+  const l2 = `02  ${a.title.toLowerCase()} `.padEnd(46, ".") + (need ? " attende" : " in coda");
+  return s === "riposo" ? "a riposo · scheda video libera" : `${l1}\n${need ? `<span class="need">${l2}</span>` : l2}`;
+}
+
+function onState(s) {
+  $("credits").innerHTML = credits(s);
+  const sub = $("sub");
+  sub.className = "sub";
+  if (s === "parla") {
+    sub.innerHTML = P.text.jarvis.split(" ").map((w) => `<span class="wait">${w}</span>`).join(" ");
+  } else if (s === "conferma") {
+    sub.className = "sub ask";
+    sub.innerHTML = `${P.text.ask.q}<div class="opts"><button class="yes">sì, procedi</button><button>no</button></div>`;
+  } else if (s === "riposo") {
+    sub.innerHTML = `<span style="font-size:15px;color:var(--faint);font-style:italic">di' «Jarvis» per riaccendermi</span>`;
+  } else {
+    sub.innerHTML = "";
+  }
+  $("cap").innerHTML = s === "ascolto" ? `${P.text.partial}<span class="caret"></span>` :
+                       s === "conferma" ? `<span style="color:var(--amber)">${P.text.ask.title} · ti chiede</span>` :
+                       s === "parla" || s === "ragiono" ? P.text.user : "";
+}
+
+function render(now, dt) {
+  const { ctx, w, h } = crisp(cv);
+  if (!grain) grain = makeGrain();
+  const t = now / 1000, s = P.state, lv = P.levelS;
+  lineY = h * 0.42;
+  $("cap").style.top = `${lineY - 54}px`;
+  $("sub").style.top = `${lineY + 34}px`;
+  ctx.clearRect(0, 0, w, h);
+
+  // la linea di luce
+  const x0 = w * 0.18, x1 = w * 0.82, span = x1 - x0;
+  const speaking = s === "parla", listening = s === "ascolto";
+  ctx.save();
+  if (s === "riposo") {  // a riposo la linea si raccoglie in un punto che respira
+    const a = 0.25 + 0.2 * Math.sin(t * 1.1);
+    ctx.fillStyle = `rgba(244,239,230,${a})`;
+    ctx.beginPath(); ctx.arc(w / 2, lineY, 2.2, 0, Math.PI * 2); ctx.fill();
+  } else {
+    const base = s === "attesa" ? 0.28 + 0.1 * Math.sin(t * 0.8) : s === "ragiono" ? 0.18 : 0.75;
+    ctx.lineWidth = speaking ? 1.4 : 1;
+    ctx.strokeStyle = `rgba(244,239,230,${base})`;
+    if (speaking) { ctx.shadowColor = "rgba(255,240,220,.55)"; ctx.shadowBlur = 10 + 14 * lv; }
+    ctx.beginPath();
+    for (let x = x0; x <= x1; x += 1.5) {
+      const u = (x - x0) / span;
+      const fade = Math.sin(Math.PI * u) ** 1.5;  // le estremità sfumano: niente bordi netti
+      let y = 0;
+      if (speaking || listening) y = lv * fade * h * 0.06 * (0.6 * Math.sin(u * 48 + t * 17) + 0.4 * Math.sin(u * 19 - t * 9));
+      x === x0 ? ctx.moveTo(x, lineY - y) : ctx.lineTo(x, lineY - y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    // estremità sfumate: si dipinge il nero sopra le punte
+    for (const [xa, xb] of [[x0 - 2, x0 + span * 0.12], [x1 + 2, x1 - span * 0.12]]) {
+      const g = ctx.createLinearGradient(xa, 0, xb, 0);
+      g.addColorStop(0, "rgba(5,5,5,1)"); g.addColorStop(1, "rgba(5,5,5,0)");
+      ctx.fillStyle = g; ctx.fillRect(Math.min(xa, xb), lineY - 40, Math.abs(xb - xa), 80);
+    }
+    if (s === "ragiono") {  // un punto di luce che corre lungo la linea: sta pensando
+      const px = w / 2 + Math.sin(t * 1.8) * span * 0.36;
+      const g = ctx.createRadialGradient(px, lineY, 0, px, lineY, 26);
+      g.addColorStop(0, "rgba(255,244,228,.9)"); g.addColorStop(0.2, "rgba(255,244,228,.25)"); g.addColorStop(1, "rgba(255,244,228,0)");
+      ctx.fillStyle = g; ctx.fillRect(px - 26, lineY - 26, 52, 52);
+    }
+  }
+  ctx.restore();
+
+  // grana e vignetta: la pellicola
+  ctx.globalAlpha = 0.045;
+  const ox = Math.floor(Math.random() * 256), oy = Math.floor(Math.random() * 256);
+  for (let x = -ox; x < w; x += 256) for (let y = -oy; y < h; y += 256) ctx.drawImage(grain, x, y);
+  ctx.globalAlpha = 1;
+  const v = ctx.createRadialGradient(w / 2, h * 0.45, Math.min(w, h) * 0.25, w / 2, h * 0.45, Math.max(w, h) * 0.75);
+  v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.7)");
+  ctx.fillStyle = v; ctx.fillRect(0, 0, w, h);
+
+  // i sottotitoli entrano parola per parola, al ritmo della voce
+  if (speaking) {
+    let count = 0;
+    const spans = $("sub").children;
+    for (const sp of spans) { count += sp.textContent.length + 1; sp.classList.toggle("wait", count > P.typed + 1); }
+  }
+  $("time").textContent = clock();
+}
+proto(render, onState);
+</script>
+</body>
+</html>

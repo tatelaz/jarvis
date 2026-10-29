@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direzione A · Mark III</title>
+<link rel="stylesheet" href="proto.css">
+<style>
+  /* Direzione A — "Mark III": un unico strumento al centro, bianco su nero vero, un accento per la voce.
+     Dal film: grafica bianca con pochi accenti, tutto raccolto in un solo strumento, le informazioni
+     entrano ed escono quando servono. */
+  :root {
+    --bg: #000;
+    --ink: #f3f2ee;            /* bianco appena caldo: il bianco puro su nero abbaglia */
+    --ink-2: rgba(243, 242, 238, .56);
+    --ink-3: rgba(243, 242, 238, .30);
+    --hair: rgba(243, 242, 238, .14);
+    --voice: #8fd8ff;          /* la voce di Jarvis: l'unico colore "suo" */
+    --need: #ffb547;           /* ambra: solo quando serve una tua decisione */
+    --cond: "Bahnschrift", "DIN Alternate", "Segoe UI", sans-serif;
+    --text: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+    --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); overflow: hidden;
+    font: 14px/1.45 var(--text); -webkit-font-smoothing: antialiased;
+  }
+  canvas#hud { position: fixed; inset: 0; width: 100%; height: 100%; }
+
+  /* angoli: telemetria discreta */
+  .corner { position: fixed; font: 10.5px/1.6 var(--mono); color: var(--ink-3); letter-spacing: .06em;
+            text-transform: uppercase; transition: opacity .6s; }
+  .tl { top: 18px; left: 22px; } .tr { top: 18px; right: 22px; text-align: right; }
+  .bl { bottom: 58px; left: 22px; } .br { bottom: 58px; right: 22px; text-align: right; }
+  .mark { font: 600 11px/1 var(--cond); letter-spacing: .5em; color: var(--ink); margin-bottom: 6px; }
+  .br button { font: inherit; color: var(--ink-2); background: none; border: 0; padding: 2px 0 2px 14px;
+               cursor: pointer; letter-spacing: .08em; text-transform: uppercase; }
+  .br button:hover { color: var(--ink); }
+  .br kbd { font: inherit; color: var(--ink-3); }
+
+  /* centro dello strumento: lo stato in parole */
+  .state { position: fixed; left: 0; right: 0; text-align: center; pointer-events: none;
+           font: 300 12px/1 var(--cond); letter-spacing: .42em; text-transform: uppercase; color: var(--ink-2);
+           transition: color .4s; }
+  .state.need { color: var(--need); }
+
+  /* sottotitoli: solo lo scambio in corso */
+  .talk { position: fixed; left: 50%; transform: translateX(-50%); width: min(760px, 86vw); text-align: center; }
+  .you { font: 13px/1.4 var(--text); color: var(--ink-3); min-height: 19px; letter-spacing: .01em;
+         transition: opacity .4s, transform .4s; }
+  .you .caret { display: inline-block; width: 1px; height: 13px; background: var(--ink-2); margin-left: 2px;
+                vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .say { margin-top: 10px; font: 300 21px/1.42 var(--text); color: var(--ink); min-height: 60px;
+         letter-spacing: -.003em; transition: opacity .5s; }
+  .say .rest { color: var(--ink-3); }
+
+  /* richiesta di decisione: entra solo quando serve */
+  .ask { position: fixed; left: 50%; transform: translate(-50%, 12px); width: min(560px, 86vw); opacity: 0;
+         pointer-events: none; transition: opacity .45s, transform .45s; border: 1px solid rgba(255, 181, 71, .55);
+         padding: 14px 18px 12px; background: rgba(255, 181, 71, .035); }
+  .ask.in { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .ask .h { font: 500 10.5px/1 var(--cond); letter-spacing: .32em; text-transform: uppercase; color: var(--need); }
+  .ask .q { margin: 9px 0 12px; font: 300 17px/1.4 var(--text); }
+  .ask button { font: 500 11px/1 var(--cond); letter-spacing: .28em; text-transform: uppercase; cursor: pointer;
+                background: none; color: var(--ink); border: 1px solid var(--hair); padding: 9px 16px; margin-right: 8px; }
+  .ask button.yes { border-color: rgba(255, 181, 71, .7); color: var(--need); }
+  .ask button:hover { background: rgba(243, 242, 238, .05); }
+
+  body.riposo .talk, body.riposo .bl { opacity: .0; }
+  body.riposo .tl, body.riposo .br { opacity: .55; }
+</style>
+</head>
+<body>
+<canvas id="hud"></canvas>
+
+<div class="corner tl"><div class="mark">JARVIS</div><div id="brain">opus 5.5 · ripiego cloud pronto</div></div>
+<div class="corner tr"><div id="time"></div><div id="date"></div></div>
+<div class="corner bl"><div id="mic">microfono ▁▁▁▁▁▁</div><div id="gpu">scheda video 5,9 / 8 gb</div></div>
+<div class="corner br"><button><kbd>[J]</kbd> parla</button><button>riposo</button><button><kbd>[K]</kbd> ferma</button></div>
+
+<div class="state" id="state">in attesa</div>
+<div class="talk" id="talk"><div class="you" id="you"></div><div class="say" id="say"></div></div>
+<div class="ask" id="ask">
+  <div class="h">Ti chiede · Pulizia della cartella Download</div>
+  <div class="q" id="q"></div>
+  <button class="yes">Approva</button><button>Nega</button>
+</div>
+
+<script src="proto.js"></script>
+<script>
+const cv = document.getElementById("hud");
+const $ = (id) => document.getElementById(id);
+const LABEL = { attesa: "in attesa", ascolto: "ti ascolto", ragiono: "ragiono", parla: "", conferma: "serve una tua decisione", riposo: "a riposo" };
+let geo = { cx: 0, cy: 0, R: 0 };
+let spin = 0, fade = { talk: 1 };
+
+function layout(w, h) {
+  const R = Math.min(w * 0.19, h * 0.215);
+  geo = { cx: w / 2, cy: h * 0.38, R };
+  $("state").style.top = `${geo.cy - 6}px`;
+  $("talk").style.top = `${geo.cy + R * 1.62}px`;
+  $("ask").style.top = `${geo.cy + R * 1.62 + 6}px`;
+}
+
+function onState(s) {
+  document.body.className = s;
+  $("state").textContent = LABEL[s];
+  $("state").classList.toggle("need", s === "conferma");
+  $("ask").classList.toggle("in", s === "conferma");
+  $("talk").style.opacity = s === "conferma" ? 0 : 1;
+  $("q").textContent = P.text.ask.q;
+  $("gpu").textContent = s === "riposo" ? "scheda video libera" : "scheda video 5,9 / 8 gb";
+  $("you").innerHTML = s === "ascolto" ? `${P.text.partial}<span class="caret"></span>` :
+                       s === "attesa" || s === "riposo" ? "" : P.text.user;
+  $("say").textContent = s === "attesa" ? "" : "";
+  if (s === "riposo") $("you").textContent = "di' «Jarvis» per riaccendermi";
+}
+
+function render(now, dt) {
+  const { ctx, w, h } = crisp(cv);
+  if (geo.R === 0 || cv._w !== w || cv._h !== h) { layout(w, h); cv._w = w; cv._h = h; }
+  const { cx, cy, R } = geo, t = now / 1000, s = P.state, lv = P.levelS;
+  ctx.clearRect(0, 0, w, h);
+  const rest = s === "riposo";
+  const dim = rest ? 0.28 : 1;
+  spin += dt * (s === "ragiono" ? 0.9 : rest ? 0.01 : 0.05);
+
+  // 1 · graduazione esterna: 180 tacche, una lunga ogni 15 (come uno strumento vero)
+  const rT = R * 1.36;
+  for (let i = 0; i < 180; i++) {
+    const a = (i / 180) * Math.PI * 2 + spin * 0.35;
+    const major = i % 15 === 0;
+    const len = major ? 9 : 4;
+    ctx.strokeStyle = `rgba(243,242,238,${(major ? 0.38 : 0.16) * dim})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * rT, cy + Math.sin(a) * rT);
+    ctx.lineTo(cx + Math.cos(a) * (rT + len), cy + Math.sin(a) * (rT + len));
+    ctx.stroke();
+  }
+
+  // 2 · orbita dei compiti: un arco per compito, la lunghezza è l'avanzamento
+  const rO = R * 1.18;
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = `rgba(243,242,238,${0.08 * dim})`;
+  ctx.beginPath(); ctx.arc(cx, cy, rO, 0, Math.PI * 2); ctx.stroke();
+  if (!rest) {
+    const a0 = -Math.PI / 2, a1 = a0 + Math.PI * 2 * P.text.task.pct;
+    // sottile e tenue: il compito si legge, ma il protagonista resta l'anello della voce
+    ctx.lineWidth = 1; ctx.strokeStyle = "rgba(243,242,238,.5)";
+    ctx.beginPath(); ctx.arc(cx, cy, rO, a0, a1); ctx.stroke();
+    ctx.lineWidth = 1; ctx.strokeStyle = "rgba(243,242,238,.8)";  // tacca alla punta: dove è arrivato
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(a1) * (rO - 4), cy + Math.sin(a1) * (rO - 4));
+    ctx.lineTo(cx + Math.cos(a1) * (rO + 4), cy + Math.sin(a1) * (rO + 4)); ctx.stroke();
+    label(ctx, cx, cy, rO, a1, `${P.text.task.short} · ${Math.round(P.text.task.pct * 100)}%`, "rgba(243,242,238,.45)");
+    if (s === "conferma") {  // il compito che aspetta te: un segmento ambra che respira
+      const b0 = Math.PI * 0.62, b1 = b0 + 0.38, pulse = 0.55 + 0.45 * Math.sin(t * 3.2);
+      ctx.lineWidth = 2; ctx.strokeStyle = `rgba(255,181,71,${pulse})`;
+      ctx.beginPath(); ctx.arc(cx, cy, rO, b0, b1); ctx.stroke();
+      label(ctx, cx, cy, rO, b0, `${P.text.ask.short} · attende`, "rgba(255,181,71,.85)", true);
+    }
+  }
+
+  // 3 · anello della voce: si deforma con la voce (bianco = tu, azzurro = Jarvis)
+  const speaking = s === "parla", listening = s === "ascolto";
+  const amp = (speaking || listening) ? R * 0.10 * lv : 0;
+  ctx.lineWidth = speaking ? 1.9 : 1.3;
+  ctx.strokeStyle = speaking ? `rgba(143,216,255,${0.8 + 0.2 * lv})`
+                  : listening ? `rgba(243,242,238,${0.55 + 0.4 * lv})`
+                  : `rgba(243,242,238,${(0.42 + 0.06 * Math.sin(t * 0.9)) * dim})`;
+  if (rest) ctx.setLineDash([1, 5]);
+  ctx.beginPath();
+  for (let i = 0; i <= 240; i++) {
+    const a = (i / 240) * Math.PI * 2;
+    const r = R + amp * (0.6 + 0.4 * smooth(a, t * (speaking ? 2.2 : 1.4)));
+    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+  if (speaking) {  // una sola eco, appena visibile: profondità senza bagliore
+    ctx.strokeStyle = `rgba(143,216,255,${0.12 * lv})`; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(cx, cy, R + amp * 0.6, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  // 4 · ragiono: un tratto che corre sull'anello, come un'elaborazione che gira
+  if (s === "ragiono") {
+    const a = t * 3.1;
+    for (let k = 0; k < 24; k++) {
+      const aa = a - k * 0.035;
+      ctx.strokeStyle = `rgba(243,242,238,${0.9 * (1 - k / 24)})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, R, aa - 0.035, aa); ctx.stroke();
+    }
+  }
+
+  // 5 · anello interno tratteggiato, in senso contrario
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(-spin * 0.6);
+  ctx.setLineDash([2, 7]); ctx.lineWidth = 1;
+  ctx.strokeStyle = `rgba(243,242,238,${0.20 * dim})`;
+  ctx.beginPath(); ctx.arc(0, 0, R * 0.80, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore(); ctx.setLineDash([]);
+
+  // testi che cambiano a ogni fotogramma
+  $("time").textContent = clock(); $("date").textContent = dateLine();
+  const bars = "▁▂▃▄▅▆▇";
+  $("mic").textContent = "microfono " + Array.from({ length: 6 }, (_, i) =>
+    bars[Math.min(6, Math.round((listening ? voice(t - i * 0.07) : 0.04) * 6))]).join("");
+  if (speaking) {
+    const n = Math.floor(P.typed);
+    $("say").innerHTML = `${escapeHtml(P.text.jarvis.slice(0, n))}<span class="rest">${escapeHtml(P.text.jarvis.slice(n))}</span>`;
+  } else if (s === "ragiono" || s === "ascolto" || s === "attesa" || s === "riposo") {
+    $("say").textContent = "";
+  }
+}
+
+function label(ctx, cx, cy, r, a, text, color, before) {
+  const x = cx + Math.cos(a) * (r + 16), y = cy + Math.sin(a) * (r + 16);
+  ctx.font = "500 10px Bahnschrift, 'Segoe UI', sans-serif";
+  ctx.fillStyle = color;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = Math.cos(a) >= 0 ? "left" : "right";
+  if (before) ctx.textAlign = Math.cos(a) >= 0 ? "left" : "right";
+  ctx.fillText(text.toUpperCase().split("").join(" "), x, y);
+}
+function escapeHtml(s) { return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+addEventListener("resize", () => { geo.R = 0; });
+proto(render, onState);
+</script>
+</body>
+</html>

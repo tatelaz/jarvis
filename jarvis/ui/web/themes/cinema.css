@@ -1,0 +1,54 @@
+/* Tema "Cinema": quasi niente a schermo. Una linea di luce che vibra con la voce, quello che Jarvis dice
+   come sottotitoli di un film, i compiti in piccolo come i titoli di coda. Grana, vignetta, pulviscolo. */
+body[data-theme="cinema"] {
+  --bg: #050505;
+  --ink: #f4efe6;
+  --dim: rgba(244, 239, 230, .5);
+  --faint: rgba(244, 239, 230, .27);
+  --hair: rgba(244, 239, 230, .13);
+  --panel: rgba(8, 7, 6, .92);
+  --theme-accent: #f4e6cf;          /* luce calda di proiettore */
+  --accent: var(--theme-accent);
+  --need: #e3b26a;
+  --bad: #e88a7a;
+}
+
+.ci-top { position: absolute; top: 20px; left: 26px; right: 26px; display: flex; justify-content: space-between;
+          font: 500 calc(10.5px * var(--scale)) / 1 var(--cond); letter-spacing: .6em; color: var(--faint);
+          text-transform: uppercase; transition: opacity 1s; }
+.ci-top .ci-time { letter-spacing: .18em; font-family: var(--mono); font-weight: 400; }
+.ci-title { position: absolute; left: 0; right: 0; text-align: center; pointer-events: none; opacity: 0;
+            font: 300 calc(13px * var(--scale)) / 1 var(--cond); letter-spacing: 1.2em; text-indent: 1.2em; color: var(--ink); }
+
+.ci-cap { position: absolute; left: 50%; transform: translateX(-50%); width: min(800px, 88vw); text-align: center;
+          font: 500 calc(10.5px * var(--scale)) / 1.6 var(--cond); letter-spacing: .3em; text-transform: uppercase;
+          color: var(--dim); transition: opacity .5s; }
+.ci-cap .need { color: var(--need); }
+.ci-cap .caret { display: inline-block; width: 1px; height: 1.1em; background: var(--dim); margin-left: 3px; vertical-align: -2px;
+                 animation: ci-blink 1s steps(1) infinite; }
+@keyframes ci-blink { 50% { opacity: 0; } }
+
+.ci-sub { position: absolute; left: 50%; transform: translateX(-50%); width: min(800px, 86vw); text-align: center;
+          font: 400 calc(26px * var(--scale)) / 1.42 var(--display); color: var(--ink); transition: opacity 1.4s; }
+.ci-sub .w { display: inline-block; white-space: pre; transition: opacity .45s ease, filter .45s ease, transform .45s ease; }
+.ci-sub .w.wait { opacity: 0; filter: blur(5px); transform: translateY(3px); }
+.ci-sub.old { opacity: .32; }
+.ci-sub.hint { font: italic calc(15px * var(--scale)) / 1.4 var(--serif); color: var(--faint); }
+.ci-ask { font: italic 400 calc(24px * var(--scale)) / 1.4 var(--display); animation: ci-in .9s ease both; }
+@keyframes ci-in { from { opacity: 0; filter: blur(6px); } }
+.ci-ask .opts { margin-top: 20px; font: 400 calc(15px * var(--scale)) / 1 var(--serif); font-style: normal; letter-spacing: .04em; }
+.ci-ask .opts button { background: none; border: 0; padding: 5px 2px; margin: 0 16px; cursor: pointer;
+                       border-bottom: 1px solid var(--faint); transition: color .2s, border-color .2s; }
+.ci-ask .opts button.yes { color: var(--need); border-color: var(--need); }
+.ci-ask .opts button:hover, .ci-ask .opts button:focus-visible { color: #fff; outline: none; }
+
+.ci-credits { position: absolute; left: 26px; bottom: 22px; font: calc(10.5px * var(--scale)) / 1.9 var(--mono);
+              color: var(--faint); letter-spacing: .03em; white-space: pre; transition: opacity 1s; }
+.ci-credits .need { color: var(--need); }
+.ci-credits .done { color: var(--ink); }
+
+body[data-theme="cinema"] #controls { right: 18px; bottom: 16px; }
+body[data-theme="cinema"] #controls button { font: italic calc(13px * var(--scale)) / 1 var(--serif); }
+body[data-theme="cinema"] #composer { bottom: 60px; }
+body[data-theme="cinema"] #input { font-family: var(--serif); font-style: italic; }
+body[data-theme="cinema"] .card { border-color: transparent; background: rgba(12, 11, 10, .88); }

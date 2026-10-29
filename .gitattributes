@@ -1,0 +1,6 @@
+# Un'unica regola per le righe: LF nel repository (i file venivano scritti da strumenti diversi, misti LF/CRLF).
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.wav binary
+*.onnx binary

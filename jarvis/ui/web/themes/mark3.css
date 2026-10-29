@@ -1,0 +1,59 @@
+/* Tema "Mark III": un unico strumento al centro, bianco su nero vero, un solo colore per la voce.
+   Dal film: grafica bianca con pochi accenti, tutto raccolto in uno strumento, le informazioni entrano ed
+   escono quando servono. */
+body[data-theme="mark3"] {
+  --bg: #000;
+  --ink: #f3f2ee;
+  --dim: rgba(243, 242, 238, .58);
+  --faint: rgba(243, 242, 238, .32);
+  --hair: rgba(243, 242, 238, .14);
+  --panel: rgba(4, 5, 6, .9);
+  --theme-accent: #8fd8ff;
+  --accent: var(--theme-accent);
+  --need: #ffb547;
+  --bad: #ff6b6b;
+}
+
+.m3-corner { position: absolute; font: calc(10.5px * var(--scale)) / 1.65 var(--mono); color: var(--faint);
+             letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; transition: opacity .8s; }
+.m3-tl { top: 18px; left: 22px; } .m3-tr { top: 18px; right: 22px; text-align: right; }
+.m3-bl { bottom: 20px; left: 22px; }
+.m3-mark { font: 600 calc(11px * var(--scale)) / 1 var(--cond); letter-spacing: .48em; color: var(--ink); margin-bottom: 7px; }
+.m3-live { color: var(--accent); }
+.m3-corner .m3-need { color: var(--need); }
+
+.m3-state { position: absolute; left: 0; right: 0; text-align: center; pointer-events: none;
+            font: 300 calc(12px * var(--scale)) / 1 var(--cond); letter-spacing: .42em; text-transform: uppercase;
+            color: var(--dim); transition: color .5s, opacity .5s; }
+.m3-state.need { color: var(--need); }
+
+.m3-talk { position: absolute; left: 50%; transform: translateX(-50%); width: min(780px, 86vw); text-align: center;
+           transition: opacity .6s, filter .6s; }
+.m3-talk.hide { opacity: 0; filter: blur(4px); }
+.m3-you { font: calc(13px * var(--scale)) / 1.4 var(--text); color: var(--faint); min-height: 1.4em; }
+.m3-you .caret { display: inline-block; width: 1px; height: 1em; background: var(--dim); margin-left: 2px; vertical-align: -2px;
+                 animation: m3-blink 1s steps(1) infinite; }
+@keyframes m3-blink { 50% { opacity: 0; } }
+.m3-say { margin-top: 10px; font: 300 calc(21px * var(--scale)) / 1.42 var(--text); color: var(--ink); min-height: 3em;
+          transition: opacity 1.2s; }
+.m3-say .un { color: rgba(243, 242, 238, .26); transition: color .25s; }
+.m3-say.old { opacity: .38; }
+
+.m3-ask { position: absolute; left: 50%; width: min(560px, 86vw); padding: 15px 18px 13px; opacity: 0;
+          transform: translate(-50%, 14px); pointer-events: none; border: 1px solid rgba(255, 181, 71, .55);
+          background: rgba(255, 181, 71, .035); transition: opacity .5s, transform .5s cubic-bezier(.2,.7,.1,1);
+          clip-path: inset(0 50% 0 50%); }
+.m3-ask.in { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; clip-path: inset(0 0 0 0);
+             transition: opacity .5s, transform .5s cubic-bezier(.2,.7,.1,1), clip-path .7s cubic-bezier(.2,.7,.1,1); }
+.m3-ask-h { font: 500 calc(10.5px * var(--scale)) / 1.2 var(--cond); letter-spacing: .3em; text-transform: uppercase; color: var(--need); }
+.m3-ask-q { margin: 9px 0 13px; font: 300 calc(17px * var(--scale)) / 1.4 var(--text); }
+.m3-ask button { font: 500 calc(11px * var(--scale)) / 1 var(--cond); letter-spacing: .28em; text-transform: uppercase; cursor: pointer;
+                 background: none; color: var(--ink); border: 1px solid var(--hair); padding: 9px 16px; margin-right: 8px;
+                 transition: background .2s, border-color .2s; }
+.m3-ask button.yes { border-color: rgba(255, 181, 71, .75); color: var(--need); }
+.m3-ask button:hover, .m3-ask button:focus-visible { background: rgba(243, 242, 238, .06); outline: none; }
+
+body[data-theme="mark3"] #controls { right: 14px; bottom: 16px; }
+body[data-theme="mark3"] #controls button { font: calc(10.5px * var(--scale)) / 1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+body[data-theme="mark3"] #composer { bottom: 52px; }
+body[data-theme="mark3"] .card, body[data-theme="mark3"] #drawer { border-radius: 0; }

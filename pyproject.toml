@@ -1,0 +1,63 @@
+[project]
+name = "jarvis"
+version = "0.1.0"
+description = "Assistente personale vocale in stile JARVIS: voce locale, cervello Claude o locale, sotto-agenti, memoria, browser e computer use."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy>=2.1",
+    "sounddevice>=0.5",
+    "soxr>=0.5",
+    "onnxruntime>=1.23",
+    "aiohttp>=3.11",
+    "claude-agent-sdk>=0.2.163",
+    "livekit>=1.1.20",
+    "pywebview>=5.4",
+    "pystray>=0.19",
+    "pillow>=11",
+    "tokenizers>=0.21",
+    "mcp>=1.20",
+    "uiautomation>=2.0.29",
+    "psutil>=7",
+    "pyyaml>=6",
+    "num2words>=0.5.14",
+    "scipy>=1.18.1",
+    "pycaw>=20260927",
+    "soundcard>=0.4.6",
+    "google-auth>=2.40",
+    "google-auth-oauthlib>=1.2",
+    "av>=19.0.2",  # guardare video e audio (jarvis/media): FFmpeg dentro il pacchetto, niente programmi esterni
+    "yt-dlp[default]>=2026.10.26",  # scaricare da YouTube e altri siti; YouTube cambia spesso: tenerlo aggiornato
+    "soundfile>=0.13",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "pytest-asyncio>=1.2",
+    "ruff>=0.13",
+    "playwright>=1.63",  # test della finestra in un Chrome vero, senza finestra (usa il Chrome installato)
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "engine: richiede il motore audio.cpp avviato e i modelli scaricati",
+    "claude: richiede Claude Code autenticato (consuma uso dell'abbonamento)",
+    "hardware: richiede microfono/altoparlanti reali",
+    "desktop: usa mouse e tastiera del PC (non lanciarlo mentre lo stai usando)",
+    "slow: test lenti",
+]
+# zero avvisi: ogni avviso nei test è un errore
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+# script di misura usa-e-getta: non fanno parte del prodotto
+extend-exclude = ["scripts/bench", "scripts/explore"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "RUF"]
+# ASYNC109: i client verso il motore locale espongono timeout per chiamata di proposito
+ignore = ["E501", "RUF001", "RUF002", "RUF003", "ASYNC109"]

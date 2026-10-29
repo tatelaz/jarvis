@@ -1,0 +1,11 @@
+{
+  "name": "jarvis-whatsapp-bridge",
+  "private": true,
+  "description": "Ponte tra Jarvis e un WhatsApp Web invisibile (whatsapp-web.js), parla a righe JSON su stdin/stdout",
+  "main": "bridge.js",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "qrcode": "1.5.4",
+    "whatsapp-web.js": "https://github.com/wwebjs/whatsapp-web.js/archive/064a3d5a5a3dce1281a6a12740b5a7051339d154.tar.gz"
+  }
+}

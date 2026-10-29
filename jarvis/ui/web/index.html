@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jarvis</title>
+<!-- icona dentro la pagina: niente richiesta di favicon.ico (che finiva in un errore 404) -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Ccircle cx='16' cy='16' r='9.5' fill='none' stroke='%238fd8ff' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/core.css">
+<link rel="stylesheet" href="/static/themes/mark3.css">
+<link rel="stylesheet" href="/static/themes/cinema.css">
+</head>
+<body data-theme="mark3">
+<!-- la scena: la disegna il tema scelto (si cambia a voce, senza ricaricare) -->
+<main id="stage" aria-live="polite"></main>
+<!-- la finestra è senza bordi: da questa fascia in alto si sposta (la classe la riconosce pywebview) -->
+<div id="drag" class="pywebview-drag-region" aria-hidden="true" title="trascina per spostare la finestra"></div>
+
+<!-- parti comuni, vestite da ogni tema -->
+<nav id="controls" aria-label="Comandi">
+  <button id="c-talk" title="Parla senza dire il nome (Ctrl+Alt+J)">parla</button>
+  <button id="c-rest" title="Riposo: libera la scheda video">riposo</button>
+  <button id="c-log" title="Registro della conversazione">registro</button>
+  <button id="c-stop" title="Ferma tutto (Ctrl+Alt+K)">ferma</button>
+</nav>
+<form id="composer" autocomplete="off">
+  <input id="input" type="text" placeholder="scrivi a Jarvis…" aria-label="Messaggio per Jarvis">
+</form>
+<aside id="drawer" aria-label="Registro" hidden>
+  <header><span>registro</span><button id="drawer-close" aria-label="Chiudi il registro">chiudi</button></header>
+  <div id="log"></div>
+  <!-- chiusa di base: chi apre il registro non vede subito che esiste una parola d'ordine -->
+  <details id="security" hidden>
+    <summary>voce e sicurezza</summary>
+    <p id="sec-status"></p>
+    <form id="pass-form" autocomplete="off">
+      <input id="pass-input" type="password" placeholder="nuova parola d'ordine" aria-label="Nuova parola d'ordine" autocomplete="new-password">
+      <button type="submit">imposta</button>
+    </form>
+    <p id="sec-msg" aria-live="polite"></p>
+  </details>
+</aside>
+<section id="cards" aria-label="Schede"></section>
+<div id="offline" hidden>collegamento con Jarvis perso · riprovo…</div>
+<div id="noaudio" hidden>audio non disponibile · Jarvis riprova da solo</div>
+
+<script src="/static/core.js"></script>
+<script src="/static/themes/mark3.js"></script>
+<script src="/static/themes/cinema.js"></script>
+<script>JarvisCore.start();</script>
+</body>
+</html>

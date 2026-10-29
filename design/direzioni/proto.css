@@ -1,0 +1,15 @@
+/* Barra dei prototipi: volutamente neutra, non fa parte del design */
+.proto-bar {
+  position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 99;
+  display: flex; gap: 2px; align-items: center; padding: 4px; border-radius: 8px;
+  background: rgba(40, 40, 40, .92); font: 12px/1 system-ui, sans-serif; color: #bbb;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .5);
+}
+.proto-tag { padding: 0 8px; opacity: .6; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
+.proto-bar button {
+  font: inherit; color: #ccc; background: none; border: 0; border-radius: 5px; padding: 6px 9px; cursor: pointer;
+  white-space: nowrap;
+}
+.proto-bar button:hover { background: rgba(255, 255, 255, .08); }
+.proto-bar button.on { background: #ddd; color: #111; }
+.proto-bar kbd { font: 10px/1 ui-monospace, monospace; opacity: .55; margin-right: 5px; }

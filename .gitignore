@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+engine/
+models/
+data/
+!tests/fixtures/
+
+# cartelle temporanee di pytest (se TEMP punta alla cartella del progetto)
+pytest-of-*/
+
+# cartelle temporanee lasciate dai test se TEMP punta alla cartella del progetto
+tmp*/
+node_modules/
+.claude/
+
+# note e documenti personali del proprietario (un repository git a parte)
+privato/
