@@ -258,6 +258,32 @@ strumento `programma` (`programmi` per l'elenco, `togli_programma` per toglierne
 - **A voce**: `programmi_attivi` (`schedule.enabled`), `programmi_dal_riposo` (`schedule.wake_from_rest`),
   `schedule.catch_up_minutes` (0-1440); tutte valgono subito.
 
+## Primo avvio (dal 30/10, in costruzione)
+
+Per chi installa Jarvis su un PC nuovo. Stile scelto: **Monolite** (`design/setup/a-monolite.html`, prototipo con
+dati finti; l'icona è `jarvis/ui/web/icona.svg`, `jarvis.ico` la fa `scripts/tools/make_icon.py`). Le parti pronte
+stanno in `jarvis/setup/` e non dipendono dalla pagina:
+
+- **`pc.py`**: `gather()` legge scheda video (nvidia-smi per memoria e driver, Windows per le altre), memoria,
+  spazio libero, microfoni e casse (WASAPI, ognuno una volta) e se si raggiungono i siti dei download; `choose()`
+  ne fa un profilo con regole pure: `completo` (NVIDIA da 8 GB, voce 1.7B), `leggero` (NVIDIA 4-8 GB, voce 0.6B,
+  "da misurare"), `processore` (tutto il resto: voce lenta, detto prima). Driver troppo vecchio per CUDA 12.4 =
+  processore. Le note (`voce_lenta`, `niente_microfono`...) e i blocchi (`poca_ram`, `poco_spazio`, `niente_rete`)
+  sono codici: i testi, in italiano e in inglese, stanno nella pagina.
+- **`catalog.py`**: ogni file con indirizzo fissato a una versione (tag o commit, mai `main`), misura e SHA-256,
+  e dove va (`engine/...` o `models/...`, che poi diventano le cartelle vere di `paths`). Un test controlla che ogni
+  file finisca esattamente dove Jarvis lo cerca; `scripts/controlla_catalogo.py` controlla in rete indirizzi,
+  misure e impronte. Parakeet-ultra in GGUF e ReDimNet2+ in ONNX non esistono già pronti: vanno nelle release del
+  progetto (`MIRROR`).
+- **`download.py`**: un file alla volta in `.part`, ripresa con `Range` dopo un'interruzione (anche a PC spento),
+  da capo se il server non sa riprendere o riprende dal punto sbagliato, ritentativi con attese crescenti, subito
+  fermo per 404/403/410 e per un file più grande o con un'impronta diversa (mai installato). Gli archivi del motore
+  si estraggono rifiutando percorsi che escono dalla cartella e poi si cancellano. `scaricati.json` ricorda cosa è
+  già controllato (finché misura e data non cambiano). Lo spazio si controlla prima di cominciare.
+
+Da fare: la pagina vera collegata a questi pezzi, il cervello (login ufficiale di Claude Code, chiave API,
+OpenCode, Ollama), la prova di microfono e casse, la voce di base, le due lingue in tutta l'app.
+
 ## Auto-riparazione e auto-miglioramento
 
 - Supervisor: riavvio dei processi caduti con backoff, rilevamento microfono scollegato, VRAM
