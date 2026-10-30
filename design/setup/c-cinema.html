@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direzione C · Cinema</title>
+<link rel="icon" href="icone/c-piccola.svg">
+<style>
+  /* Direzione C, "Cinema": la stessa famiglia della grafica Cinema. Nero caldo, la luce di un proiettore, titoli in un
+     carattere con le grazie, i dettagli scritti come i titoli di coda. Il marchio è una linea di luce orizzontale,
+     come il riflesso di un obiettivo anamorfico: nel primo avvio la stessa linea si allunga con l'avanzamento e
+     vibra quando parli o quando parla Jarvis. */
+  :root {
+    --bg: #050505; --ink: #f4efe6; --ink-2: rgba(244,239,230,.55); --ink-3: rgba(244,239,230,.28); --hair: rgba(244,239,230,.12);
+    --light: #f4e6cf; --warm: #e3b26a;
+    --serif: "Sitka Text", "Sitka", Georgia, serif;
+    --display: "Sitka Display", "Sitka Text", Georgia, serif;
+    --cond: "Bahnschrift", "DIN Alternate", "Segoe UI", sans-serif;
+    --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+    --ease: cubic-bezier(.25,.6,.1,1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: #0d0c0b; color: var(--ink); font: 15px/1.5 var(--serif); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+
+  .board { max-width: 1180px; margin: 0 auto; padding: 40px 28px 80px; }
+  .bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 36px; }
+  .bar h1 { margin: 0; font: 300 13px/1 var(--cond); letter-spacing: 1.1em; }
+  .bar .tools { display: flex; gap: 22px; font: italic 14px/1 var(--serif); color: var(--ink-3); }
+  .bar .tools button:hover { color: var(--ink); }
+  section { margin-bottom: 70px; }
+  section > h2 { margin: 0 0 20px; font: italic 400 16px/1 var(--serif); color: var(--ink-3); }
+
+  .icons { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; }
+  .tile { background: #050505; border: 1px solid var(--hair); border-radius: 4px; padding: 28px; }
+  .hero-icon { display: grid; place-items: center; min-height: 300px; }
+  .hero-icon svg { width: 220px; height: 220px; }
+  .sizes { display: flex; align-items: flex-end; gap: 22px; margin-bottom: 24px; }
+  .caption { font: 11px/1.6 var(--mono); color: var(--ink-3); }
+  .taskbar { margin-top: 20px; display: flex; gap: 6px; align-items: center; justify-content: center; height: 48px; border-radius: 10px; background: rgba(32,32,34,.9); }
+  .taskbar.light { background: rgba(243,243,243,.92); }
+  .taskbar .slot { width: 40px; height: 40px; border-radius: 6px; display: grid; place-items: center; position: relative; }
+  .taskbar .slot.app::after { content: ""; position: absolute; bottom: 2px; width: 16px; height: 3px; border-radius: 2px; background: var(--warm); }
+  .taskbar .ghost { width: 24px; height: 24px; border-radius: 5px; background: rgba(255,255,255,.12); }
+  .taskbar.light .ghost { background: rgba(0,0,0,.1); }
+
+  .fitbox { position: relative; }
+  .fitbox > [data-fit] { transform-origin: 0 0; position: absolute; left: 0; top: 0; }
+  .win { background: var(--bg); border-radius: 6px; overflow: hidden; position: relative; box-shadow: 0 40px 120px rgba(0,0,0,.7), 0 0 0 1px rgba(244,239,230,.07); }
+  .win::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .06; mix-blend-mode: screen;
+                background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+                animation: grain .9s steps(4) infinite; }
+  @keyframes grain { 25% { background-position: 40px 20px; } 50% { background-position: -30px 60px; } 75% { background-position: 70px -40px; } }
+  .chrome { height: 32px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px 0 20px; position: relative; z-index: 2; }
+  .chrome .mark { font: 300 10px/1 var(--cond); letter-spacing: .9em; color: var(--ink-2); }
+  .chrome .ctl { display: flex; gap: 16px; color: var(--ink-3); }
+  .chrome .ctl i { width: 10px; height: 10px; display: block; position: relative; }
+  .chrome .ctl i.min::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 1px; background: currentColor; }
+  .chrome .ctl i.x::before, .chrome .ctl i.x::after { content: ""; position: absolute; left: 50%; top: -2px; width: 1px; height: 14px; background: currentColor; transform: rotate(45deg); }
+  .chrome .ctl i.x::after { transform: rotate(-45deg); }
+
+  /* la linea di luce */
+  .beam { --len: 1; --level: 0; position: absolute; left: 50%; height: 1px; width: calc(var(--len) * 100%); translate: -50% 0;
+          background: linear-gradient(90deg, transparent, var(--light) 30%, #fff 50%, var(--light) 70%, transparent);
+          box-shadow: 0 0 calc(8px + var(--level) * 24px) rgba(244,230,207,.55); transform: scaleY(calc(1 + var(--level) * 3));
+          transition: width 1.2s var(--ease), top 1.2s var(--ease), transform .08s; }
+  .beam::after { content: ""; position: absolute; left: 50%; top: 50%; width: 120px; height: 40px; translate: -50% -50%; border-radius: 50%;
+                 background: radial-gradient(closest-side, rgba(255,250,240,.55), transparent); filter: blur(4px); opacity: calc(.35 + var(--level)); }
+
+  .link { font: italic 400 16px/1 var(--serif); color: var(--ink-2); border-bottom: 1px solid var(--ink-3); padding-bottom: 3px; transition: color .25s, border-color .25s; }
+  .link:hover { color: var(--ink); border-color: var(--ink); }
+  .link.strong { color: var(--light); border-color: var(--light); }
+
+  /* installatore */
+  .inst { width: 560px; height: 360px; }
+  .inst .body, .inst .foot { transition: opacity .5s; }
+  .inst .body { padding: 34px 44px 0; text-align: center; }
+  .inst .chap { font: 300 10px/1 var(--cond); letter-spacing: .6em; color: var(--ink-3); }
+  .inst h3 { margin: 16px 0 6px; font: 400 32px/1.15 var(--display); letter-spacing: .01em; }
+  .inst .sub { font-style: italic; color: var(--ink-2); }
+  .inst .credits { margin: 24px auto 0; width: 380px; text-align: left; font: 11.5px/2 var(--mono); color: var(--ink-2); }
+  .inst .credits .r { display: flex; gap: 10px; }
+  .inst .credits .r span:first-child { color: var(--ink-3); width: 90px; flex: none; }
+  .check { display: inline-flex; align-items: center; gap: 10px; font: italic 14px/1 var(--serif); color: var(--ink-2); margin-top: 8px; }
+  .check .box { width: 12px; height: 12px; border: 1px solid var(--ink-3); border-radius: 50%; position: relative; transition: all .3s; }
+  .check.on .box { border-color: var(--light); background: var(--light); box-shadow: 0 0 10px rgba(244,230,207,.6), inset 0 0 0 2.5px var(--bg); }
+  .inst .foot { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 44px 26px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .inst .legal { font: 10.5px/1.5 var(--mono); color: var(--ink-3); max-width: 280px; }
+  .inst .foot .acts { display: flex; gap: 22px; }
+  .inst .work, .inst .done { position: absolute; inset: 32px 0 0; display: grid; place-items: center; text-align: center; opacity: 0; pointer-events: none; transition: opacity .7s; }
+  .inst[data-state="work"] .body, .inst[data-state="work"] .foot, .inst[data-state="done"] .body, .inst[data-state="done"] .foot { opacity: 0; pointer-events: none; }
+  .inst[data-state="work"] .work, .inst[data-state="done"] .done { opacity: 1; pointer-events: auto; }
+  .inst .work .beam { --len: var(--p); top: 50%; }
+  .inst .work .lbl { position: absolute; left: 0; right: 0; top: calc(50% + 26px); font: italic 15px/1 var(--serif); color: var(--ink-2); }
+  .inst .done h3 { margin-bottom: 24px; }
+
+  /* primo avvio */
+  .setup { width: 1040px; height: 640px; --progress: 0; }
+  .setup .letter { position: absolute; left: 0; right: 0; height: 64px; background: #000; z-index: 1; }
+  .setup .letter.top { top: 0; } .setup .letter.bot { bottom: 0; }
+  .chapter { position: absolute; top: -20px; left: 0; right: 0; text-align: center; font: 300 10.5px/1 var(--cond); letter-spacing: .7em; text-transform: uppercase; color: var(--ink-3); z-index: 2; }
+  .chapter span { margin-left: 1.4em; }
+  .setup .lang { position: absolute; top: 44px; right: 26px; z-index: 3; font: italic 13px/1 var(--serif); color: var(--ink-3); }
+  .setup .lang:hover { color: var(--ink); }
+  .setup > .beam { top: 588px; --len: calc(.04 + var(--progress) * .96); z-index: 2; }
+  .setup[data-current="hello"] > .beam { top: 336px; --len: .62; }
+  .setup[data-current="test"] > .beam { top: 396px; --len: .5; }
+  .setup[data-current="done"] > .beam { top: 362px; --len: .9; }
+  .roman { position: absolute; bottom: 24px; left: 0; right: 0; z-index: 2; display: flex; justify-content: center; gap: 26px; }
+  .roman button { font: 400 12px/1 var(--serif); color: var(--ink-3); letter-spacing: .1em; transition: color .3s; }
+  .roman button.past { color: var(--ink-2); }
+  .roman button.on { color: var(--light); }
+  [data-step] { position: absolute; inset: 64px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+                opacity: 0; pointer-events: none; transition: opacity .9s var(--ease); }
+  [data-step].on { opacity: 1; pointer-events: auto; transition-delay: .35s; }
+  .t { margin: 0; font: 400 40px/1.15 var(--display); letter-spacing: .005em; }
+  .t em { font-style: italic; }
+  .s { margin: 10px 0 0; font: italic 400 18px/1.45 var(--serif); color: var(--ink-2); max-width: 560px; }
+  .acts { margin-top: 40px; display: flex; gap: 30px; justify-content: center; align-items: baseline; }
+  [data-step="hello"] .t { font-size: 58px; margin-top: -60px; }
+  [data-step="hello"] .acts { margin-top: 96px; }
+  .credits { margin-top: 30px; width: 560px; font: 12.5px/1 var(--mono); }
+  .credit { display: grid; grid-template-columns: 1fr 1fr; align-items: baseline; gap: 12px; padding: 8px 0; color: var(--ink-3); transition: color .5s; position: relative; }
+  .credit .k { text-align: right; padding-right: 14px; border-right: 1px solid var(--hair); }
+  .credit .v { text-align: left; padding-left: 14px; color: var(--ink); opacity: 0; transition: opacity .5s; }
+  .credit.ok { color: var(--ink-2); }
+  .credit.ok .v { opacity: 1; }
+  .profile { margin-top: 22px; font: italic 17px/1.4 var(--serif); color: var(--light); opacity: 0; transition: opacity .9s; }
+  .profile.on { opacity: 1; }
+  .profile span { display: block; font-size: 14px; color: var(--ink-2); }
+  .menu { margin-top: 18px; display: flex; flex-direction: column; gap: 0; width: 680px; }
+  .opt { display: grid; grid-template-columns: 26px 1fr auto; gap: 2px 14px; align-items: baseline; text-align: left; padding: 8px 18px; border-radius: 2px; cursor: pointer; transition: background .4s; }
+  .opt::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink-3); margin-left: 8px; transition: all .4s; align-self: center; }
+  .opt.on { background: linear-gradient(90deg, transparent, rgba(244,230,207,.06), transparent); }
+  .opt.on::before { background: var(--light); border-color: var(--light); box-shadow: 0 0 12px rgba(244,230,207,.8); }
+  .opt.disabled { opacity: .35; cursor: not-allowed; }
+  .opt b { font: 400 18px/1.3 var(--display); }
+  .opt span { grid-column: 2; font: italic 13.5px/1.4 var(--serif); color: var(--ink-2); }
+  .opt .tag { grid-column: 3; grid-row: 1; font: 300 9.5px/1 var(--cond); letter-spacing: .4em; text-transform: uppercase; color: var(--warm); }
+  .opt .login { grid-column: 2; justify-self: start; margin-top: 6px; font: italic 14px/1 var(--serif); color: var(--light); border-bottom: 1px solid rgba(244,230,207,.4); padding-bottom: 2px; }
+  .opt .login[data-state="wait"] { color: var(--warm); border-color: rgba(227,178,106,.5); animation: blink 1.1s infinite; }
+  .opt .login[data-state="ok"] { color: var(--ink); border-color: transparent; }
+  @keyframes blink { 50% { opacity: .35; } }
+  .dl { --p: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: baseline; padding: 7px 0; color: var(--ink-3); }
+  .dl[hidden] { display: none; }
+  .dl .n { text-align: right; padding-right: 14px; border-right: 1px solid var(--hair); font: 12.5px/1 var(--mono); transition: color .4s;
+}
+  .dl .sz { text-align: left; padding-left: 14px; font: 12.5px/1 var(--mono); color: var(--ink-2); }
+  .dl .n { color: color-mix(in srgb, var(--ink) calc(var(--p) * 100%), rgba(244,239,230,.3)); }
+  .dl.done .sz { color: var(--light); font-style: italic; font-family: var(--serif); }
+  .dl .track { display: none; }
+  .total { margin-top: 22px; font: italic 15px/1 var(--serif); color: var(--ink-2); }
+  .meters { margin-top: 26px; display: flex; gap: 60px; }
+  .meter { --level: 0; font: 300 10px/1 var(--cond); letter-spacing: .5em; text-transform: uppercase; color: var(--ink-3); display: flex; align-items: center; gap: 12px; }
+  .meter i { width: 8px; height: 8px; border-radius: 50%; background: var(--light); opacity: calc(.15 + var(--level) * 1.2); box-shadow: 0 0 calc(var(--level) * 18px) var(--light); }
+  .line { margin-top: 30px; font: italic 26px/1.3 var(--display); color: var(--light); opacity: 0; min-height: 34px; }
+  .line.show { animation: line 2.6s var(--ease) forwards; }
+  @keyframes line { 10%, 85% { opacity: 1; } 100% { opacity: .55; } }
+  [data-step="done"] .t { margin-top: -40px; }
+  [data-step="done"] .acts { margin-top: 110px; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01s !important; transition-duration: .01s !important; } }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="bar">
+    <h1>JARVIS</h1>
+    <div class="tools"><button data-play><span data-t="board_pause"></span></button><button data-lang-switch></button></div>
+  </div>
+
+  <section>
+    <h2 data-t="board_icon"></h2>
+    <div class="icons">
+      <div class="tile hero-icon">
+        <svg viewBox="0 0 256 256" aria-label="Jarvis">
+          <defs>
+            <radialGradient id="c-bg" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#1b1815"/><stop offset="1" stop-color="#040404"/></radialGradient>
+            <linearGradient id="c-beam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f4e6cf" stop-opacity="0"/><stop offset=".3" stop-color="#f4e6cf"/><stop offset=".5" stop-color="#ffffff"/><stop offset=".7" stop-color="#f4e6cf"/><stop offset="1" stop-color="#f4e6cf" stop-opacity="0"/></linearGradient>
+            <radialGradient id="c-flare" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff8ec" stop-opacity=".9"/><stop offset=".35" stop-color="#f4e6cf" stop-opacity=".35"/><stop offset="1" stop-color="#f4e6cf" stop-opacity="0"/></radialGradient>
+            <filter id="c-blur"><feGaussianBlur stdDeviation="6"/></filter>
+          </defs>
+          <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#c-bg)"/>
+          <rect x="8.5" y="8.5" width="239" height="239" rx="55.5" fill="none" stroke="#f4efe6" stroke-opacity=".08"/>
+          <ellipse cx="128" cy="128" rx="70" ry="22" fill="url(#c-flare)" filter="url(#c-blur)"/>
+          <rect x="30" y="125" width="196" height="6" rx="3" fill="url(#c-beam)"/>
+          <circle cx="128" cy="128" r="9" fill="#fff"/>
+        </svg>
+      </div>
+      <div class="tile">
+        <div class="sizes" id="c-sizes"></div>
+        <div class="caption" data-t="sizes"></div>
+        <div class="taskbar"><span class="slot"><i class="ghost"></i></span><span class="slot"><i class="ghost"></i></span><span class="slot app" id="c-tb1"></span><span class="slot"><i class="ghost"></i></span></div>
+        <div class="taskbar light"><span class="slot"><i class="ghost"></i></span><span class="slot app" id="c-tb2"></span><span class="slot"><i class="ghost"></i></span><span class="slot"><i class="ghost"></i></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-t="board_inst"></h2>
+    <div class="fitbox" style="max-width:560px"><div data-fit="560">
+      <div class="win inst" data-installer data-state="ready">
+        <div class="chrome"><span class="mark">JARVIS</span><span class="ctl"><i class="min"></i><i class="x"></i></span></div>
+        <div class="body">
+          <h3 data-t="inst_title"></h3>
+          <div class="sub" data-t="inst_sub"></div>
+          <div class="credits">
+            <div class="r"><span data-t="inst_where"></span><span data-t="inst_path"></span></div>
+            <div class="r"><span></span><span data-t="inst_space" style="font-family:var(--serif);font-style:italic;line-height:1.5"></span></div>
+          </div>
+          <button class="check on" data-toggle role="checkbox" aria-checked="true" style="margin-top:18px"><span class="box"></span><span data-t="inst_desktop"></span></button>
+        </div>
+        <div class="foot"><span class="legal" data-t="inst_license"></span><span class="acts"><button class="link" data-t="inst_cancel"></button><button class="link strong" data-install><span data-t="inst_go"></span></button></span></div>
+        <div class="work"><i class="beam"></i><div class="lbl" data-inst-step data-t="inst_s1"></div></div>
+        <div class="done"><div><h3 data-t="inst_done"></h3><button class="link strong" data-t="inst_open"></button></div></div>
+      </div>
+    </div></div>
+  </section>
+
+  <section>
+    <h2 data-t="board_setup"></h2>
+    <div class="fitbox"><div data-fit="1040">
+      <div class="win setup" data-wizard>
+        <div class="chrome"><span class="mark">JARVIS</span><span class="ctl"><i class="min"></i><i class="x"></i></span></div>
+        <i class="letter top"></i><i class="letter bot"></i>
+        <button class="lang" data-lang-switch></button>
+        <i class="beam" data-wave></i>
+
+        <div data-step="hello">
+          <div class="chapter">I<span data-t="step_hello"></span></div>
+          <h3 class="t" data-t="hello_t"></h3>
+          <p class="s" data-t="hello_s"></p>
+          <div class="acts"><button class="link strong" data-next><span data-t="hello_go"></span></button></div>
+        </div>
+
+        <div data-step="pc">
+          <div class="chapter">II<span data-t="step_pc"></span></div>
+          <h3 class="t" data-t="pc_t"></h3>
+          <p class="s" data-t="pc_s"></p>
+          <div class="credits">
+            <div class="credit" data-check><span class="k" data-t="pc_os"></span><span class="v" data-t="v_os"></span></div>
+            <div class="credit" data-check><span class="k" data-t="pc_gpu"></span><span class="v" data-t="v_gpu"></span></div>
+            <div class="credit" data-check><span class="k" data-t="pc_ram"></span><span class="v" data-t="v_ram"></span></div>
+            <div class="credit" data-check><span class="k" data-t="pc_disk"></span><span class="v" data-t="v_disk"></span></div>
+            <div class="credit" data-check><span class="k" data-t="pc_mic"></span><span class="v" data-t="v_mic"></span></div>
+          </div>
+          <div class="profile" data-profile><span data-t="pc_profile" style="font-size:17px;color:var(--light)"></span><span data-t="pc_profile_s"></span></div>
+          <div class="acts"><button class="link" data-prev data-t="back"></button><button class="link strong" data-next data-t="next"></button></div>
+        </div>
+
+        <div data-step="brain">
+          <div class="chapter">III<span data-t="step_brain"></span></div>
+          <h3 class="t" data-t="brain_t"></h3>
+          <p class="s" data-t="brain_s"></p>
+          <div class="menu" data-group="brain" role="radiogroup">
+            <div class="opt on" data-choice="pro" role="radio" aria-checked="true"><b data-t="b_pro"></b><span class="tag" data-t="b_best"></span><span data-t="b_pro_s"></span><button class="login" data-login><span data-t="b_login"></span></button></div>
+            <div class="opt" data-choice="api" role="radio" aria-checked="false"><b data-t="b_api"></b><i></i><span data-t="b_api_s"></span></div>
+            <div class="opt" data-choice="free" role="radio" aria-checked="false"><b data-t="b_free"></b><i></i><span data-t="b_free_s"></span></div>
+            <div class="opt disabled" data-choice="local" role="radio" aria-checked="false" aria-disabled="true"><b data-t="b_local"></b><i></i><span data-t="b_local_s"></span></div>
+          </div>
+          <div class="acts" style="margin-top:18px"><button class="link" data-prev data-t="back"></button><button class="link strong" data-next data-t="next"></button></div>
+        </div>
+
+        <div data-step="voice">
+          <div class="chapter">IV<span data-t="step_voice"></span></div>
+          <h3 class="t" data-t="voice_t"></h3>
+          <p class="s" data-t="voice_s"></p>
+          <div class="menu" data-group="voice" role="radiogroup">
+            <div class="opt on" data-choice="base" role="radio" aria-checked="true"><b data-t="vo_base"></b><i></i><span data-t="vo_base_s"></span><button class="login" data-say><span data-t="vo_listen"></span></button></div>
+            <div class="opt" data-choice="film" role="radio" aria-checked="false"><b data-t="vo_film"></b><i></i><span data-t="vo_film_s"></span><button class="login" data-say><span data-t="vo_listen"></span></button></div>
+          </div>
+          <div class="acts"><button class="link" data-prev data-t="back"></button><button class="link strong" data-next data-t="next"></button></div>
+        </div>
+
+        <div data-step="dl">
+          <div class="chapter">V<span data-t="step_dl"></span></div>
+          <h3 class="t" data-t="dl_t"></h3>
+          <p class="s" data-t="dl_s"></p>
+          <div class="credits">
+            <div class="dl" data-dl="dl_engine"><span class="n" data-t="dl_engine"></span><span class="sz" data-size></span><i class="track"></i></div>
+            <div class="dl" data-dl="dl_ears"><span class="n" data-t="dl_ears"></span><span class="sz" data-size></span><i class="track"></i></div>
+            <div class="dl" data-dl="dl_voice"><span class="n" data-t="dl_voice"></span><span class="sz" data-size></span><i class="track"></i></div>
+            <div class="dl" data-dl="dl_who"><span class="n" data-t="dl_who"></span><span class="sz" data-size></span><i class="track"></i></div>
+            <div class="dl" data-dl="dl_mem"><span class="n" data-t="dl_mem"></span><span class="sz" data-size></span><i class="track"></i></div>
+            <div class="dl" data-dl="dl_turn"><span class="n" data-t="dl_turn"></span><span class="sz" data-size></span><i class="track"></i></div>
+            <div class="dl" data-dl="dl_film" hidden><span class="n" data-t="dl_film"></span><span class="sz" data-size></span><i class="track"></i></div>
+          </div>
+          <div class="total" data-total></div>
+          <div class="acts" style="margin-top:28px"><button class="link" data-prev data-t="back"></button><button class="link strong" data-next data-t="next"></button></div>
+        </div>
+
+        <div data-step="test">
+          <div class="chapter">VI<span data-t="step_test"></span></div>
+          <h3 class="t" data-t="test_t"></h3>
+          <p class="s" data-t="test_s"></p>
+          <div class="meters">
+            <div class="meter" data-meter="mic"><i></i><span data-t="test_mic"></span></div>
+            <div class="meter" data-meter="out"><i></i><span data-t="test_out"></span></div>
+          </div>
+          <div class="line" data-line data-t="test_line"></div>
+          <div class="acts" style="margin-top:64px"><button class="link" data-prev data-t="back"></button><button class="link" data-say><span data-t="test_play"></span></button><button class="link strong" data-next data-t="next"></button></div>
+        </div>
+
+        <div data-step="done">
+          <div class="chapter">VII<span data-t="step_done"></span></div>
+          <h3 class="t" data-t="done_t"></h3>
+          <p class="s" data-t="done_s"></p>
+          <div class="acts"><button class="check on" data-toggle role="checkbox" aria-checked="true"><span class="box"></span><span data-t="done_auto"></span></button><button class="link strong" data-t="done_go"></button></div>
+        </div>
+
+        <nav class="roman">
+          <button data-dot data-goto="0">I</button><button data-dot data-goto="1">II</button><button data-dot data-goto="2">III</button>
+          <button data-dot data-goto="3">IV</button><button data-dot data-goto="4">V</button><button data-dot data-goto="5">VI</button>
+          <button data-dot data-goto="6">VII</button>
+        </nav>
+      </div>
+    </div></div>
+  </section>
+</div>
+<script>
+  /* sotto i 48 px niente bagliore (diventerebbe una macchia): la linea più spessa e il punto */
+  const big = document.querySelector(".hero-icon svg").outerHTML;
+  const small = `<svg viewBox="0 0 32 32"><rect x="1" y="1" width="30" height="30" rx="8" fill="#0d0b0a"/><rect x="4" y="14.6" width="24" height="2.8" rx="1.4" fill="#f4e6cf"/><circle cx="16" cy="16" r="2.6" fill="#fff"/></svg>`;
+  const sizes = document.getElementById("c-sizes");
+  for (const px of [256, 64, 48, 32, 24, 16]) {
+    const d = document.createElement("div");
+    d.innerHTML = px >= 48 ? big : small;
+    const s = d.firstElementChild;
+    s.setAttribute("width", px > 128 ? 128 : px); s.setAttribute("height", px > 128 ? 128 : px);
+    sizes.appendChild(s);
+  }
+  for (const id of ["c-tb1", "c-tb2"]) document.getElementById(id).innerHTML = small.replace("<svg", '<svg width="24" height="24"');
+</script>
+<script src="proto.js"></script>
+</body>
+</html>

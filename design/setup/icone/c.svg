@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+          <defs>
+            <radialGradient id="c-bg" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#1b1815"/><stop offset="1" stop-color="#040404"/></radialGradient>
+            <linearGradient id="c-beam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f4e6cf" stop-opacity="0"/><stop offset=".3" stop-color="#f4e6cf"/><stop offset=".5" stop-color="#ffffff"/><stop offset=".7" stop-color="#f4e6cf"/><stop offset="1" stop-color="#f4e6cf" stop-opacity="0"/></linearGradient>
+            <radialGradient id="c-flare" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff8ec" stop-opacity=".9"/><stop offset=".35" stop-color="#f4e6cf" stop-opacity=".35"/><stop offset="1" stop-color="#f4e6cf" stop-opacity="0"/></radialGradient>
+            <filter id="c-blur"><feGaussianBlur stdDeviation="6"/></filter>
+          </defs>
+          <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#c-bg)"/>
+          <rect x="8.5" y="8.5" width="239" height="239" rx="55.5" fill="none" stroke="#f4efe6" stroke-opacity=".08"/>
+          <ellipse cx="128" cy="128" rx="70" ry="22" fill="url(#c-flare)" filter="url(#c-blur)"/>
+          <rect x="30" y="125" width="196" height="6" rx="3" fill="url(#c-beam)"/>
+          <circle cx="128" cy="128" r="9" fill="#fff"/>
+        </svg>
