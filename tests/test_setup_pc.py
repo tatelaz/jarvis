@@ -57,7 +57,14 @@ def test_amd_and_intel_go_on_the_processor_for_now(vendor):
 
 def test_no_graphics_card_at_all():
     p = pc.choose(facts())
-    assert p.key == "processore" and p.notes == ["voce_lenta"] and p.ok
+    assert p.key == "processore" and p.notes == ["voce_lenta"]
+
+
+def test_processor_profile_is_blocked_until_the_voice_runs_without_nvidia():
+    """Il motore della voce oggi parte solo con CUDA: meglio dirlo prima che installare un Jarvis muto."""
+    assert pc.choose(facts()).blockers == ["voce_solo_nvidia"]
+    assert pc.choose(facts(pc.Gpu("Radeon", "amd", 16384))).blockers == ["voce_solo_nvidia"]
+    assert pc.choose(facts(RTX_4060)).ok
 
 
 def test_biggest_nvidia_wins():

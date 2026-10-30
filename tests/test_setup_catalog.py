@@ -49,6 +49,7 @@ def test_files_land_where_jarvis_looks_for_them():
     assert by_key["voice"] == [models + engine.MODEL_FILES["qwen3-1.7b"]]
     assert by_key["voice-small"] == [models + engine.MODEL_FILES["qwen3-0.6b"]]
     assert by_key["ears"] == [models + engine.MODEL_FILES["parakeet-ultra"]]
+    assert by_key["voice-fallback"] == [models + engine.MODEL_FILES["supertonic"]]
     assert set(by_key["turns"]) == {"models/" + rel(paths.SILERO_VAD, paths.MODELS_DIR),
                                     "models/" + rel(paths.SMART_TURN, paths.MODELS_DIR)}
     assert by_key["speakers"] == ["models/" + rel(speaker_model.MODEL, paths.MODELS_DIR)]
@@ -74,7 +75,7 @@ def test_cuda_engines_bring_their_runtime_and_the_processor_one_does_not():
 
 def test_plan_has_one_engine_the_common_parts_and_one_voice():
     keys = [p.key for p in catalog.plan("engine-cuda13", "voice")]
-    assert keys == ["engine-cuda13", "ears", "turns", "speakers", "memory", "voice"]
+    assert keys == ["engine-cuda13", "ears", "voice-fallback", "turns", "speakers", "memory", "voice"]
     assert [p.key for p in catalog.plan("engine-cpu", "voice-small")][-1] == "voice-small"
 
 

@@ -4,7 +4,9 @@ Le regole del profilo sono funzioni pure (`choose`), separate dalla raccolta dei
 su qualsiasi PC immaginario. Le soglie vengono dalle misure su questo progetto (docs/STATO.md): voce 1.7B e
 orecchie insieme sulla scheda video occupano 5,6 GB al lavoro; sul solo processore la voce clonata impiega
 12,8 s a frase. Le schede AMD e Intel (motore Vulkan) e le NVIDIA sotto 8 GB non sono ancora state misurate su
-un PC vero: il profilo lo dice invece di promettere.
+un PC vero: il profilo lo dice invece di promettere. Il motore della voce oggi parte solo su una NVIDIA
+(`EngineSpec.config` scrive `backend: cuda`): finché non c'è un ripiego, il profilo "processore" è un blocco
+(`voce_solo_nvidia`) e il setup non installa un Jarvis che non saprebbe parlare.
 """
 
 from __future__ import annotations
@@ -128,6 +130,8 @@ def choose(facts: Facts, present: Iterable[str] = ()) -> Profile:
     download_mb = -(-download // 2**20)
     need_mb = -(-int(download + unzip * (UNZIP_FACTOR - 1)) // 2**20) + (MARGIN_MB if todo else 0)
     blockers = []
+    if key == "processore":
+        blockers.append("voce_solo_nvidia")
     if facts.ram_mb < MIN_RAM_MB:
         blockers.append("poca_ram")
     if todo and facts.free_mb < need_mb:

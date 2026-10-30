@@ -78,6 +78,11 @@ PACKAGES = {p.key: p for p in (
         File(GGUF + "Qwen3-TTS-12Hz-0.6B-Base-GGUF/qwen3-tts-12hz-0.6b-base-q8_0.gguf",
              "771420bd20ff5f35407b4fa9cf9c5461e153800d3d772ef51c9febc0a520855d", 1991211136,
              "models/audiocpp/Qwen3-TTS-12Hz-0.6B-Base-GGUF/qwen3-tts-12hz-0.6b-base-q8_0.gguf"),)),
+    Package("voice-fallback", "voce di riserva istantanea: Supertonic 3 (il motore della voce la carica sempre)",
+            "OpenRAIL", (
+        File(GGUF + "Supertonic-3-GGUF/supertonic-3-orig.gguf",
+             "af814486a0bc9513fb36afabd9b1155ad14fb2c36a107ac6ffe62ea9adafb662", 454072836,
+             "models/audiocpp/Supertonic-3-GGUF/supertonic-3-orig.gguf"),)),
     Package("turns", "turni di parola: Silero VAD e Smart Turn v3.2", "MIT, BSD-2-Clause", (
         File(SILERO + "src/silero_vad/data/silero_vad.onnx",
              "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3", 2327524,
@@ -101,7 +106,7 @@ PACKAGES = {p.key: p for p in (
 
 ENGINES = ("engine-cuda13", "engine-cuda12", "engine-cpu")
 VOICES = ("voice", "voice-small")
-ALWAYS = ("ears", "turns", "speakers", "memory")
+ALWAYS = ("ears", "voice-fallback", "turns", "speakers", "memory")
 
 
 def plan(engine: str, voice: str) -> list[Package]:

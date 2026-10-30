@@ -11,6 +11,7 @@ licenze dei modelli che hai installato: alcune lo vietano.
 | parakeet-ultra (Moondream, da Parakeet TDT v3) | orecchie: dalla voce al testo | CC-BY-4.0 | [moondream/parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra) |
 | Parakeet TDT 0.6B v3 (NVIDIA) | orecchie di riserva | CC-BY-4.0 | [nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) |
 | Qwen3-TTS 12Hz 1.7B e 0.6B Base (Qwen) | la voce | Apache-2.0 | [Qwen/Qwen3-TTS-12Hz-1.7B-Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base) |
+| Supertonic 3 (Supertone) | voce di riserva istantanea, se la voce principale non risponde | OpenRAIL (con limiti d'uso) | [Supertone/supertonic-3](https://huggingface.co/Supertone/supertonic-3) |
 | Silero VAD | capire quando c'è voce | MIT | [snakers4/silero-vad](https://github.com/snakers4/silero-vad) |
 | Smart Turn v3 | capire quando hai finito di parlare | BSD-2-Clause | [pipecat-ai/smart-turn](https://github.com/pipecat-ai/smart-turn) |
 | ReDimNet2+ (LAB260, sull'architettura ReDimNet di IDR&D) | riconoscere chi parla | pesi Apache-2.0, codice MIT | [lab260/redimnet2-plus](https://huggingface.co/lab260/redimnet2-plus) |
