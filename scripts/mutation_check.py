@@ -743,6 +743,10 @@ MUTATIONS = [
     ("jarvis/app.py", '        if self.resting and plan.action != "compito" and self.cfg.schedule.wake_from_rest:',
      '        if self.resting and plan.action != "compito":', "tests/test_scheduler.py",
      "programmi: dal riposo si riaccende solo se lo si vuole"),
+    ("scripts/tools/make_icon.py", "        if w != h or not 1 <= w <= 256:", "        if False:", "tests/test_icon.py",
+     "icona: solo immagini quadrate fino a 256 px"),
+    ("scripts/tools/make_icon.py", "    sized.sort(key=lambda s: s[0])", "    sized.reverse()", "tests/test_icon.py",
+     "icona: le misure in ordine di grandezza"),
 ]
 
 
