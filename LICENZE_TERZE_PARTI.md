@@ -25,6 +25,17 @@ ogni conversione segue la licenza del modello da cui viene. Due conversioni non 
 (parakeet-ultra in GGUF, ReDimNet2+ in ONNX, solo il formato e non i pesi): il primo avvio le scarica dalla release
 `modelli-1` di questo repository, che contiene anche provenienza, modifiche e testi delle licenze.
 
+## Voci incluse
+
+Le due voci di base stanno nel codice (`jarvis/speech/voci`): un tratto di circa 12 secondi letto da un volontario
+di LibriVox, le cui registrazioni sono di dominio pubblico. Il file e il punto esatto sono scritti in ogni
+`voice.json`.
+
+| Voce | Lettore | Da | Licenza | Fonte |
+|---|---|---|---|---|
+| `base-it` | Riccardo Fasol | *Il fu Mattia Pascal* di Luigi Pirandello, capitolo II | dominio pubblico (LibriVox) | [archive.org](https://archive.org/details/mattia_pascal_1012_librivox) |
+| `base-en` | Simon Evers | *Huntingtower* di John Buchan, capitolo II | dominio pubblico (LibriVox) | [archive.org](https://archive.org/details/huntingtower_1205_librivox) |
+
 ## Motori e programmi
 
 | Componente | A cosa serve | Licenza | Fonte |

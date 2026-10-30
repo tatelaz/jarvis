@@ -9,7 +9,7 @@ che serve al cervello (Claude, oppure un modello gratuito di OpenCode o di Ollam
 una ricerca sul web.
 
 > Stato: in sviluppo. Oggi gira su un PC di sviluppo. Il primo avvio grafico c'è (controllo del PC, scelta del
-> cervello, download dei modelli); mancano ancora la voce di base e il programma di installazione. Vedi
+> cervello, download dei modelli, voce di base); manca ancora il programma di installazione. Vedi
 > [Prossimi passi](docs/STATO.md#prossimi-passi).
 
 ## Cosa sa fare

@@ -71,7 +71,8 @@ class AudioConfig:
 
 @dataclass
 class SpeechConfig:
-    tts_voice: str = "jarvis"  # nome della voce in data/voices
+    # quale voce: una in data/voices (es. "jarvis", quella del film) o una inclusa, "base-it" o "base-en"
+    tts_voice: str = "jarvis"
     tts_model: str = "qwen3-1.7b"  # chi clona la voce: qwen3-1.7b (scelta dall'utente), qwen3-0.6b, omnivoice
     tts_speed: float = 1.0  # ritmo della voce: 1 = ~19 caratteri al secondo
     # chi trascrive: parakeet-ultra (dal 26/10: stesso Parakeet rifinito da Moondream, errori 3,34 → 2,12 % su

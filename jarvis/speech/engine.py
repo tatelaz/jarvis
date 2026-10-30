@@ -82,8 +82,33 @@ def ears_spec(port: int, device: str = "cpu", threads: int = 6, model: str = "pa
     ], extra={"backend": device, "threads": threads})
 
 
+# Voci incluse in Jarvis: lettori di LibriVox (dominio pubblico), una per lingua. Quelle in data/voices (per
+# esempio la voce del film, che non si distribuisce) hanno la precedenza a parità di nome.
+BUNDLED_VOICES = Path(__file__).parent / "voci"
+
+
+def voice_dir(name: str, data_voices: Path | None = None, bundled: Path = BUNDLED_VOICES) -> Path | None:
+    """La cartella di una voce: prima tra le tue (data/voices), poi tra quelle incluse. None se non c'è."""
+    if not name or Path(name).name != name or name.startswith("."):
+        return None  # un nome, non un percorso
+    for base in (data_voices or paths.DATA_DIR / "voices", bundled):
+        if (base / name / "voice.json").is_file():
+            return base / name
+    return None
+
+
+def available_voices(data_voices: Path | None = None, bundled: Path = BUNDLED_VOICES) -> list[str]:
+    names = set()
+    for base in (data_voices or paths.DATA_DIR / "voices", bundled):
+        if base.is_dir():
+            names |= {d.name for d in base.iterdir() if (d / "voice.json").is_file()}
+    return sorted(names)
+
+
 def load_voice(name: str) -> dict:
-    d = paths.DATA_DIR / "voices" / name
+    d = voice_dir(name)
+    if d is None:
+        raise EngineError(f"voce '{name}' non trovata (ci sono: {', '.join(available_voices()) or 'nessuna'})")
     meta = json.loads((d / "voice.json").read_text(encoding="utf-8"))
     meta["ref_path"] = (d / meta["ref"]).resolve().as_posix()
     meta["dir"] = d

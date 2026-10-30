@@ -1,0 +1,25 @@
+{
+ "name": "base-en",
+ "description": "Voce di base inglese: Simon Evers legge \"Huntingtower\" di John Buchan (LibriVox, dominio pubblico).",
+ "language": "en",
+ "ref": "ref.wav",
+ "ref_text": "The sandy hair was a little thin on the top and a little grey at the temples, the figure was perhaps a little too full for youthful elegance, and an athlete would have censured the neck as too fleshy for perfect health.",
+ "seed": 7,
+ "speed": 1.0,
+ "fx": {
+  "intensity": 1.0,
+  "eq_strength": 1.0,
+  "flanger_mix": 0.55,
+  "flanger_feedback": 0.4,
+  "reflections_mix": 0.18,
+  "drive": 0.25
+ },
+ "source": {
+  "reader": "Simon Evers",
+  "work": "Huntingtower (John Buchan), capitolo II",
+  "url": "https://archive.org/download/huntingtower_1205_librivox/huntingtower_02_buchan.mp3",
+  "from_s": 192.2,
+  "to_s": 203.0,
+  "licence": "dominio pubblico (LibriVox)"
+ }
+}

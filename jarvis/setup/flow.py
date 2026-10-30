@@ -20,6 +20,7 @@ from pathlib import Path
 
 from .. import paths
 from ..config import Config, ConfigStore
+from ..speech.engine import BUNDLED_VOICES, voice_dir
 from . import catalog, pc
 from .brains import ClaudeCode
 from .download import Downloader, DownloadError
@@ -66,10 +67,11 @@ class Setup:
     def __init__(self, store: ConfigStore, downloader: Downloader,
                  gather: Callable[[], pc.Facts] = lambda: pc.gather(paths.MODELS_DIR),
                  claude: ClaudeCode | None = None, voices_dir: Path | None = None, done_path: Path | None = None,
-                 clock: Callable[[], float] = time.monotonic) -> None:
+                 clock: Callable[[], float] = time.monotonic, bundled_voices: Path = BUNDLED_VOICES) -> None:
         self.store, self.downloader, self.gather = store, downloader, gather
         self.claude = claude or ClaudeCode()
         self.voices_dir = voices_dir or paths.DATA_DIR / "voices"
+        self.bundled_voices = bundled_voices
         self.done_path = done_path or paths.DATA_DIR / "setup" / "fatto.json"
         self.clock = clock
         self.finished = asyncio.Event()  # finito bene: Jarvis può partire
@@ -218,8 +220,14 @@ class Setup:
             self.store.set("persona.user_name", name)
         self.store.set("speech.tts_model", TTS_FOR[self.profile.voice])
         self.store.set("system.autostart", bool(autostart))
-        voice = self.voices_dir / self.store.config.speech.tts_voice / "voice.json"
-        if not voice.exists():  # senza una voce Jarvis non parte: meglio dirlo qui che cadere all'avvio
+        def has(name: str) -> bool:
+            return voice_dir(name, self.voices_dir, self.bundled_voices) is not None
+
+        if not has(self.store.config.speech.tts_voice):  # PC nuovo: niente voce del film, si usa quella inclusa
+            base = f"base-{self.store.config.persona.language}"
+            if has(base):
+                self.store.set("speech.tts_voice", base)
+        if not has(self.store.config.speech.tts_voice):  # senza una voce Jarvis non parte: meglio dirlo qui
             return {"ok": False, "problem": "voce_mancante"}
         self.done_path.parent.mkdir(parents=True, exist_ok=True)
         self.done_path.write_text(json.dumps({"profile": self.profile.key, "when": datetime.now().isoformat(

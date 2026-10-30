@@ -829,6 +829,14 @@ MUTATIONS = [
      "pagina del primo avvio: si vede quando l'accesso a Claude è fatto"),
     ('jarvis/setup/pc.py', '    if key == "processore":\n        blockers.append("voce_solo_nvidia")', '    if False:\n        blockers.append("voce_solo_nvidia")', 'tests/test_setup_pc.py',
      'setup: senza NVIDIA la voce non parte e il profilo lo blocca'),
+    ('jarvis/speech/engine.py', '    if not name or Path(name).name != name or name.startswith("."):', '    if not name:', 'tests/test_voices_base.py',
+     'voci: il nome di una voce non diventa mai un percorso'),
+    ('jarvis/speech/engine.py', '    for base in (data_voices or paths.DATA_DIR / "voices", bundled):\n        if (base / name / "voice.json").is_file():', '    for base in (bundled, data_voices or paths.DATA_DIR / "voices"):\n        if (base / name / "voice.json").is_file():', 'tests/test_voices_base.py',
+     'voci: le tue voci vengono prima di quelle incluse'),
+    ('jarvis/tools/front.py', '    if engine.voice_dir(name) is None:', '    if False:', 'tests/test_voices_base.py',
+     "voci: una voce che non c'è non si imposta (Jarvis non partirebbe)"),
+    ('jarvis/setup/flow.py', '        if not has(self.store.config.speech.tts_voice):  # PC nuovo', '        if False:  # PC nuovo', 'tests/test_setup_flow.py',
+     'primo avvio: su un PC nuovo si usa la voce inclusa della lingua'),
 ]
 
 

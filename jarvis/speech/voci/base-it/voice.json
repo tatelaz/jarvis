@@ -1,0 +1,25 @@
+{
+ "name": "base-it",
+ "description": "Voce di base italiana: Riccardo Fasol legge \"Il fu Mattia Pascal\" di Luigi Pirandello (LibriVox, dominio pubblico).",
+ "language": "it",
+ "ref": "ref.wav",
+ "ref_text": "Qualche vecchio del paese si compiace ancora di dare a credere che la ricchezza di mio padre, la quale pure non gli dovrebbe più dare ombra, passata com'è da un pezzo in altre mani, avesse origini, diciamo così, misteriose.",
+ "seed": 7,
+ "speed": 1.0,
+ "fx": {
+  "intensity": 1.0,
+  "eq_strength": 1.0,
+  "flanger_mix": 0.55,
+  "flanger_feedback": 0.4,
+  "reflections_mix": 0.18,
+  "drive": 0.25
+ },
+ "source": {
+  "reader": "Riccardo Fasol",
+  "work": "Il fu Mattia Pascal (Luigi Pirandello), capitolo II",
+  "url": "https://archive.org/download/mattia_pascal_1012_librivox/mattiapascal_02_pirandello.mp3",
+  "from_s": 49.45,
+  "to_s": 62.15,
+  "licence": "dominio pubblico (LibriVox)"
+ }
+}

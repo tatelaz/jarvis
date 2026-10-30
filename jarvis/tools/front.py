@@ -83,6 +83,7 @@ SETTABLE = {
     "compiti_su_opencode": ("brain.opencode_workers", lambda v: _bool(v)),
     "programmi_attivi": ("schedule.enabled", lambda v: _bool(v)),
     "programmi_dal_riposo": ("schedule.wake_from_rest", lambda v: _bool(v)),
+    "voce_di_jarvis": ("speech.tts_voice", lambda v: _voice(v)),
 }
 
 
@@ -217,6 +218,22 @@ def _ranged(name: str, lo: float, hi: float, kind: type = int):
 
 _frames = _ranged("fotogrammi", 1, 50)
 
+_VOICES = {"film": "jarvis", "del film": "jarvis", "quella del film": "jarvis", "jarvis": "jarvis",
+           "base": "base-it", "di base": "base-it", "italiana": "base-it", "italiano": "base-it", "fasol": "base-it",
+           "riccardo": "base-it", "base-it": "base-it", "inglese": "base-en", "english": "base-en", "evers": "base-en",
+           "simon": "base-en", "base-en": "base-en"}
+
+
+def _voice(v: Any) -> str:
+    """La voce detta a voce: un nome che esiste davvero (una voce sbagliata farebbe cadere Jarvis all'avvio)."""
+    from ..speech import engine
+
+    key = " ".join(str(v).strip().lower().split())
+    name = _VOICES.get(key, key)
+    if engine.voice_dir(name) is None:
+        raise ValueError(f"voce sconosciuta '{v}' (ci sono: {', '.join(engine.available_voices())})")
+    return name
+
 NORMALIZE = {"ui.accent": look.color, "ui.theme": _theme, "ui.effects": _effects, "ui.text_scale": _scale,
              "brain.provider": _provider, "audio.echo_reference": _reference, "system.proposals": _proposals,
              "apps.whatsapp": _whatsapp, "media.omni": _omni, "media.frames": _frames,
@@ -225,7 +242,8 @@ NORMALIZE = {"ui.accent": look.color, "ui.theme": _theme, "ui.effects": _effects
              "media.transcript_chars": _ranged("caratteri", 2000, 200_000),
              "brain.opencode_privacy": _privacy, "brain.opencode_model": _model,
              "brain.opencode_worker_model": _model,
-             "schedule.catch_up_minutes": _ranged("minuti di recupero", 0, 1440, float)}
+             "schedule.catch_up_minutes": _ranged("minuti di recupero", 0, 1440, float),
+             "speech.tts_voice": _voice}
 
 
 def _parse_value(raw: Any, current: Any) -> Any:

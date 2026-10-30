@@ -190,6 +190,7 @@ class Jarvis:
         self.ears.supervise()
         self.voice_engine.supervise()
         voice = VoiceOutput(TtsClient(self.voice_engine.host, self.voice_engine.port), voice_meta,
+                            language="English" if cfg.persona.language == "en" else "Italian",
                             speed=lambda: cfg.speech.tts_speed)  # "velocità voce" a voce, vale subito
         self._voice = voice
         # caricamento e "riscaldamento" prima di dichiararsi pronto: la prima richiesta a freddo costa

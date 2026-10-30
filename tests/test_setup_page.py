@@ -46,7 +46,8 @@ class Harness:
         self.store = ConfigStore(tmp_path / "config.yaml")
         self.claude = kw.pop("claude", FakeClaude())
         self.setup = flow.Setup(self.store, FakeDownloader(tmp_path), gather=kw.pop("gather", lambda: facts(RTX)),
-                                claude=self.claude, voices_dir=tmp_path / "voices", done_path=tmp_path / "fatto.json")
+                                claude=self.claude, voices_dir=tmp_path / "voices", done_path=tmp_path / "fatto.json",
+                                bundled_voices=tmp_path / "incluse")  # senza voci incluse: si vede l'avviso
         self.server = SetupServer(self.setup, port=free_port())
         self.url = f"http://127.0.0.1:{self.server.port}/"
         self.errors: list[str] = []

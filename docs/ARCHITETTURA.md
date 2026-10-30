@@ -288,8 +288,9 @@ stanno in `jarvis/setup/` e non dipendono dalla pagina:
 - **`flow.py`** (`Setup`): la procedura senza HTTP. `missing_files` dice cosa manca a Jarvis per partire;
   lingua e cervello si salvano subito (solo `claude` e `opencode`: gli altri non funzionano su un PC nuovo senza
   altro lavoro), poi controllo del PC, download con avanzamento per gruppo e velocità sugli ultimi 6 s, fine:
-  nome, avvio con Windows (lo applica Jarvis con `autostart.reconcile`), voce adatta al profilo. Se manca la voce
-  (`data/voices/<tts_voice>`) lo dice e non fa partire Jarvis.
+  nome, avvio con Windows (lo applica Jarvis con `autostart.reconcile`), modello della voce adatto al profilo e
+  la voce: se quella scelta non c'è (su un PC nuovo la voce del film non c'è mai) usa quella inclusa della lingua,
+  `base-it` o `base-en`. Se non trovasse nemmeno quella lo direbbe, invece di far cadere Jarvis all'avvio.
 - **`server.py`**: la pagina e le richieste in JSON sulla porta della finestra; Host nostro sempre, Origin nostro e
   corpo JSON per ogni POST (un sito aperto nel browser non può comandarlo), le GET non cambiano niente.
 - **`web/`**: la pagina Monolite nelle due lingue (di base quella di Windows): benvenuto, PC, cervello,
@@ -300,9 +301,19 @@ stanno in `jarvis/setup/` e non dipendono dalla pagina:
   (`--no-window`) non si fa: esce con codice 2 e lo scrive nel registro.
 
 Il motore della voce oggi parte solo su NVIDIA (`backend: cuda` fisso): il profilo "processore" è un blocco
-dichiarato (`voce_solo_nvidia`). Da fare: la voce di base (oggi un PC nuovo arriva fino in fondo ma Jarvis non
-può partire senza una voce), la prova di microfono e casse, la chiave API di Claude, il motore Vulkan o su
-processore, le due lingue nel resto dell'app.
+dichiarato (`voce_solo_nvidia`). Da fare: la prova di microfono e casse, la chiave API di Claude, il motore Vulkan
+o su processore, le due lingue nel resto dell'app.
+
+### Voci incluse (dal 30/10)
+
+`jarvis/speech/voci/`: una voce per lingua, ognuna un riferimento di 11-13 s (24 kHz mono, come la voce del film)
+con il suo testo esatto, da cui Qwen3-TTS copia il timbro. Sono lettori di LibriVox, registrazioni di dominio
+pubblico: si distribuiscono con il codice. `base-it` è Riccardo Fasol (*Il fu Mattia Pascal*), `base-en` Simon Evers
+(*Huntingtower*); la fonte esatta (file e secondi) sta in ogni `voice.json`. Scelte a orecchio tra 11 lettori
+misurati (timbro e pulizia); clonate, le orecchie di Jarvis le capiscono senza errori (0 % su sei frasi).
+`engine.voice_dir` cerca prima in `data/voices` (le tue, per esempio quella del film) e poi tra le incluse; un
+nome non diventa mai un percorso. A voce: `voce_di_jarvis` ("inglese", "di base", "quella del film"), rifiutata se
+la voce non esiste. La lingua della sintesi segue `persona.language`.
 
 ## Auto-riparazione e auto-miglioramento
 

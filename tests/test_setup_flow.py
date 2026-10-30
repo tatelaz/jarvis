@@ -78,7 +78,8 @@ class FakeClaude(brains.ClaudeCode):
 def setup(tmp_path):
     store = ConfigStore(tmp_path / "config.yaml")
     s = flow.Setup(store, FakeDownloader(tmp_path), gather=lambda: facts(RTX), claude=FakeClaude(),
-                   voices_dir=tmp_path / "voices", done_path=tmp_path / "setup" / "fatto.json")
+                   voices_dir=tmp_path / "voices", done_path=tmp_path / "setup" / "fatto.json",
+                   bundled_voices=tmp_path / "incluse")  # di base senza voci: si prova anche la voce mancante
     return s
 
 
@@ -299,6 +300,27 @@ async def test_finish_with_a_voice_starts_jarvis(setup):
     assert setup.finished.is_set()
     assert json.loads(setup.done_path.read_text(encoding="utf-8"))["profile"] == "completo"
     assert setup.store.config.persona.user_name == "Utente"  # nome vuoto: resta quello di prima
+
+
+@pytest.mark.parametrize(("lang", "voice"), [("it", "base-it"), ("en", "base-en")])
+async def test_a_new_pc_gets_the_included_voice_of_its_language(setup, lang, voice):
+    from jarvis.speech.engine import BUNDLED_VOICES
+
+    setup.bundled_voices = BUNDLED_VOICES
+    setup.set_language(lang)
+    await download_all(setup)
+    assert setup.finish("", False) == {"ok": True}
+    assert setup.store.config.speech.tts_voice == voice
+
+
+async def test_your_own_voice_is_kept(setup):
+    from jarvis.speech.engine import BUNDLED_VOICES
+
+    setup.bundled_voices = BUNDLED_VOICES
+    give_voice(setup)  # la voce del film, nei tuoi dati
+    await download_all(setup)
+    setup.finish("", False)
+    assert setup.store.config.speech.tts_voice == "jarvis"
 
 
 async def test_light_profile_picks_the_small_voice(setup):
