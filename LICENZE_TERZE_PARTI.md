@@ -1,7 +1,7 @@
 # Licenze di terze parti
 
 Jarvis non contiene modelli né motori: li scarica ognuno dalla loro fonte, con la loro licenza. Qui sotto quelli
-usati, con la licenza verificata alla fonte il 29/10/2026. Prima di usare Jarvis per scopi commerciali, leggi le
+usati, con la licenza verificata alla fonte il 30/10/2026. Prima di usare Jarvis per scopi commerciali, leggi le
 licenze dei modelli che hai installato: alcune lo vietano.
 
 ## Modelli
@@ -13,14 +13,16 @@ licenze dei modelli che hai installato: alcune lo vietano.
 | Qwen3-TTS 12Hz 1.7B e 0.6B Base (Qwen) | la voce | Apache-2.0 | [Qwen/Qwen3-TTS-12Hz-1.7B-Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base) |
 | Silero VAD | capire quando c'è voce | MIT | [snakers4/silero-vad](https://github.com/snakers4/silero-vad) |
 | Smart Turn v3 | capire quando hai finito di parlare | BSD-2-Clause | [pipecat-ai/smart-turn](https://github.com/pipecat-ai/smart-turn) |
-| ReDimNet2+ | riconoscere chi parla | MIT | [IDRnD/redimnet](https://github.com/IDRnD/redimnet) |
-| EmbeddingGemma (Google) | memoria per significato | Gemma Terms of Use | [google/embeddinggemma-300m](https://huggingface.co/google/embeddinggemma-300m) |
+| ReDimNet2+ (LAB260, sull'architettura ReDimNet di IDR&D) | riconoscere chi parla | pesi Apache-2.0, codice MIT | [lab260/redimnet2-plus](https://huggingface.co/lab260/redimnet2-plus) |
+| EmbeddingGemma 2 (Google), in ONNX da onnx-community | memoria per significato | Apache-2.0 | [google/embeddinggemma-2](https://huggingface.co/google/embeddinggemma-2) |
 | Audio Flamingo Next (NVIDIA), facoltativo | musica e suoni nei video | licenza NVIDIA propria, solo uso non commerciale | [nvidia/audio-flamingo-next-hf](https://huggingface.co/nvidia/audio-flamingo-next-hf) |
 | Sidon v0.1, usato solo per preparare la voce | restauro dell'audio di riferimento | MIT | [sarulab-speech/sidon-v0.1](https://huggingface.co/sarulab-speech/sidon-v0.1) |
 | Mel-Band RoFormer, usato solo per preparare la voce | separare la voce dalla musica | MIT | [ZFTurbo/Music-Source-Separation-Training](https://github.com/ZFTurbo/Music-Source-Separation-Training) |
 
 I modelli nel formato GGUF arrivano da [audio-cpp/audio.cpp-gguf](https://huggingface.co/audio-cpp/audio.cpp-gguf):
-ogni conversione segue la licenza del modello da cui viene.
+ogni conversione segue la licenza del modello da cui viene. Due conversioni non esistevano e le abbiamo fatte noi
+(parakeet-ultra in GGUF, ReDimNet2+ in ONNX, solo il formato e non i pesi): il primo avvio le scarica dalla release
+`modelli-1` di questo repository, che contiene anche provenienza, modifiche e testi delle licenze.
 
 ## Motori e programmi
 

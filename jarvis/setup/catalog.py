@@ -6,7 +6,7 @@ usa davvero (controllate il 30/10 contro i file di questo PC e le impronte pubbl
 cambia il file, il download fallisce in modo chiaro invece di installare qualcosa di diverso.
 
 Due file non esistono già pronti da nessuna parte (parakeet-ultra convertito in GGUF, ReDimNet2+ esportato in
-ONNX: vedi docs/STATO.md) e vanno pubblicati con le release del progetto (`MIRROR`).
+ONNX: vedi docs/STATO.md) e stanno nella release `modelli-1` del progetto (`MIRROR`), con le loro licenze.
 `scripts/controlla_catalogo.py` verifica in rete che ogni indirizzo risponda con la misura giusta.
 """
 
@@ -19,7 +19,7 @@ GGUF = "https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/661a224e9d9adbd4
 SMART_TURN = "https://huggingface.co/pipecat-ai/smart-turn-v3/resolve/f766f81d3cfdf7737ac64aad813d91bbfd56bf93/"
 SILERO = "https://raw.githubusercontent.com/snakers4/silero-vad/bfdc0193023f121ea5b3cc7b176dbed570a68a59/"
 GEMMA = "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/"
-MIRROR = "https://github.com/tatelaz/jarvis/releases/download/modelli-1/"  # da pubblicare (vedi sopra)
+MIRROR = "https://github.com/tatelaz/jarvis/releases/download/modelli-1/"  # le conversioni fatte da noi
 
 ROOTS = ("engine", "models")  # dest comincia sempre con una di queste: la cartella vera la decide paths
 
@@ -85,11 +85,11 @@ PACKAGES = {p.key: p for p in (
         File(SMART_TURN + "smart-turn-v3.2-cpu.onnx",
              "2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f", 8679182,
              "models/onnx/smart-turn-v3.2-cpu.onnx"))),
-    Package("speakers", "chi parla: ReDimNet2+ in ONNX", "MIT", (
+    Package("speakers", "chi parla: ReDimNet2+ (LAB260) in ONNX", "Apache-2.0 (pesi), MIT (codice)", (
         File(MIRROR + "redimnet2plus.onnx",
              "0c5edce801bb41be814364352f138e23aac062d9449ac18232ec68a8a7831d62", 50965301,
              "models/speaker/redimnet2-plus/redimnet2plus.onnx"),)),
-    Package("memory", "memoria per significato: EmbeddingGemma 2 q4 in ONNX", "Gemma Terms of Use", tuple(
+    Package("memory", "memoria per significato: EmbeddingGemma 2 q4 in ONNX", "Apache-2.0", tuple(
         File(GEMMA + name, sha, size, "models/onnx/embeddinggemma-2/" + name) for name, sha, size in (
             ("config.json", "8d011bfe08b5e345bbe0b81e5c6fd02c381920b345b986047bc2a33ce7b90d1d", 5031),
             ("tokenizer.json", "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4", 32170510),

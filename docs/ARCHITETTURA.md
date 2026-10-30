@@ -273,8 +273,9 @@ stanno in `jarvis/setup/` e non dipendono dalla pagina:
 - **`catalog.py`**: ogni file con indirizzo fissato a una versione (tag o commit, mai `main`), misura e SHA-256,
   e dove va (`engine/...` o `models/...`, che poi diventano le cartelle vere di `paths`). Un test controlla che ogni
   file finisca esattamente dove Jarvis lo cerca; `scripts/controlla_catalogo.py` controlla in rete indirizzi,
-  misure e impronte. Parakeet-ultra in GGUF e ReDimNet2+ in ONNX non esistono già pronti: vanno nelle release del
-  progetto (`MIRROR`).
+  misure e impronte (quelle delle release GitHub dalla loro API, senza scaricare). Parakeet-ultra in GGUF e
+  ReDimNet2+ in ONNX non esistevano già pronti: stanno nella release `modelli-1` del progetto (`MIRROR`), con
+  provenienza e licenze in `LICENZE-modelli.txt`. Finché il repository è privato si scaricano solo col login.
 - **`download.py`**: un file alla volta in `.part`, ripresa con `Range` dopo un'interruzione (anche a PC spento),
   da capo se il server non sa riprendere o riprende dal punto sbagliato, ritentativi con attese crescenti, subito
   fermo per 404/403/410 e per un file più grande o con un'impronta diversa (mai installato). Gli archivi del motore
