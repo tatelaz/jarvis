@@ -1,4 +1,4 @@
-"""Avvio: python -m jarvis [--console] [--no-window] [--debug]"""
+"""Avvio: python -m jarvis [--console] [--no-window] [--debug] [--setup]"""
 
 from __future__ import annotations
 
@@ -33,7 +33,20 @@ async def _console(app) -> None:
             print(f"         [{t}] { {k: v for k, v in ev.items() if k not in ('type', 'ts')} }")
 
 
-async def main(console: bool, window: bool) -> int:
+async def main(console: bool, window: bool, setup: bool = False) -> int:
+    from .config import ConfigStore
+    from .setup import flow
+
+    missing = flow.missing_files(ConfigStore().config)
+    if setup or missing:  # PC nuovo (o file spariti): prima il primo avvio, poi Jarvis
+        if not window:
+            logging.getLogger("jarvis").error("mancano %s: serve il primo avvio, con la finestra (python -m jarvis "
+                                              "--setup)", ", ".join(p.name for p in missing) or "le scelte")
+            return 2
+        from .setup.run import run as run_setup
+
+        if not await run_setup(ConfigStore()):
+            return 0  # chiuso prima della fine: la prossima volta si riprende da lì
     from .app import Jarvis
 
     app = Jarvis()
@@ -61,6 +74,7 @@ if __name__ == "__main__":
     ap.add_argument("--console", action="store_true", help="mostra la conversazione nel terminale")
     ap.add_argument("--debug", action="store_true")
     ap.add_argument("--no-window", action="store_true", help="non aprire la finestra")
+    ap.add_argument("--setup", action="store_true", help="rifà il primo avvio (scelte e download)")
     a = ap.parse_args()
     log.setup(logging.DEBUG if a.debug else logging.INFO)
     if not single.acquire(single.APP):  # già acceso: si apre la sua finestra, niente seconda copia
@@ -72,7 +86,7 @@ if __name__ == "__main__":
     code = 0
     try:
         with contextlib.suppress(KeyboardInterrupt):
-            code = asyncio.run(main(a.console, not a.no_window))
+            code = asyncio.run(main(a.console, not a.no_window, a.setup))
     except Exception:  # la causa finisce nel registro: il guardiano la mette nel rapporto della caduta
         logging.getLogger("jarvis").exception("Jarvis è caduto")
         sys.exit(1)

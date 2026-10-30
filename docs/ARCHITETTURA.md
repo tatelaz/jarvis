@@ -282,8 +282,27 @@ stanno in `jarvis/setup/` e non dipendono dalla pagina:
   si estraggono rifiutando percorsi che escono dalla cartella e poi si cancellano. `scaricati.json` ricorda cosa è
   già controllato (finché misura e data non cambiano). Lo spazio si controlla prima di cominciare.
 
-Da fare: la pagina vera collegata a questi pezzi, il cervello (login ufficiale di Claude Code, chiave API,
-OpenCode, Ollama), la prova di microfono e casse, la voce di base, le due lingue in tutta l'app.
+- **`brains.py`**: Claude Code solo con i comandi ufficiali: `claude auth status --json` (se ne tengono accesso,
+  abbonamento e metodo, mai email e organizzazione), `claude auth login --claudeai` (browser su claude.ai) e
+  l'installatore di Anthropic (`irm https://claude.ai/install.ps1 | iex`), entrambi in una finestra visibile.
+- **`flow.py`** (`Setup`): la procedura senza HTTP. `missing_files` dice cosa manca a Jarvis per partire;
+  lingua e cervello si salvano subito (solo `claude` e `opencode`: gli altri non funzionano su un PC nuovo senza
+  altro lavoro), poi controllo del PC, download con avanzamento per gruppo e velocità sugli ultimi 6 s, fine:
+  nome, avvio con Windows (lo applica Jarvis con `autostart.reconcile`), voce adatta al profilo. Se manca la voce
+  (`data/voices/<tts_voice>`) lo dice e non fa partire Jarvis.
+- **`server.py`**: la pagina e le richieste in JSON sulla porta della finestra; Host nostro sempre, Origin nostro e
+  corpo JSON per ogni POST (un sito aperto nel browser non può comandarlo), le GET non cambiano niente.
+- **`web/`**: la pagina Monolite nelle due lingue (di base quella di Windows): benvenuto, PC, cervello,
+  download (l'anello in alto si riempie con l'avanzamento vero), pronto. Nelle finestre piccole (la minima è
+  420x560) l'anello in alto sparisce e tutto si stringe.
+- **`run.py`** e `python -m jarvis`: il primo avvio parte da solo se manca un file indispensabile, oppure con
+  `--setup`; chiuso prima della fine, Jarvis non parte e la volta dopo si riprende da lì. Senza finestra
+  (`--no-window`) non si fa: esce con codice 2 e lo scrive nel registro.
+
+Il motore della voce oggi parte solo su NVIDIA (`backend: cuda` fisso): il profilo "processore" è un blocco
+dichiarato (`voce_solo_nvidia`). Da fare: la voce di base (oggi un PC nuovo arriva fino in fondo ma Jarvis non
+può partire senza una voce), la prova di microfono e casse, la chiave API di Claude, il motore Vulkan o su
+processore, le due lingue nel resto dell'app.
 
 ## Auto-riparazione e auto-miglioramento
 

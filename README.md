@@ -8,8 +8,9 @@ Riconoscimento della voce, sintesi, memoria e riconoscimento di chi parla girano
 che serve al cervello (Claude, oppure un modello gratuito di OpenCode o di Ollama) e ciò che chiedi tu, per esempio
 una ricerca sul web.
 
-> Stato: in sviluppo. Oggi gira su un PC di sviluppo; l'installazione guidata (programma di installazione e primo
-> avvio grafico) è il prossimo passo. Vedi [Prossimi passi](docs/STATO.md#prossimi-passi).
+> Stato: in sviluppo. Oggi gira su un PC di sviluppo. Il primo avvio grafico c'è (controllo del PC, scelta del
+> cervello, download dei modelli); mancano ancora la voce di base e il programma di installazione. Vedi
+> [Prossimi passi](docs/STATO.md#prossimi-passi).
 
 ## Cosa sa fare
 
@@ -51,6 +52,10 @@ Serve [uv](https://docs.astral.sh/uv/).
 uv sync
 bash scripts/check.sh
 ```
+
+`python -m jarvis` apre da solo il primo avvio se manca qualcosa di indispensabile; `python -m jarvis --setup` lo
+rifà. `python scripts/primo_avvio_prova.py` mostra la pagina del primo avvio con i dati veri del PC ma senza
+toccare niente (download simulato, configurazione in una cartella temporanea).
 
 `scripts/check.sh` controlla lo stile (ruff) e lancia le prove che non richiedono motori, Claude o hardware. Le prove
 che usano i motori audio, Claude vero o mouse e tastiera hanno i loro marcatori (`engine`, `claude`, `hardware`,
