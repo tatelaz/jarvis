@@ -51,6 +51,7 @@ PRIVACY_CHOICES = ("tutti", "senza addestramento")
 EXAM_LIMIT = 5  # al più tanti modelli per esame: ogni esame consuma un po' dell'uso gratuito del giorno
 GONE_PAUSE_S = 3600.0  # un modello sparito si riprova dopo un'ora (magari era un errore momentaneo)
 BUSY_PAUSE_S = 300.0  # uno sovraccarico dopo cinque minuti
+BLOCKED_PAUSE_S = 86400.0  # uno non disponibile nel paese dopo un giorno (poi lo ricontrolla l'esame)
 
 
 @dataclass
@@ -107,6 +108,7 @@ class ExamResult:
     error: str | None = None
     at: float = 0.0
     unavailable: bool = False  # non ha risposto (lento, sovraccarico): un intoppo, non una bocciatura nel merito
+    blocked: bool = False  # non disponibile nel paese dell'utente: bocciato e mai scelto, finché un esame non cambia
 
     @property
     def passed(self) -> bool:
@@ -164,7 +166,8 @@ class ModelPicker:
 
     def ranking(self) -> list[str]:
         now = self.clock()
-        models = [m.id for m in self.allowed() if self.paused.get(m.id, 0.0) <= now]
+        models = [m.id for m in self.allowed() if self.paused.get(m.id, 0.0) <= now
+                  and not getattr(self.results.get(m.id), "blocked", False)]
         order = {m: i for i, m in enumerate(models)}
 
         def rank(m: str) -> tuple:
@@ -192,8 +195,13 @@ class ModelPicker:
         return voice_variant(info.variants) if info else None
 
     def mark_problem(self, model: str, problem: Any) -> None:
-        pause = GONE_PAUSE_S if getattr(problem, "gone", False) else BUSY_PAUSE_S
+        pause = (BLOCKED_PAUSE_S if getattr(problem, "blocked", False) else
+                 GONE_PAUSE_S if getattr(problem, "gone", False) else BUSY_PAUSE_S)
         self.paused[model] = self.clock() + pause
+        if getattr(problem, "blocked", False):  # vale anche dopo un riavvio, finché un esame non lo trova di nuovo
+            self.results[model] = ExamResult(model, False, False, None, "non disponibile in questo paese",
+                                             self.clock(), blocked=True)
+            self.save()
 
     def record(self, results: list[ExamResult]) -> None:
         for r in results:
@@ -298,8 +306,10 @@ class Examiner:
     async def examine(self, model: str) -> ExamResult:
         from .opencode import EXAM_AGENT, OpenCodeBrain
 
+        problems: list[Any] = []
         brain = OpenCodeBrain(EXAM_SYSTEM.format(user=self.user), self.hub, models=lambda: [model],
-                              name=f"esame {model}", agent=EXAM_AGENT, prefix="esame_", max_models=1, ephemeral=True)
+                              name=f"esame {model}", agent=EXAM_AGENT, prefix="esame_", max_models=1, ephemeral=True,
+                              on_model_problem=lambda _m, p: problems.append(p))
         try:
             t0 = time.perf_counter()
             first, text = None, ""
@@ -322,6 +332,11 @@ class Examiner:
                             else "non ha riportato il dato dello strumento")
             return ExamResult(model, italian, tools, first, error, self.picker.clock())
         except BrainUnavailable as e:
+            blocked = next((p for p in problems if getattr(p, "blocked", False)), None)
+            if blocked is not None:  # vietato nel paese: bocciato (anche se era promosso), e si va avanti con gli altri
+                self.picker.mark_problem(model, blocked)
+                return ExamResult(model, False, False, None, "non disponibile in questo paese", self.picker.clock(),
+                                  blocked=True)
             if e.scope == "provider":  # limite gratuito o chiave rifiutata: inutile esaminare gli altri
                 raise
             return ExamResult(model, False, False, None, str(e)[:160], self.picker.clock(), unavailable=True)

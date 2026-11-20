@@ -41,6 +41,9 @@ Controlli: `bash scripts/check.sh` (lint + test rapidi), `bash scripts/commit.sh
 `python scripts/mutation_check.py` (i test colgono i bug inseriti apposta: 367 mutazioni, le 47 del primo avvio, delle voci e dell'icona colte il 30/10, le 13 dei programmi il 29/10 in una copia separata; le 211 del giro completo del 27/10 tutte colte, quelle nuove di video/audio e di OpenCode verificate dai sotto-agenti il 28/10; con una parola filtra, es. `whatsapp:`).
 Prova dal vivo di OpenCode (modelli gratis veri, niente Claude, consuma un po' dell'uso gratuito del giorno):
 `python scripts/opencode_live.py` (Jarvis può restare acceso: usa una cartella sua).
+Prova dal vivo del ripiego (una risposta di Claude vero, poi Claude esaurito simulato → OpenCode vero, poi il primo
+modello gratis "non disponibile nel paese" simulato → il successivo senza pausa, ed esame): `python
+scripts/ripiego_live.py` (cartella sua; tutta verde il 20/11).
 Prove con Claude vero (consumano abbonamento): `pytest -m "engine and claude" tests/test_e2e.py` (11 giri di fila
 verdi dopo il riscaldamento dei motori; ogni giro salva un rapporto completo in `data/logs/e2e/`) e
 `pytest -m claude tests/test_hands_live.py` (il test del desktop usa mouse e tastiera: marcatore `desktop`).
@@ -320,6 +323,15 @@ limitata anche l'area dei fotogrammi.
 - La cancellazione d'eco attenua la voce dell'utente mentre Jarvis parla: per questo l'interruzione deve fermarlo entro ~400 ms.
 - Limite dell'abbonamento: il risultato dice "You've hit your session limit · resets 8:20pm" e prima arriva un
   `RateLimitEvent` con `status="rejected"` e `resets_at`. Vale per tutti i modelli Claude (Haiku compreso).
+  La parola in mezzo cambia ("5-hour limit", "weekly limit"): il 20/11 "5-hour" non era riconosciuto e Jarvis
+  restava su Claude con una risposta vuota. Ora vale ogni "hit your … limit" e, senza `RateLimitEvent`, l'ora di
+  "resets 1:40pm" (orologio del PC).
+- **OpenCode, "This model is not available in your country"** (403): è un divieto del singolo modello, non
+  dell'account. Prima metteva in pausa tutto OpenCode per 10 minuti e fermava l'esame; ora il modello è bocciato,
+  escluso dalla classifica (anche dopo un riavvio, finché un esame non lo ritrova) e si passa al successivo.
+- **Gli ultimi eventi di una risposta di OpenCode arrivano anche dopo la risposta finale**: con due domande di fila
+  la frase vecchia veniva ridetta all'inizio del giro nuovo (e un cambio di modello saltava). I messaggi dei giri
+  finiti ora si ignorano (`TurnState.past`).
 - L'SDK legge i messaggi con un buffer di 1 MB: un'istantanea del desktop (albero UI + immagine) lo supera →
   `max_buffer_size` a 64 MB nei sotto-agenti.
 - Screenshot di Windows-MCP all'80 % (1536 px): oltre ~1568 px l'API rimpicciolisce di nascosto e le coordinate sballano.

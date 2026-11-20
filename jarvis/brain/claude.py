@@ -11,8 +11,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import re
 import time
 from collections.abc import AsyncIterator
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
@@ -33,6 +35,28 @@ NO_THINKING_MODELS = ("claude-haiku-4-5",)
 _ACCOUNT_LIMIT = ("session limit", "usage limit", "weekly limit", "rate limit", "hit your limit", "credit balance",
                   "out of extra usage")
 _TRANSIENT = ("overloaded", "529", "503", "timeout", "timed out", "connection")
+# "You've hit your session limit", "... your 5-hour limit", "... your weekly limit": Claude Code cambia la parola in
+# mezzo (il 20/11 "5-hour" non era riconosciuto e Jarvis restava su Claude con una risposta vuota)
+_HIT_LIMIT = re.compile(r"hit your [\w -]*limit")
+_RESETS = re.compile(r"resets\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", re.IGNORECASE)
+
+
+def resets_at(err: str, now: float | None = None) -> float | None:
+    """"resets 1:40pm (Europe/Rome)" -> la prossima volta che l'orologio del PC segna quell'ora (epoch). Serve quando
+    manca il RateLimitEvent con l'ora esatta: senza, Claude si riproverebbe ogni minuto."""
+    m = _RESETS.search(err)
+    if not m:
+        return None
+    hour, minute, half = int(m.group(1)), int(m.group(2) or 0), (m.group(3) or "").lower()
+    if half:
+        hour = hour % 12 + (12 if half == "pm" else 0)
+    if hour > 23 or minute > 59:
+        return None
+    base = datetime.fromtimestamp(time.time() if now is None else now)
+    at = base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if at <= base:
+        at += timedelta(days=1)
+    return at.timestamp()
 
 # Claude Code stima 1600 token per ogni immagine di un risultato MCP e, sopra 25.000 token stimati (la metà per non
 # contare davvero), toglie o rimpicciolisce le immagini in più (letto nel codice della CLI 2.1.310). Un video
@@ -52,8 +76,8 @@ def preview(content) -> str:
 def classify_error(err: str, rejected_until: float | None = None) -> BrainUnavailable | None:
     """Errore del risultato -> BrainUnavailable (con portata e ora di ripristino) oppure None se è un errore normale."""
     low = err.lower()
-    if rejected_until is not None or any(k in low for k in _ACCOUNT_LIMIT):
-        return BrainUnavailable(err, retry_at=rejected_until or None, scope="provider")
+    if rejected_until is not None or any(k in low for k in _ACCOUNT_LIMIT) or _HIT_LIMIT.search(low):
+        return BrainUnavailable(err, retry_at=rejected_until or resets_at(err), scope="provider")
     if any(k in low for k in _TRANSIENT):
         return BrainUnavailable(err)
     return None

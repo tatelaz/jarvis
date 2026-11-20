@@ -421,6 +421,92 @@ async def test_a_model_too_slow_for_the_voice_hands_over_to_the_next(oc):
     assert problems == [(GLM, False, "nessuna parola dopo 0 s")] and fake.abort_calls == [fake.prompts[0]["sid"]]
 
 
+COUNTRY = {"name": "APIError", "data": {"message": "This model is not available in your country",
+                                        "statusCode": 403, "isRetryable": False}}
+
+
+async def test_a_model_not_available_in_the_country_hands_over_without_pausing_opencode(oc, tmp_path):
+    """Claude esaurito -> OpenCode; il primo modello gratis è vietato nel paese: subito il successivo, OpenCode
+    resta disponibile (prima: "accesso rifiutato" e tutto il fornitore in pausa per dieci minuti)."""
+    fake, client = oc
+    p, clock = picker_with(tmp_path)
+    p.record([ExamResult(GLM, True, True, 0.5)])  # era il promosso: in testa alla classifica
+
+    async def behave(turn, text):
+        if turn.model == GLM:
+            turn.error = COUNTRY
+        else:
+            await turn.say("Eccomi, dal modello dopo.")
+
+    fake.behave = behave
+    claude = Fixed("claude", "claude", BrainUnavailable("You've hit your 5-hour limit · resets 1:40pm",
+                                                        retry_at=clock["t"] + 3600, scope="provider"))
+    cloud = Fixed("gpt-oss", "ollama-cloud", reply="dal cloud")
+    opencode = OpenCodeBrain("p", StubHub(client, p), p.ranking, on_model_problem=p.mark_problem,
+                             clock=lambda: clock["t"])
+    r = BrainRouter([claude, opencode, cloud], clock=lambda: clock["t"])
+    evs = [ev async for ev in r.respond("ciao")]
+    assert texts(evs) == "Eccomi, dal modello dopo." and cloud.asked == 0
+    assert evs[-1].model == "opencode/nemotron-3.5-lightning-free"
+    assert r.provider_paused_until("opencode") is None  # niente pausa di dieci minuti
+    assert [x["body"]["model"]["modelID"] for x in fake.prompts] == [GLM, "nemotron-3.5-lightning-free"]
+    # il modello vietato è segnato: non si sceglie più, nemmeno dopo un riavvio o passata la pausa
+    assert GLM not in p.ranking() and p.results[GLM].blocked and not p.results[GLM].passed
+    clock["t"] += 2 * 86400
+    assert GLM not in ModelPicker(tmp_path / "esame.json", clock=lambda: clock["t"]).ranking()
+    evs = [ev async for ev in r.respond("ancora")]
+    assert texts(evs) == "Eccomi, dal modello dopo." and len(fake.prompts) == 3  # dritto al modello buono
+
+
+async def test_late_events_of_the_turn_before_are_not_said_again(oc):
+    """20/11 dal vivo, due domande di fila: gli ultimi eventi della risposta prima arrivavano a giro nuovo partito.
+    La vecchia frase veniva ridetta e, col modello dopo vietato nel paese, il cambio di modello saltava."""
+    fake, client = oc
+    first: dict = {}
+
+    async def behave(turn, text):
+        if not first:
+            first.update(sid=turn.sid, asst=turn.asst_id)
+            await turn.say("Sono le 21:37.")
+            return
+        # il finale ritardato del messaggio di prima, poi l'errore del modello vietato o la risposta nuova
+        await turn.emit("message.part.updated", part={"id": "prt_vecchia", "messageID": first["asst"],
+                                                      "sessionID": turn.sid, "type": "text", "text": "Sono le 21:37."})
+        await turn.emit("message.updated", info={"id": first["asst"], "role": "assistant", "sessionID": turn.sid})
+        if turn.model == GLM:
+            turn.error = COUNTRY
+        else:
+            await turn.say("La Luna si allontana di quasi quattro centimetri all'anno.")
+
+    fake.behave = behave
+    brain = OpenCodeBrain("p", StubHub(client), lambda: [GLM, "big-pickle"])
+    assert texts(await collect(brain)) == "Sono le 21:37."
+    evs = await collect(brain, "dimmi una curiosità")
+    assert texts(evs) == "La Luna si allontana di quasi quattro centimetri all'anno."
+    assert evs[-1].model == "opencode/big-pickle"
+
+
+async def test_exam_marks_a_model_not_available_in_the_country_and_goes_on(oc, tmp_path):
+    fake, client = oc
+    p, _ = picker_with(tmp_path)
+    p.record([ExamResult(GLM, True, True, 0.5)])  # promosso a un esame di prima
+    examiner = Examiner(StubHub(client, p), p)
+
+    async def behave(turn, text):
+        if turn.model == GLM:
+            turn.error = COUNTRY
+        else:
+            await turn.say("Sono Jarvis, il suo assistente: posso aprire le app per lei.")
+
+    fake.behave = behave
+    results = await examiner.run()
+    by = {r.model: r for r in results}
+    assert set(by) == {GLM, "nemotron-3.5-lightning-free", "big-pickle"}  # l'esame non si ferma al divieto
+    assert by[GLM].blocked and not by[GLM].unavailable and by[GLM].error == "non disponibile in questo paese"
+    assert not p.results[GLM].passed and GLM not in p.ranking()  # la promozione di prima non vale più
+    assert p.best() is not None and "non disponibile in questo paese" in p.describe()
+
+
 def test_a_hiccup_does_not_undo_a_promotion(tmp_path):
     p, _ = picker_with(tmp_path)
     p.record([ExamResult(GLM, True, True, 1.1)])
@@ -556,6 +642,12 @@ def test_classify_error():
     assert isinstance(busy, ModelProblem) and not busy.gone
     other = classify_error({"name": "ContextOverflowError", "data": {"message": "troppo lungo"}})
     assert isinstance(other, BrainUnavailable) and other.scope == "brain"
+    # vietato nel paese: arriva con un 403, ma riguarda un solo modello (mai tutto OpenCode in pausa)
+    for msg in ("This model is not available in your country", "Model unavailable in your region",
+                "This model is not supported in your country or region"):
+        here = classify_error({"name": "APIError", "data": {"message": msg, "statusCode": 403}}, now)
+        assert isinstance(here, ModelProblem) and here.blocked and here.gone, msg
+    assert not classify_error({"name": "APIError", "data": {"message": "x", "statusCode": 404}}).blocked
     assert next_utc_midnight(now) % 86400 == 0 and 0 < next_utc_midnight(now) - now <= 86400
     assert free_limit_until({"type": "retry", "next": 1793232000881, "action": {"reason": "free_tier_limit"}}) == \
         1793232000.881

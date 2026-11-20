@@ -449,11 +449,21 @@ def next_utc_midnight(now: float) -> float:
 
 
 class ModelProblem(Exception):
-    """Questo modello non va (sparito, sovraccarico): si prova il successivo della classifica."""
+    """Questo modello non va (sparito, sovraccarico, vietato qui): si prova il successivo della classifica."""
 
-    def __init__(self, message: str, gone: bool = False) -> None:
+    def __init__(self, message: str, gone: bool = False, blocked: bool = False) -> None:
         super().__init__(message)
-        self.gone = gone
+        self.gone = gone or blocked
+        self.blocked = blocked  # non disponibile nel paese o nella regione: inutile riprovarlo presto
+
+
+_WHERE = ("country", "region")
+_NOT_HERE = ("not available", "unavailable", "not supported", "unsupported", "restricted", "not allowed")
+
+
+def blocked_here(low: str) -> bool:
+    """"This model is not available in your country" e simili: un divieto del singolo modello, non dell'account."""
+    return any(w in low for w in _WHERE) and any(n in low for n in _NOT_HERE)
 
 
 def classify_error(err: dict | None, now: float | None = None) -> BrainUnavailable | ModelProblem | None:
@@ -471,6 +481,8 @@ def classify_error(err: dict | None, now: float | None = None) -> BrainUnavailab
         return BrainUnavailable(f"OpenCode: {msg}", retry_at=min(next_utc_midnight(now), now + FREE_RETRY_S),
                                 scope="provider")
     status = data.get("statusCode")
+    if blocked_here(low):  # arriva con un 403, ma riguarda solo questo modello: gli altri gratis vanno provati
+        return ModelProblem(f"modello non disponibile in questo paese: {msg}", blocked=True)
     if name == "ProviderAuthError" or status in (401, 403):
         return BrainUnavailable(f"OpenCode: accesso rifiutato ({msg})", retry_at=now + 600, scope="provider")
     if status == 404 or "not found" in low or "modelnotfound" in low.replace(" ", ""):
@@ -498,8 +510,11 @@ class TurnState:
     testo anche lei, né il ragionamento). Le parti arrivano prima con i pezzi (`message.part.delta`) e alla fine
     intere (`message.part.updated`): si dice ciò che manca, mai due volte."""
 
-    def __init__(self, prefix: str) -> None:
+    def __init__(self, prefix: str, past: set[str] | None = None) -> None:
         self.prefix = prefix  # "jarvis_": i nomi degli strumenti di Jarvis come li vede il resto del codice
+        # messaggi dei giri prima: i loro ultimi eventi possono arrivare a giro nuovo già partito (visto dal vivo il
+        # 20/11 con due domande di fila: la risposta vecchia veniva ridetta e il cambio di modello saltava)
+        self.past = past if past is not None else set()
         self.roles: dict[str, str] = {}  # messageID -> user / assistant
         self.kinds: dict[str, str] = {}  # partID -> text / reasoning / tool ...
         self.said: dict[str, int] = {}  # caratteri già detti per ogni parte di testo
@@ -516,6 +531,10 @@ class TurnState:
     def feed(self, ev: dict) -> list[BrainEvent]:
         t = ev.get("type")
         p = ev.get("properties") or {}
+        mid = ((p.get("info") or {}).get("id") if t == "message.updated" else
+               (p.get("part") or {}).get("messageID") if t == "message.part.updated" else p.get("messageID"))
+        if mid in self.past:
+            return []
         if t == "message.updated":
             info = p.get("info") or {}
             mid, role = info.get("id"), info.get("role")
@@ -766,6 +785,7 @@ class OpenCodeBrain:
         self.on_model_problem = on_model_problem
         self.session_id: str | None = None
         self.model = ""
+        self._past: set[str] = set()  # messaggi dei giri già finiti (TurnState.past)
         self._lock = asyncio.Lock()
         self._interrupted = False
         self._client: OpenCodeClient | None = None
@@ -814,7 +834,7 @@ class OpenCodeBrain:
                 if model not in tried:
                     tried.append(model)
                 self.model = model
-                state = TurnState(self.prefix)
+                state = TurnState(self.prefix, self._past)
                 try:
                     async for ev in self._turn(client, model, message, state):
                         yield ev
@@ -837,6 +857,8 @@ class OpenCodeBrain:
                     if e.status == 404:
                         self.session_id = None
                     raise BrainUnavailable(f"OpenCode: {e}") from e
+                finally:  # da qui in poi i messaggi di questo giro sono "vecchi"
+                    self._past.update(state.roles, state.waiting)
             raise BrainUnavailable(f"nessun modello gratis di OpenCode disponibile ({', '.join(tried) or 'nessuno'}"
                                    f"{': ' + str(last) if last else ''})")
 

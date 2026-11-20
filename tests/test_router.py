@@ -3,7 +3,7 @@ import time
 import pytest
 
 from jarvis.brain.base import BrainUnavailable, Done, Notice, TextDelta
-from jarvis.brain.claude import classify_error
+from jarvis.brain.claude import classify_error, resets_at
 from jarvis.brain.router import DEFAULT_PAUSE_S, BrainRouter
 from jarvis.core.conversation import _when, switch_sentence, unavailable_sentence
 
@@ -125,6 +125,24 @@ def test_classify_error():
     e = classify_error("Overloaded")
     assert e is not None and e.scope == "brain"
     assert classify_error("Tool input non valido") is None
+
+
+def test_any_hit_your_limit_is_the_account_limit_with_its_reset_time():
+    """20/11: "5-hour limit" non era riconosciuto e Jarvis restava su Claude invece di passare a OpenCode."""
+    from datetime import datetime
+
+    now = datetime(2026, 11, 20, 9, 15).timestamp()
+    for msg in ("You've hit your 5-hour limit · resets 1:40pm (Europe/Rome)", "You've hit your weekly limit",
+                "You've hit your limit · resets 1:40pm"):
+        e = classify_error(msg)
+        assert e is not None and e.scope == "provider", msg
+    assert resets_at("You've hit your 5-hour limit · resets 1:40pm (Europe/Rome)", now) == \
+        datetime(2026, 11, 20, 13, 40).timestamp()
+    assert resets_at("resets 8am", now) == datetime(2026, 11, 21, 8, 0).timestamp()  # già passata: domani
+    assert resets_at("resets 12:05am", now) == datetime(2026, 11, 21, 0, 5).timestamp()
+    assert resets_at("resets 21:30", now) == datetime(2026, 11, 20, 21, 30).timestamp()
+    assert resets_at("You've hit your weekly limit · resets Nov 24", now) is None
+    assert classify_error("qualunque cosa", rejected_until=123.0).retry_at == 123.0  # l'ora esatta dell'SDK vince
 
 
 def test_sentences():
