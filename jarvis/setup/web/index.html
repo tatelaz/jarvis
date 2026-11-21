@@ -84,6 +84,27 @@
     </div>
   </section>
 
+  <section data-step="test">
+    <div class="kicker" data-t="step_test"></div>
+    <h1 class="t" data-t="test_t"></h1>
+    <p class="s" data-t="test_s"></p>
+    <div class="meters">
+      <div class="meter" id="mic-meter">
+        <label class="k"><span data-t="test_mic"></span><select id="mic-select"></select></label>
+        <div class="lvl"></div>
+        <span class="heard" id="heard" data-t="test_heard"></span>
+      </div>
+      <div class="meter out" id="out-meter">
+        <label class="k"><span data-t="test_out"></span><select id="out-select"></select></label>
+        <div class="lvl"></div>
+        <button class="link" id="play" type="button" data-t="test_play"></button>
+      </div>
+    </div>
+    <div class="line" id="test-line"></div>
+    <p class="hint problem" id="test-error" hidden></p>
+    <div class="act"><button class="btn ghost" data-prev type="button" data-t="back"></button><button class="btn primary" data-next type="button" data-t="next"></button></div>
+  </section>
+
   <section data-step="done">
     <h1 class="t" data-t="done_t"></h1>
     <p class="s" data-t="done_s"></p>

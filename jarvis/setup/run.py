@@ -52,6 +52,7 @@ async def run(store: ConfigStore, window: bool = True) -> bool:
         return setup.finished.is_set()
     finally:
         await setup.cancel_download()  # la parte scaricata resta: la prossima volta si riprende da lì
+        setup.stop_mic()
         if win is not None and win.returncode is None:
             with contextlib.suppress(ProcessLookupError):
                 win.terminate()

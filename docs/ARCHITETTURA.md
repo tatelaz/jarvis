@@ -293,16 +293,30 @@ stanno in `jarvis/setup/` e non dipendono dalla pagina:
   `base-it` o `base-en`. Se non trovasse nemmeno quella lo direbbe, invece di far cadere Jarvis all'avvio.
 - **`server.py`**: la pagina e le richieste in JSON sulla porta della finestra; Host nostro sempre, Origin nostro e
   corpo JSON per ogni POST (un sito aperto nel browser non può comandarlo), le GET non cambiano niente.
+- **`audio_check.py`**: la prova di microfono e casse senza accendere i motori. Il microfono scelto si apre per
+  al massimo 30 s e misura il livello (barra da -60 a -12 dBFS, che scende piano); "ti sento" quando la voce supera
+  la soglia per almeno 250 ms in tutto, così il fondo della stanza o un colpo secco non bastano. Le casse suonano
+  `prova.wav` della voce inclusa della lingua: la frase di `test_line`, registrata con lo stesso motore, voce ed
+  effetto di Jarvis. I dispositivi si cercano come li cerca Jarvis (WASAPI); si sceglie solo un nome che esiste.
 - **`web/`**: la pagina Monolite nelle due lingue (di base quella di Windows): benvenuto, PC, cervello,
-  download (l'anello in alto si riempie con l'avanzamento vero), pronto. Nelle finestre piccole (la minima è
+  download (l'anello in alto si riempie con l'avanzamento vero), prova di microfono e casse, pronto. Controllo del
+  PC e stato di Claude partono già sul benvenuto: nella finestra vera, a freddo, hanno impiegato 8 s ciascuno
+  (programmi che partono per la prima volta, antivirus), a caldo meno di 1 s. Nelle finestre piccole (la minima è
   420x560) l'anello in alto sparisce e tutto si stringe.
 - **`run.py`** e `python -m jarvis`: il primo avvio parte da solo se manca un file indispensabile, oppure con
   `--setup`; chiuso prima della fine, Jarvis non parte e la volta dopo si riprende da lì. Senza finestra
   (`--no-window`) non si fa: esce con codice 2 e lo scrive nel registro.
 
 Il motore della voce oggi parte solo su NVIDIA (`backend: cuda` fisso): il profilo "processore" è un blocco
-dichiarato (`voce_solo_nvidia`). Da fare: la prova di microfono e casse, la chiave API di Claude, il motore Vulkan
-o su processore, le due lingue nel resto dell'app.
+dichiarato (`voce_solo_nvidia`). Da fare: la chiave API di Claude, il motore Vulkan o su processore, le due lingue
+nel resto dell'app.
+
+Provato dal vero il 21/11 come un PC nuovo, nella finestra vera (`JARVIS_DATA_DIR`, `JARVIS_ENGINE_DIR` e
+`JARVIS_MODELS_DIR` su cartelle vuote, tranne i due modelli della release privata copiati a mano): `python -m jarvis`
+ha aperto da solo il primo avvio, il download vero (4,7 GB da GitHub e Hugging Face, 7-8 MB/s) è finito con tutte le
+impronte giuste e il motore estratto, poi Jarvis è partito con la voce `base-it` in 11,9 s e ha risposto a voce
+(prima parola dopo 2,4 s). Visto in quella prova: la finestra si apre dietro le altre se a lanciarla è un processo
+in secondo piano (da un collegamento o dall'installatore non succede).
 
 ### Voci incluse (dal 30/10)
 

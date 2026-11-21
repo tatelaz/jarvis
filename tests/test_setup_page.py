@@ -7,12 +7,16 @@ sotto l'anello, sia alla misura normale sia a quella minima della finestra di Ja
 
 import asyncio
 import contextlib
+import threading
 
+import numpy as np
 import pytest
+from test_setup_audio import FakeSD, find
 from test_setup_flow import RTX, FakeClaude, FakeDownloader, facts, free_port, give_voice
 
 from jarvis.config import ConfigStore
 from jarvis.setup import flow, pc
+from jarvis.setup.audio_check import AudioCheck
 from jarvis.setup.download import DownloadError
 from jarvis.setup.server import SetupServer
 
@@ -47,7 +51,8 @@ class Harness:
         self.claude = kw.pop("claude", FakeClaude())
         self.setup = flow.Setup(self.store, FakeDownloader(tmp_path), gather=kw.pop("gather", lambda: facts(RTX)),
                                 claude=self.claude, voices_dir=tmp_path / "voices", done_path=tmp_path / "fatto.json",
-                                bundled_voices=tmp_path / "incluse")  # senza voci incluse: si vede l'avviso
+                                bundled_voices=kw.pop("bundled", tmp_path / "incluse"),  # senza: si vede l'avviso
+                                audio=AudioCheck(sd=FakeSD(), find=find))
         self.server = SetupServer(self.setup, port=free_port())
         self.url = f"http://127.0.0.1:{self.server.port}/"
         self.errors: list[str] = []
@@ -127,6 +132,10 @@ async def test_the_whole_setup_in_italian(tmp_path):
         await check_fits(page)
         await page.click('[data-step="dl"] [data-next]')
 
+        await on(page, "test")
+        await check_fits(page)
+        await page.click('[data-step="test"] [data-next]')
+
         await on(page, "done")
         await check_fits(page)
         await page.fill("#name", "Andrea")
@@ -173,6 +182,11 @@ async def test_english_from_windows_and_switching_language(tmp_path):
         await page.wait_for_function("document.querySelector('#total').textContent === 'All downloaded'")
         await check_fits(page)
         await page.click('[data-step="dl"] [data-next]')
+        await on(page, "test")
+        await page.wait_for_function("document.querySelector('#mic-select').options.length === 2")
+        assert await text(page, "#mic-select option:first-child") == "Windows default"
+        await check_fits(page)
+        await page.click('[data-step="test"] [data-next]')
         await on(page, "done")
         await check_fits(page)
         assert h.store.config.brain.provider == "opencode"
@@ -261,3 +275,114 @@ async def test_closing_asks_the_program_to_stop(tmp_path):
                 break
             await asyncio.sleep(0.02)
         assert h.setup.quit.is_set()
+
+
+async def test_checks_start_on_the_welcome_screen(tmp_path):
+    """Nella finestra vera, a freddo, il controllo del PC e lo stato di Claude hanno impiegato 8 s ciascuno: partono
+    già mentre si legge il benvenuto, così al passo sono pronti."""
+    calls = []
+
+    def gather():
+        calls.append(1)
+        return facts(RTX)
+
+    async with opened(tmp_path, gather=gather) as (h, page):
+        for _ in range(150):
+            if calls and h.setup.profile is not None:
+                break
+            await asyncio.sleep(0.02)
+        assert len(calls) == 1  # senza toccare niente
+        await page.click('[data-step="hello"] [data-next]')
+        await page.wait_for_selector('#rows .row[data-row="net"].ok')
+        await page.click('[data-step="pc"] [data-next]')
+        await on(page, "brain")
+        await page.wait_for_function("document.querySelector('#claude-action').textContent === 'Accedi con Claude'")
+        assert len(calls) == 1  # il controllo già fatto, non un secondo
+        assert h.errors == []
+
+
+async def test_claude_status_is_awaited_visibly(tmp_path):
+    release = threading.Event()
+    claude = FakeClaude()
+    slow = claude.run
+
+    def waiting(cmd, **kw):
+        release.wait(10)
+        return slow(cmd, **kw)
+
+    claude.run = waiting
+    async with opened(tmp_path, claude=claude) as (h, page):
+        await page.click('[data-step="hello"] [data-next]')
+        await page.wait_for_selector('#rows .row[data-row="net"].ok')
+        await page.click('[data-step="pc"] [data-next]')
+        await on(page, "brain")
+        assert await text(page, "#claude-action") == "Controllo l'accesso…"
+        assert await page.is_disabled("#claude-action")
+        release.set()
+        await page.wait_for_function("document.querySelector('#claude-action').textContent === 'Accedi con Claude'",
+                                     timeout=8000)
+        assert await page.is_enabled("#claude-action")
+        assert h.errors == []
+
+
+async def go_to_test(page) -> None:
+    await page.click('[data-step="hello"] [data-next]')
+    await page.wait_for_selector('#rows .row[data-row="net"].ok')
+    await page.click('[data-step="pc"] [data-next]')
+    await on(page, "brain")
+    await page.click('[data-step="brain"] [data-next]')
+    await on(page, "dl")
+    await page.wait_for_function("!document.querySelector('[data-step=\"dl\"] [data-next]').disabled")
+    await page.click('[data-step="dl"] [data-next]')
+    await on(page, "test")
+
+
+async def test_microphone_and_speakers(tmp_path):
+    from jarvis.speech.engine import BUNDLED_VOICES
+
+    async with opened(tmp_path, bundled=BUNDLED_VOICES) as (h, page):
+        await go_to_test(page)
+        sd = h.setup.audio.sd
+        for _ in range(100):
+            if sd.streams:
+                break
+            await asyncio.sleep(0.02)
+        assert sd.streams and sd.streams[-1].kw["device"] == 0  # il microfono predefinito, aperto entrando
+        options = await page.locator("#out-select option").all_text_contents()
+        assert options == ["Predefinito di Windows", "Altoparlanti (Realtek)", "Cuffie (Bluetooth)"]
+        for _ in range(40):
+            sd.streams[-1].feed(np.full(480, 0.1, np.float32))  # qualcuno parla
+        await page.wait_for_selector("#mic-meter.ok")
+        assert await text(page, "#heard") == "Ti sento"
+        await page.click("#play")
+        await page.wait_for_function("document.querySelector('#test-line').textContent.length > 10")
+        assert sd.played and sd.played[-1][2] == 1  # le casse predefinite
+        await page.select_option("#out-select", "Cuffie (Bluetooth)")
+        for _ in range(100):
+            if h.store.config.audio.output_device == "Cuffie (Bluetooth)":
+                break
+            await asyncio.sleep(0.02)
+        assert h.store.config.audio.output_device == "Cuffie (Bluetooth)"
+        assert h.store.config.audio.input_device is None
+        await page.click("#play")
+        for _ in range(100):
+            if sd.played[-1][2] == 2:
+                break
+            await asyncio.sleep(0.02)
+        assert sd.played[-1][2] == 2  # ora sulle cuffie
+        await check_fits(page)
+        await page.click('[data-step="test"] [data-next]')
+        await on(page, "done")
+        assert sd.streams[-1].closed  # il microfono si chiude uscendo dalla prova
+        assert h.errors == []
+
+
+async def test_a_busy_microphone_is_explained(tmp_path):
+    async with opened(tmp_path) as (h, page):
+        h.setup.audio.sd.busy = True
+        await go_to_test(page)
+        await page.wait_for_selector("#test-error:not([hidden])")
+        assert "microfono" in await text(page, "#test-error")
+        await page.click('[data-step="test"] [data-next]')  # si può andare avanti lo stesso
+        await on(page, "done")
+        assert h.errors == []

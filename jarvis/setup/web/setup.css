@@ -130,6 +130,27 @@ body[data-current="dl"] .halo .arc { opacity: 0; }
 .dl.done .track::after { background: var(--voice); }
 .total { margin-top: 16px; min-height: 12px; font: 500 11px/1 var(--cond); letter-spacing: .3em; text-transform: uppercase; color: var(--ink-2); }
 
+/* prova di microfono e casse */
+.meters { margin-top: clamp(16px, 3.6vh, 30px); display: grid; grid-template-columns: repeat(2, minmax(0, 260px)); gap: 26px;
+          text-align: left; }
+.meter { --level: 0; display: grid; gap: 10px; align-content: start; }
+.meter .k { display: grid; gap: 8px; font: 500 10.5px/1 var(--cond); letter-spacing: .26em; text-transform: uppercase; color: var(--ink-3); }
+.meter select { font: 12px/1.2 var(--text); letter-spacing: 0; text-transform: none; color: var(--ink-2); background: #000;
+                border: 0; border-bottom: 1px solid var(--hair); padding: 4px 0; outline: none; width: 100%; cursor: pointer; }
+.meter select:focus { border-color: var(--voice); }
+.lvl { height: 26px; background: linear-gradient(90deg, var(--ink) calc(var(--level) * 100%), var(--hair) 0);
+       -webkit-mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 7px);
+       mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 7px); }
+.meter.out .lvl { background: linear-gradient(90deg, var(--voice) calc(var(--level) * 100%), var(--hair) 0); }
+.heard { min-height: 16px; font: 500 10.5px/16px var(--cond); letter-spacing: .22em; text-transform: uppercase; color: var(--voice);
+         opacity: 0; transition: opacity .4s; }
+.meter.ok .heard { opacity: 1; }
+.meter .link { margin-top: 0; }
+.line { margin-top: clamp(12px, 3vh, 26px); max-width: 560px; min-height: 28px; font: 300 20px/1.4 var(--text); color: var(--voice);
+        opacity: 0; }
+.line.show { animation: line 6s var(--ease) forwards; }
+@keyframes line { 0% { opacity: 0; filter: blur(4px); } 8% { opacity: 1; filter: none; } 85% { opacity: 1; } 100% { opacity: .45; } }
+
 /* pronto */
 .name { margin-top: clamp(16px, 3.6vh, 26px); display: grid; gap: 8px; width: min(320px, 100%); text-align: left; }
 .name span { font: 500 10.5px/1 var(--cond); letter-spacing: .26em; text-transform: uppercase; color: var(--ink-3); }
@@ -155,6 +176,7 @@ body[data-current="bye"] .steps { opacity: 0; transition: opacity .6s; }
 
 @media (max-width: 720px) {
   .choices { grid-template-columns: minmax(0, 1fr); width: min(420px, 100%); }
+  .meters { grid-template-columns: minmax(0, 1fr); width: min(360px, 100%); gap: 14px; }
 }
 /* finestra piccola (la minima è 420x560): l'anello in alto lascia il posto ai contenuti, tutto un po' più stretto */
 @media (max-height: 660px), (max-width: 560px) {
@@ -176,8 +198,12 @@ body[data-current="bye"] .steps { opacity: 0; transition: opacity .6s; }
   .dl { padding: 2px 0; }
   .dl .n { font-size: 12px; }
   .name { margin-top: 12px; }
-  .steps { bottom: 14px; gap: 12px; }
-  .steps span { font-size: 8.5px; letter-spacing: .2em; }
+  .steps { bottom: 14px; gap: 10px; }
+  .steps span { font-size: 8.5px; letter-spacing: .14em; }
+  .lvl { height: 18px; }
+  .meter { gap: 6px; }
+  .heard { min-height: 12px; line-height: 12px; }
+  .line { font-size: 15px; margin-top: 8px; min-height: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01s !important; animation-delay: 0s !important;

@@ -21,5 +21,7 @@
   "from_s": 49.45,
   "to_s": 62.15,
   "licence": "dominio pubblico (LibriVox)"
- }
+ },
+ "test_file": "prova.wav",
+ "test_line": "Buonasera. Se mi sente bene, la voce è a posto: siamo quasi pronti."
 }

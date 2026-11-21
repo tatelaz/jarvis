@@ -5,7 +5,14 @@
 const T = {
   it: {
     close: "Chiudi (riprende da qui la prossima volta)",
-    step_hello: "Benvenuto", step_pc: "Il tuo PC", step_brain: "Cervello", step_dl: "Download", step_done: "Pronto",
+    step_hello: "Benvenuto", step_pc: "Il tuo PC", step_brain: "Cervello", step_dl: "Download", step_test: "Prova",
+    step_done: "Pronto",
+    test_t: "Mi senti? Ti sento?", test_s: "Di' qualcosa: la barra del microfono deve muoversi. Poi ascolta la mia voce.",
+    test_mic: "Microfono", test_out: "Casse", test_heard: "Ti sento", test_play: "Ascolta",
+    test_default: "Predefinito di Windows",
+    e_casse_non_disponibili: "Non riesco a usare queste casse: scegline altre o controlla che siano collegate.",
+    e_dispositivo_sconosciuto: "Questo dispositivo non c'è più: scegline un altro.",
+    e_mic: "Non riesco ad aprire il microfono: forse lo sta usando un altro programma.",
     hello_t: "Ciao. Sono Jarvis.", hello_s: "Pochi minuti per prepararmi, poi il resto me lo dici a voce.",
     hello_go: "Iniziamo",
     pc_t: "Guardo il tuo PC", pc_s: "Scelgo i modelli giusti per la tua scheda video e la tua memoria.",
@@ -32,6 +39,7 @@ const T = {
     b_best: "Consigliato", b_claude: "Claude, con il tuo abbonamento",
     b_claude_s: "Pro o Max. Accedi su claude.ai dal browser: la password non passa da qui.",
     b_free: "OpenCode, gratis", b_free_s: "Nessun account. Modelli gratuiti, meno precisi di Claude.",
+    c_checking: "Controllo l'accesso…",
     c_install: "Installa Claude Code", c_installing: "Installazione nella finestra aperta…",
     c_login: "Accedi con Claude", c_wait: "Completa l'accesso nel browser…", c_ok: "Collegato",
     h_claude_later: "Puoi accedere anche dopo: intanto rispondo con i modelli gratuiti di OpenCode.",
@@ -52,7 +60,14 @@ const T = {
   },
   en: {
     close: "Close (I'll pick up from here next time)",
-    step_hello: "Welcome", step_pc: "Your PC", step_brain: "Brain", step_dl: "Download", step_done: "Ready",
+    step_hello: "Welcome", step_pc: "Your PC", step_brain: "Brain", step_dl: "Download", step_test: "Test",
+    step_done: "Ready",
+    test_t: "Can you hear me?", test_s: "Say something: the microphone bar should move. Then listen to my voice.",
+    test_mic: "Microphone", test_out: "Speakers", test_heard: "I hear you", test_play: "Listen",
+    test_default: "Windows default",
+    e_casse_non_disponibili: "I can't use these speakers: pick others or check they're plugged in.",
+    e_dispositivo_sconosciuto: "This device is gone: pick another one.",
+    e_mic: "I can't open the microphone: another program may be using it.",
     hello_t: "Hello. I'm Jarvis.", hello_s: "A few minutes to get me ready. The rest you can tell me out loud.",
     hello_go: "Let's begin",
     pc_t: "Looking at your PC", pc_s: "I pick the right models for your graphics card and memory.",
@@ -79,6 +94,7 @@ const T = {
     b_best: "Recommended", b_claude: "Claude, with your subscription",
     b_claude_s: "Pro or Max. Sign in on claude.ai in your browser: your password never passes through here.",
     b_free: "OpenCode, free", b_free_s: "No account. Free models, less accurate than Claude.",
+    c_checking: "Checking your sign-in…",
     c_install: "Install Claude Code", c_installing: "Installing in the window that opened…",
     c_login: "Sign in with Claude", c_wait: "Finish signing in in your browser…", c_ok: "Connected",
     h_claude_later: "You can sign in later: meanwhile I'll answer with OpenCode's free models.",
@@ -99,12 +115,15 @@ const T = {
   },
 };
 
-const STEPS = ["hello", "pc", "brain", "dl", "done"];
+const STEPS = ["hello", "pc", "brain", "dl", "test", "done"];
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 let lang = "it";
 let current = 0;
 let pcData = null, brainData = null, dlData = null, choice = "claude";
+// controlli già avviati sul benvenuto: la prima volta i programmi partono a freddo (e l'antivirus li guarda),
+// misurato 8 s nella finestra vera contro meno di 1 s a caldo; così quando si arriva al passo sono già pronti
+let pcEarly = null, brainEarly = null;
 let claudeWait = "";  // "", "install" o "login": si aspetta che finisca nella finestra a parte
 let timer = 0;
 
@@ -166,7 +185,8 @@ function go(i) {
     el.classList.toggle("past", idx >= 0 && idx < i);
   });
   markSteps();
-  const enter = { pc: enterPc, brain: enterBrain, dl: enterDownload, done: enterDone }[name];
+  if (name !== "test") api("/api/mic/stop", {}).catch(() => {});  // il microfono resta aperto solo nella prova
+  const enter = { pc: enterPc, brain: enterBrain, dl: enterDownload, test: enterTest, done: enterDone }[name];
   if (enter) enter();
   const first = $(`[data-step="${name}"] .btn.primary:not(:disabled)`);
   if (first) setTimeout(() => first.focus({ preventScroll: true }), reduced ? 0 : 650);
@@ -181,7 +201,9 @@ async function enterPc() {
   $("#profile").classList.remove("on");
   $('[data-step="pc"] [data-next]').disabled = true;
   try {
-    pcData = await api("/api/pc");
+    const early = pcEarly;
+    pcEarly = null;  // solo la prima volta: "Riprova" deve rifare il controllo davvero
+    pcData = await (early || api("/api/pc"));
   } catch (e) {
     $("#profile").className = "profile on blocked";
     $("#profile b").textContent = t("e_net");
@@ -244,14 +266,19 @@ async function enterBrain() {
 
 async function refreshBrain() {
   try {
-    brainData = await api("/api/brain");
+    const early = brainEarly;
+    brainEarly = null;
+    brainData = await (early || api("/api/brain"));
   } catch {
     brainData = null;
   }
   if (claudeWait === "install" && brainData?.claude.installed) claudeWait = "";
   if (claudeWait === "login" && brainData?.claude.logged_in) claudeWait = "";
   renderBrain();
-  if (claudeWait && STEPS[current] === "brain") timer = setTimeout(refreshBrain, claudeWait === "install" ? 3000 : 2000);
+  // si richiede finché si aspetta l'installazione o l'accesso, e anche se la risposta non è arrivata (riprova)
+  if ((claudeWait || !brainData) && STEPS[current] === "brain") {
+    timer = setTimeout(refreshBrain, claudeWait === "install" || !brainData ? 3000 : 2000);
+  }
 }
 
 function renderBrain() {
@@ -259,6 +286,7 @@ function renderBrain() {
   const btn = $("#claude-action");
   const c = brainData?.claude;
   let label = t("c_login"), state = "";
+  if (!brainData) [label, state] = [t("c_checking"), "wait"];
   if (claudeWait === "install") [label, state] = [t("c_installing"), "wait"];
   else if (claudeWait === "login") [label, state] = [t("c_wait"), "wait"];
   else if (c && !c.installed) label = t("c_install");
@@ -266,7 +294,6 @@ function renderBrain() {
   btn.textContent = label;
   btn.dataset.state = state;
   btn.disabled = state !== "" || !brainData;
-  btn.hidden = !brainData;
   $("#brain-hint").textContent = choice === "opencode" ? t("h_free") : c && !c.logged_in ? t("h_claude_later") : "";
 }
 
@@ -362,6 +389,98 @@ function showDownloadError(text, detail = "") {
   $("#dl-again").hidden = false;
 }
 
+// --- prova di microfono e casse ---
+
+let audioData = null;
+
+function fillSelect(sel, names, chosen) {
+  sel.innerHTML = "";
+  for (const [value, label] of [["", t("test_default")], ...names.map((n) => [n, n])]) {
+    const o = document.createElement("option");
+    o.value = value;
+    o.textContent = label;
+    o.selected = value === chosen;
+    sel.appendChild(o);
+  }
+}
+
+async function enterTest() {
+  $("#test-error").hidden = true;
+  $("#mic-meter").classList.remove("ok");
+  try {
+    audioData = await api("/api/audio");
+  } catch (e) {
+    return showTestError(t(e.code === "net" ? "e_net" : "e_" + e.code));
+  }
+  fillSelect($("#mic-select"), audioData.inputs, audioData.input);
+  fillSelect($("#out-select"), audioData.outputs, audioData.output);
+  startMic();
+}
+
+async function startMic() {
+  try {
+    const m = await api("/api/mic", {});
+    if (m.error) return showTestError(t("e_mic"));
+  } catch {
+    return showTestError(t("e_net"));
+  }
+  pollMic();
+}
+
+function pollMic() {
+  if (STEPS[current] !== "test") return;
+  timer = setTimeout(async () => {
+    let m = null;
+    try { m = await api("/api/mic"); } catch { /* il prossimo giro riprova */ }
+    if (m) {
+      $("#mic-meter").style.setProperty("--level", m.level);
+      if (m.heard) $("#mic-meter").classList.add("ok");
+      if (!m.running) return;  // chiuso da solo dopo un po': si riapre cambiando microfono
+    }
+    pollMic();
+  }, 100);
+}
+
+async function chooseDevices() {
+  $("#test-error").hidden = true;
+  try {
+    await api("/api/audio", { input: $("#mic-select").value, output: $("#out-select").value });
+  } catch (e) {
+    return showTestError(t(e.code === "net" ? "e_net" : "e_" + e.code));
+  }
+  stopTimer();
+  $("#mic-meter").classList.remove("ok");
+  startMic();
+}
+
+async function playTest() {
+  $("#test-error").hidden = true;
+  let r;
+  try {
+    r = await api("/api/play", {});
+  } catch (e) {
+    return showTestError(t(e.code === "net" ? "e_net" : "e_" + e.code));
+  }
+  const line = $("#test-line");
+  line.textContent = r.line;
+  line.classList.remove("show");
+  void line.offsetWidth;  // la stessa animazione può ripartire
+  line.classList.add("show");
+  const out = $("#out-meter"), start = performance.now(), ms = r.seconds * 1000;
+  const wave = (now) => {  // le casse non si misurano: la barra segue la frase mentre suona
+    const k = (now - start) / ms;
+    out.style.setProperty("--level", k >= 1 ? 0 : (0.55 + 0.35 * Math.sin(now / 90)) * Math.sin(Math.PI * k) ** 0.3);
+    if (k < 1) requestAnimationFrame(wave);
+  };
+  requestAnimationFrame(wave);
+}
+
+function showTestError(text) {
+  const el = $("#test-error");
+  el.textContent = text;
+  el.hidden = false;
+}
+
 // --- pronto ---
 
 function enterDone() {
@@ -399,6 +518,10 @@ async function main() {
   $("#name").value = start.name || "";
   api("/api/lang", { lang }).catch(() => {});
   applyLanguage();
+  pcEarly = api("/api/pc");
+  brainEarly = api("/api/brain");
+  pcEarly.catch(() => {});  // gli errori li gestisce il passo, quando arriva
+  brainEarly.catch(() => {});
 
   $("#lang").onclick = () => {
     lang = lang === "it" ? "en" : "it";
@@ -411,6 +534,10 @@ async function main() {
   $('[data-step="pc"] [data-next]').onclick = () => go(2);
   $('[data-step="brain"] [data-next]').onclick = brainNext;
   $('[data-step="dl"] [data-next]').onclick = () => go(4);
+  $('[data-step="test"] [data-next]').onclick = () => go(5);
+  $("#mic-select").onchange = chooseDevices;
+  $("#out-select").onchange = chooseDevices;
+  $("#play").onclick = playTest;
   $("#pc-again").onclick = () => { pcData = null; enterPc(); };
   $("#dl-again").onclick = async () => {
     $("#dl-again").hidden = true;

@@ -27,6 +27,9 @@ def test_included_voices_are_complete(name):
     info = sf.info(d / meta["ref"])
     assert (info.samplerate, info.channels, info.subtype) == (24000, 1, "PCM_16")  # come la voce del film
     assert 8 <= info.duration <= 15  # abbastanza per il timbro, non troppo per il modello
+    test = sf.info(d / meta["test_file"])  # la frase della prova delle casse, detta come la direbbe Jarvis
+    assert (test.samplerate, test.channels) == (24000, 1) and 2 <= test.duration <= 8
+    assert meta["test_line"].strip()
 
 
 def make_voice(base, name):

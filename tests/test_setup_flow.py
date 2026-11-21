@@ -480,3 +480,72 @@ async def test_main_without_window_does_not_start_a_half_installed_jarvis(monkey
 
     monkeypatch.setattr(flow, "missing_files", lambda cfg: [Path("audiocpp_server.exe")])
     assert await entry.main(console=False, window=False) == 2
+
+
+# --- microfono e casse ---
+
+
+@pytest.fixture
+def heard(setup):
+    from test_setup_audio import FakeSD, find
+
+    from jarvis.setup.audio_check import AudioCheck
+
+    setup._audio = AudioCheck(sd=FakeSD(), find=find)
+    return setup
+
+
+def test_devices_come_with_the_current_choice(heard):
+    heard.store.set("audio.output_device", "Cuffie (Bluetooth)")
+    d = heard.audio_devices()
+    assert d["outputs"] == ["Altoparlanti (Realtek)", "Cuffie (Bluetooth)"]
+    assert (d["input"], d["output"]) == ("", "Cuffie (Bluetooth)")
+
+
+def test_chosen_devices_are_saved_and_checked(heard, tmp_path):
+    heard.set_audio("Microfono (USB)", "")
+    c = ConfigStore(tmp_path / "config.yaml").config
+    assert (c.audio.input_device, c.audio.output_device) == ("Microfono (USB)", None)  # vuoto = predefinito
+    with pytest.raises(flow.SetupError, match="dispositivo_sconosciuto"):
+        heard.set_audio("Microfono che non c'è", "")
+    assert heard.store.config.audio.input_device == "Microfono (USB)"
+
+
+def test_microphone_test_opens_the_chosen_microphone(heard):
+    heard.store.set("audio.input_device", "usb")
+    m = heard.start_mic()
+    assert m["running"] and heard.audio.sd.streams[-1].kw["device"] == 0
+    heard.stop_mic()
+    assert heard.audio.sd.streams[-1].closed
+
+
+async def test_speaker_test_plays_the_included_voice_of_the_language(heard):
+    from jarvis.speech.engine import BUNDLED_VOICES
+
+    heard.bundled_voices = BUNDLED_VOICES
+    heard.set_language("en")
+    heard.store.set("audio.output_device", "cuffie")
+    r = heard.play_test()
+    assert r["line"].startswith("Good evening") and r["seconds"] > 2
+    assert heard.audio.sd.played[-1][2] == 2
+
+
+def test_speakers_that_do_not_work_are_reported(heard):
+    from jarvis.speech.engine import BUNDLED_VOICES
+
+    heard.bundled_voices = BUNDLED_VOICES
+    heard.store.set("audio.output_device", "non c'è")
+    with pytest.raises(flow.SetupError, match="casse_non_disponibili"):
+        heard.play_test()
+
+
+async def test_audio_through_the_server(server, heard):
+    status, data = await call(server, "GET", "/api/audio")
+    assert status == 200 and data["default_input"] == "Microfono (USB)"
+    assert (await call(server, "POST", "/api/audio", {"input": "", "output": "Cuffie (Bluetooth)"}))[0] == 200
+    status, m = await call(server, "POST", "/api/mic", {})
+    assert m["running"]
+    assert (await call(server, "GET", "/api/mic"))[1]["running"]
+    assert (await call(server, "POST", "/api/mic/stop", {}))[0] == 200
+    assert (await call(server, "POST", "/api/audio", {"input": "x", "output": ""})) == \
+           (409, {"error": "dispositivo_sconosciuto"})

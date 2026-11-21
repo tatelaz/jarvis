@@ -837,6 +837,22 @@ MUTATIONS = [
      "voci: una voce che non c'è non si imposta (Jarvis non partirebbe)"),
     ('jarvis/setup/flow.py', '        if not has(self.store.config.speech.tts_voice):  # PC nuovo', '        if False:  # PC nuovo', 'tests/test_setup_flow.py',
      'primo avvio: su un PC nuovo si usa la voce inclusa della lingua'),
+    ('jarvis/setup/web/setup.js', '  pcEarly = api("/api/pc");', '  pcEarly = null;', 'tests/test_setup_page.py',
+     'pagina del primo avvio: il controllo del PC parte sul benvenuto'),
+    ('jarvis/setup/web/setup.js', '  if (!brainData) [label, state] = [t("c_checking"), "wait"];', '', 'tests/test_setup_page.py',
+     'pagina del primo avvio: si vede che si aspetta lo stato di Claude'),
+    ('jarvis/setup/audio_check.py', '            if lv >= HEARD_LEVEL:', '            if True:', 'tests/test_setup_audio.py',
+     'prova audio: il rumore di fondo non vale come voce'),
+    ('jarvis/setup/audio_check.py', '        if self._stream is not None and self.clock() > self._until:', '        if False:', 'tests/test_setup_audio.py',
+     'prova audio: il microfono si chiude da solo'),
+    ('jarvis/setup/audio_check.py', '            self._level = max(lv, self._level * DECAY)', '            self._level = lv', 'tests/test_setup_audio.py',
+     'prova audio: la barra scende piano dopo un picco'),
+    ('jarvis/setup/flow.py', '            if name and name not in known:', '            if False:', 'tests/test_setup_flow.py',
+     'prova audio: si scelgono solo dispositivi che esistono'),
+    ('jarvis/setup/web/setup.js', '  if (name !== "test") api("/api/mic/stop", {}).catch(() => {});', '', 'tests/test_setup_page.py',
+     'pagina del primo avvio: il microfono si chiude uscendo dalla prova'),
+    ('jarvis/setup/web/setup.js', '      if (m.heard) $("#mic-meter").classList.add("ok");', '', 'tests/test_setup_page.py',
+     'pagina del primo avvio: si vede quando il microfono sente'),
 ]
 
 

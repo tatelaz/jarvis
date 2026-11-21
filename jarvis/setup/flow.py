@@ -17,6 +17,7 @@ import time
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from .. import paths
 from ..config import Config, ConfigStore
@@ -67,11 +68,13 @@ class Setup:
     def __init__(self, store: ConfigStore, downloader: Downloader,
                  gather: Callable[[], pc.Facts] = lambda: pc.gather(paths.MODELS_DIR),
                  claude: ClaudeCode | None = None, voices_dir: Path | None = None, done_path: Path | None = None,
-                 clock: Callable[[], float] = time.monotonic, bundled_voices: Path = BUNDLED_VOICES) -> None:
+                 clock: Callable[[], float] = time.monotonic, bundled_voices: Path = BUNDLED_VOICES,
+                 audio: Any = None) -> None:
         self.store, self.downloader, self.gather = store, downloader, gather
         self.claude = claude or ClaudeCode()
         self.voices_dir = voices_dir or paths.DATA_DIR / "voices"
         self.bundled_voices = bundled_voices
+        self._audio = audio  # AudioCheck: creato al primo uso (apre l'audio di Windows solo se si arriva alla prova)
         self.done_path = done_path or paths.DATA_DIR / "setup" / "fatto.json"
         self.clock = clock
         self.finished = asyncio.Event()  # finito bene: Jarvis può partire
@@ -208,6 +211,51 @@ class Setup:
             self._task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._task
+
+    # --- microfono e casse ---
+
+    @property
+    def audio(self):
+        if self._audio is None:
+            from .audio_check import AudioCheck
+
+            self._audio = AudioCheck()
+        return self._audio
+
+    def audio_devices(self) -> dict:
+        a = self.store.config.audio
+        return {**self.audio.devices(), "input": a.input_device or "", "output": a.output_device or ""}
+
+    def set_audio(self, input_name: str, output_name: str) -> None:
+        """Il microfono e le casse scelti (vuoto = quelli predefiniti di Windows); solo nomi che esistono davvero."""
+        found = self.audio.devices()
+        for name, known in ((input_name, found["inputs"]), (output_name, found["outputs"])):
+            if name and name not in known:
+                raise SetupError("dispositivo_sconosciuto")
+        self.store.set("audio.input_device", input_name or None)
+        self.store.set("audio.output_device", output_name or None)
+
+    def start_mic(self) -> dict:
+        self.audio.start_mic(self.store.config.audio.input_device)
+        return self.audio.mic()
+
+    def mic(self) -> dict:
+        return self.audio.mic()
+
+    def stop_mic(self) -> None:
+        if self._audio is not None:
+            self._audio.stop_mic()
+
+    def play_test(self) -> dict:
+        """La frase di prova con la voce di base della lingua scelta, sulle casse scelte."""
+        d = self.bundled_voices / f"base-{self.store.config.persona.language}"
+        meta = json.loads((d / "voice.json").read_text(encoding="utf-8"))
+        try:
+            seconds = self.audio.play(d / meta["test_file"], self.store.config.audio.output_device)
+        except Exception as e:  # casse staccate o occupate: la pagina lo dice
+            log.warning("primo avvio: prova delle casse non riuscita: %s", e)
+            raise SetupError("casse_non_disponibili") from e
+        return {"seconds": round(seconds, 2), "line": meta["test_line"]}
 
     # --- la fine ---
 

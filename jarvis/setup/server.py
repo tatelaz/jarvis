@@ -66,6 +66,13 @@ class SetupServer:
         r.add_get("/api/download", self._json(lambda body: s.download_status()))
         r.add_post("/api/download", self._json(lambda body: s.start_download()))
         r.add_post("/api/download/cancel", self._json(lambda body: s.cancel_download()))
+        r.add_get("/api/audio", self._json(lambda body: s.audio_devices()))
+        r.add_post("/api/audio", self._json(lambda body: s.set_audio(str(body.get("input") or ""),
+                                                                    str(body.get("output") or ""))))
+        r.add_get("/api/mic", self._json(lambda body: s.mic()))
+        r.add_post("/api/mic", self._json(lambda body: s.start_mic()))
+        r.add_post("/api/mic/stop", self._json(lambda body: s.stop_mic()))
+        r.add_post("/api/play", self._json(lambda body: s.play_test()))
         r.add_post("/api/finish", self._json(lambda body: s.finish(str(body.get("name", "")),
                                                                      body.get("autostart") is True)))
         r.add_post("/api/quit", self._json(lambda body: s.quit.set()))

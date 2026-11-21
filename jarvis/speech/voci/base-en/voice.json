@@ -21,5 +21,7 @@
   "from_s": 192.2,
   "to_s": 203.0,
   "licence": "dominio pubblico (LibriVox)"
- }
+ },
+ "test_file": "prova.wav",
+ "test_line": "Good evening. If you can hear me clearly, the sound is fine and we're almost ready."
 }
