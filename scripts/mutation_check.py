@@ -883,6 +883,12 @@ MUTATIONS = [
      'presentazione: uno stato rovinato si legge con prudenza'),
     ('jarvis/tools/front.py', '            welcome.postponed = True', '            pass', 'tests/test_welcome.py',
      'presentazione: dopo vuol dire alla prossima accensione'),
+    ('installer/jarvis.iss', 'sync --frozen --no-dev', 'sync --no-dev', 'tests/test_installer.py',
+     'installatore: le librerie nelle versioni esatte di uv.lock'),
+    ('installer/jarvis.iss', '  if (CurUninstallStep = usPostUninstall) and not UninstallSilent then', '  if (CurUninstallStep = usPostUninstall) then', 'tests/test_installer.py',
+     'installatore: una disinstallazione silenziosa tiene i dati'),
+    ('scripts/build_installer.py', '            if not m.isfile() or m.name.startswith(LEAVE_OUT):', '            if not m.isfile():', 'tests/test_installer.py',
+     'installatore: le prove di grafica non vanno a chi installa'),
 ]
 
 

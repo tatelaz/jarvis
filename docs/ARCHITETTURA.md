@@ -329,6 +329,18 @@ misurati (timbro e pulizia); clonate, le orecchie di Jarvis le capiscono senza e
 nome non diventa mai un percorso. A voce: `voce_di_jarvis` ("inglese", "di base", "quella del film"), rifiutata se
 la voce non esiste. La lingua della sintesi segue `persona.language`.
 
+## Installatore (dal 21/11)
+
+`installer/jarvis.iss` (Inno Setup 6) e `scripts/build_installer.py`, che mette insieme il codice dell'ultimo commit
+(`git archive`: niente dati, modelli o cartelle private; senza `design/`), `uv` e le immagini della procedura in stile
+Monolite (disegnate da Chrome dall'icona), poi compila `build/Jarvis-Setup-<versione>.exe` (17 MB). L'installatore va
+per utente in `%LOCALAPPDATA%\Programs\Jarvis` senza permessi di amministratore, in italiano o in inglese, grafica
+scura; a fine copia prepara Python e le librerie con `uv sync --frozen --no-dev --no-cache`, senza finestre e con
+Python dentro `tools\python` (si disinstalla con Jarvis); crea i collegamenti (menu Start, Desktop facoltativo) e apre
+Jarvis, che parte dal primo avvio. Disinstallando chiede se tenere dati e modelli; in silenzio li tiene sempre.
+Provato il 21/11: installazione silenziosa in 34-47 s, librerie a posto, disinstallazione pulita. Per le prove usare
+`/TASKS=""`: senza, il collegamento sul Desktop sostituisce un "Jarvis.lnk" che c'è già.
+
 ## Presentazione a voce (dal 21/11)
 
 Dopo il primo avvio grafico (`data/setup/fatto.json`) il resto della configurazione si fa parlando: alla prima

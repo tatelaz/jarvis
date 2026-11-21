@@ -18,3 +18,6 @@ node_modules/
 
 # note e documenti personali del proprietario (un repository git a parte)
 privato/
+
+# installatore costruito da scripts/build_installer.py
+build/

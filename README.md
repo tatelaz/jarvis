@@ -44,6 +44,14 @@ una ricerca sul web.
 | Cervello | abbonamento Claude Pro o Max, oppure una chiave API | in alternativa OpenCode (gratis, senza account) o Ollama |
 | Altro | microfono, Chrome (per WhatsApp), Node 22 | |
 
+## Installazione
+
+Il modo comodo è l'installatore `Jarvis-Setup-<versione>.exe` (si costruisce con `python scripts/build_installer.py`,
+serve Inno Setup 6): si installa per il proprio utente, senza permessi di amministratore, prepara da solo Python e
+le librerie e apre Jarvis, che parte dal primo avvio (controllo del PC, cervello, download dei modelli, prova di
+microfono e casse); il resto lo chiede lui a voce. Chi preferisce i sorgenti: `git clone`, `uv sync`,
+`python -m jarvis`.
+
 ## Sviluppo
 
 Serve [uv](https://docs.astral.sh/uv/).
