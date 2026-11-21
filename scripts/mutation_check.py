@@ -867,6 +867,12 @@ MUTATIONS = [
      'inglese: una lingua sconosciuta si rifiuta'),
     ('jarvis/setup/flow.py', '        follow_language(self.store, lang)', '        pass', 'tests/test_setup_flow.py',
      'primo avvio: la voce di base segue la lingua scelta'),
+    ('jarvis/ui/web/core.js', '  t: (s) => (J.config.lang === "en" ? EN[s] ?? s : s),', '  t: (s) => s,', 'tests/test_ui.py',
+     'finestra in inglese: i testi si traducono'),
+    ('jarvis/ui/web/core.js', '  if (before !== J.config.lang && themeName) themeName = null;', '', 'tests/test_ui.py',
+     'finestra in inglese: anche i testi fissi della grafica'),
+    ('jarvis/ui/look.py', '"lang": lang.norm(cfg.persona.language)}', '"lang": "it"}', 'tests/test_look.py',
+     'finestra in inglese: la lingua arriva dalla persona'),
 ]
 
 

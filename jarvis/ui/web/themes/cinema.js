@@ -53,7 +53,7 @@
     const rows = [...J.tasks.values()].filter((x) => x.status === "in corso" || x.status === "in coda" || x.question ||
       (x.status === "completato" && x.finished && Date.now() / 1000 - x.finished < 6)).sort((a, b) => a.id - b.id).slice(-4);
     return rows.map((x) => {
-      const tag = x.question ? "ti chiede" : x.status === "completato" ? "fatto" : x.status;
+      const tag = U.t(x.question ? "ti chiede" : x.status === "completato" ? "fatto" : x.status);
       const line = `${String(x.id).padStart(2, "0")}  ${String(x.title || "").toLowerCase().slice(0, 38)} `.padEnd(46, ".") + ` ${tag}`;
       return x.question ? `<span class="need">${U.esc(line)}</span>` : x.status === "completato" ? `<span class="done">${U.esc(line)}</span>` : U.esc(line);
     }).join("\n");
@@ -69,22 +69,27 @@
 
     const need = api.derive.need();
     const cap = mode === "ascolto" ? `${U.esc(J.partial)}<span class="caret"></span>`
-              : mode === "conferma" && need ? `<span class="need">${U.esc(need.title)} · ti chiede</span>`
+              : mode === "conferma" && need ? `<span class="need">${U.esc(need.title)} · ${U.t("ti chiede")}</span>`
               : mode === "riposo" || mode === "spento" ? "" : U.esc(J.user);
     setText(el.cap, cap, cap);
 
     // sottotitoli
     if (mode === "conferma" && need) {
       setText(el.sub, "ask" + need.id + need.question, `<div class="ci-ask">${U.esc(need.question)}<div class="opts">` +
-        `<button class="yes">sì, procedi</button><button class="no">no</button></div></div>`);
+        `<button class="yes">${U.t("sì, procedi")}</button><button class="no">${U.t("no")}</button></div></div>`);
       el.sub.className = "ci-sub";
       return;
     }
     if (mode === "riposo") {
-      setText(el.sub, "rest", J.rest.listening ? "di' «Jarvis» per riaccendermi" : "premi riaccendi per riaccendermi");
+      setText(el.sub, "rest" + J.config.lang,
+              U.t(J.rest.listening ? "di' «Jarvis» per riaccendermi" : "premi riaccendi per riaccendermi"));
       el.sub.className = "ci-sub hint"; return;
     }
-    if (mode === "spento") { setText(el.sub, "off", "collegamento con Jarvis perso"); el.sub.className = "ci-sub hint"; return; }
+    if (mode === "spento") {
+      setText(el.sub, "off" + J.config.lang, U.t("collegamento con Jarvis perso"));
+      el.sub.className = "ci-sub hint";
+      return;
+    }
     el.sub.classList.remove("hint");
     const reply = J.reply;
     let start = 0;

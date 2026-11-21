@@ -345,7 +345,9 @@ della conversazione. In inglese il filtro delle frasi di servizio (`NarrationFil
 weather." è la risposta giusta. Cambiando lingua, una voce inclusa passa a quella della lingua nuova
 (`follow_language`: base-it ⇄ base-en); una voce tua resta. Le orecchie riconoscono la lingua da sole.
 
-Da fare: i testi della finestra (pulsanti, registro, stati) sono ancora in italiano.
+La finestra segue la stessa lingua: `ui_config` porta `lang`, i testi si scrivono in italiano e `core.js` li traduce
+(`U.t`, dizionario `EN`): pulsanti, stati delle due grafiche, registro, conferme, data e ora; i testi fissi della pagina
+sono marcati `data-i18n*`. Cambiando lingua la grafica si rimonta, così anche i suoi testi fissi cambiano subito.
 
 ## Auto-riparazione e auto-miglioramento
 

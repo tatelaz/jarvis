@@ -5,7 +5,8 @@ finestra. Parla lo stesso protocollo del server vero (fotografia iniziale + even
 conversazione si ripete da sola: si sceglie una scena e la si guarda.
 
 Uso: python scripts/vetrina.py [--porta 8793] [--tema mark3|cinema] [--scena attesa|ascolto|ragiono|parla|compiti|conferma|riposo|demo]
-Comandi in più (per i test): {"cmd": "vetrina", "scena": "..."} · {"cmd": "vetrina", "tema": "cinema"}
+Comandi in più (per i test): {"cmd": "vetrina", "scena": "..."} · {"cmd": "vetrina", "tema": "cinema"} ·
+{"cmd": "vetrina", "lingua": "en"}
 · {"cmd": "vetrina", "audio": false} (audio sparito) / true (tornato)
 """
 
@@ -77,7 +78,7 @@ class Vetrina:
 
     def config(self) -> dict:
         return {"type": "ui_config", "theme": self.theme, "accent": "", "text_scale": 1.0, "effects": "pieni",
-                "user": "Andrea", "brain": "claude-opus-5-5"}
+                "user": "Andrea", "brain": "claude-opus-5-5", "lang": getattr(self, "lang", "it")}
 
     def snapshot(self) -> dict:
         return {"type": "snapshot", "state": "in attesa", "history": HISTORY, "tasks": [], "config": self.config(),
@@ -179,6 +180,9 @@ class Vetrina:
         if kind == "vetrina":
             if cmd.get("tema"):
                 self.theme = cmd["tema"]
+                await self.broadcast(self.config())
+            if cmd.get("lingua"):  # come il Jarvis vero quando cambia persona.language
+                self.lang = cmd["lingua"]
                 await self.broadcast(self.config())
             if cmd.get("scena"):
                 self.scene = cmd["scena"]

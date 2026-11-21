@@ -255,3 +255,31 @@ async def test_voice_and_security_section():
         await page.wait_for_function("document.getElementById('log').textContent.includes('posso mettere la musica')")
         assert "marco" in (await page.locator("#log .entry.guest .who").last.inner_text()).lower()
         assert errors == []
+
+
+ITALIAN = ("parla", "riposo", "registro", "ferma", "scrivi", "attesa", "ascolto", "ragiono", "decisione", "compit",
+           "microfono", "approva", "nega", "procedi", "riaccend", "collegamento", "conversazione", "scheda video")
+
+
+@pytest.mark.parametrize("theme", ["mark3", "cinema"])
+async def test_window_in_english(theme):
+    """Con Jarvis in inglese (persona.language) la finestra non mostra più parole italiane, in nessuno stato."""
+    async with window(theme) as (page, _v, errors):
+        await cmd(page, cmd="vetrina", lingua="en")
+        await page.wait_for_function("document.documentElement.lang === 'en'", timeout=3000)
+        # la grafica si rimonta con una dissolvenza (~0,5 s): finché non ha finito ha i testi fissi di prima
+        await page.wait_for_function("!document.getElementById('stage').classList.contains('leaving') && "
+                                     "!document.body.innerText.toLowerCase().includes('approva')", timeout=4000)
+        assert await page.get_attribute("#input", "placeholder") == "type to Jarvis…"
+        assert await page.text_content("#c-talk") == "talk" and await page.text_content("#c-rest") == "rest"
+        for scene in SCENES:
+            await cmd(page, cmd="vetrina", scena=scene)
+            await asyncio.sleep(0.3)
+            await page.evaluate("JarvisCore.advance(1.2)")
+            shown = (await page.evaluate("document.body.innerText")).lower()
+            left = [w for w in ITALIAN if w in shown]
+            assert left == [], f"{theme}/{scene}: ancora in italiano: {left}"
+        await cmd(page, cmd="vetrina", lingua="it")  # e si torna indietro dal vivo
+        await page.wait_for_function("document.documentElement.lang === 'it'", timeout=3000)
+        assert await page.text_content("#c-talk") == "parla"
+        assert errors == []

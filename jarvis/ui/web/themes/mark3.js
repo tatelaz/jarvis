@@ -26,7 +26,7 @@
       <div class="m3-state"></div>
       <div class="m3-talk"><div class="m3-you"></div><div class="m3-say"></div></div>
       <div class="m3-ask"><div class="m3-ask-h"></div><div class="m3-ask-q"></div>
-        <div><button class="yes">approva</button><button class="no">nega</button></div></div>`;
+        <div><button class="yes">${U.t("approva")}</button><button class="no">${U.t("nega")}</button></div></div>`;
     const q = (s) => stage.querySelector(s);
     el = { cv: q("canvas"), brain: q(".m3-brain"), time: q(".m3-time"), date: q(".m3-date"), mic: q(".m3-mic"), sum: q(".m3-sum"),
            state: q(".m3-state"), talk: q(".m3-talk"), you: q(".m3-you"), say: q(".m3-say"), ask: q(".m3-ask"),
@@ -54,23 +54,25 @@
       lastSec = sec;
       el.time.textContent = U.clock(); el.date.textContent = U.date();
       const awake = api.derive.awake() && mode === "attesa";
-      setText(el.brain, `${J.config.brain}|${awake}|${mode}`, `${U.esc(modelName(J.config.brain))}` +
-        (awake ? ` · <span class="m3-live">in conversazione</span>` : mode === "riposo" ? " · scheda video libera" : ""));
+      setText(el.brain, `${J.config.brain}|${awake}|${mode}|${J.config.lang}`, `${U.esc(modelName(J.config.brain))}` +
+        (awake ? ` · <span class="m3-live">${U.t("in conversazione")}</span>`
+          : mode === "riposo" ? ` · ${U.t("scheda video libera")}` : ""));
       const act = api.derive.active(), need = api.derive.need();
-      setText(el.sum, `${act.length}|${!!need}`, need ? `<span class="m3-need">un compito ti aspetta</span>`
-        : act.length ? `${act.length} ${act.length === 1 ? "compito" : "compiti"} in corso` : "");
+      setText(el.sum, `${act.length}|${!!need}|${J.config.lang}`, need ? `<span class="m3-need">${U.t("un compito ti aspetta")}</span>`
+        : act.length ? `${act.length} ${U.t(act.length === 1 ? "compito in corso" : "compiti in corso")}` : "");
     }
     // microfono: otto barre dagli ultimi livelli
     micHist.push(J.micS); if (micHist.length > 8) micHist.shift();
     const bars = "▁▂▃▄▅▆▇";
-    el.mic.textContent = "microfono " + (J.muted ? "spento" : micHist.map((v) => bars[Math.min(6, Math.round(v * 6))]).join(""));
+    el.mic.textContent = U.t("microfono") + " "
+      + (J.muted ? U.t("spento") : micHist.map((v) => bars[Math.min(6, Math.round(v * 6))]).join(""));
 
-    const label = mode === "attesa" && api.derive.awake() ? "in conversazione" : LABEL[mode] ?? "";
+    const label = U.t(mode === "attesa" && api.derive.awake() ? "in conversazione" : LABEL[mode] ?? "");
     if (el.state._k !== label) { el.state._k = label; el.state.textContent = label; el.state.classList.toggle("need", mode === "conferma"); }
 
     // sottotitoli: la tua frase sopra, la sua sotto; la parte non ancora detta resta in ombra
     const you = mode === "ascolto" ? `${U.esc(J.partial)}<span class="caret"></span>`
-              : mode === "riposo" ? (J.rest.listening ? "di' «Jarvis» per riaccendermi" : "premi riaccendi per riaccendermi")
+              : mode === "riposo" ? U.t(J.rest.listening ? "di' «Jarvis» per riaccendermi" : "premi riaccendi per riaccendermi")
               : U.esc(J.user);
     setText(el.you, you, you);
     const reply = J.reply, said = api.derive.spoken();

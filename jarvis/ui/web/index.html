@@ -14,35 +14,42 @@
 <!-- la scena: la disegna il tema scelto (si cambia a voce, senza ricaricare) -->
 <main id="stage" aria-live="polite"></main>
 <!-- la finestra è senza bordi: da questa fascia in alto si sposta (la classe la riconosce pywebview) -->
-<div id="drag" class="pywebview-drag-region" aria-hidden="true" title="trascina per spostare la finestra"></div>
+<div id="drag" class="pywebview-drag-region" aria-hidden="true" title="trascina per spostare la finestra"
+     data-i18n-title="trascina per spostare la finestra"></div>
 
 <!-- parti comuni, vestite da ogni tema -->
-<nav id="controls" aria-label="Comandi">
-  <button id="c-talk" title="Parla senza dire il nome (Ctrl+Alt+J)">parla</button>
-  <button id="c-rest" title="Riposo: libera la scheda video">riposo</button>
-  <button id="c-log" title="Registro della conversazione">registro</button>
-  <button id="c-stop" title="Ferma tutto (Ctrl+Alt+K)">ferma</button>
+<!-- i testi marcati data-i18n* si traducono quando Jarvis parla inglese (core.js, EN) -->
+<nav id="controls" aria-label="Comandi" data-i18n-aria="Comandi">
+  <button id="c-talk" title="Parla senza dire il nome (Ctrl+Alt+J)" data-i18n="parla"
+          data-i18n-title="Parla senza dire il nome (Ctrl+Alt+J)">parla</button>
+  <button id="c-rest" title="Riposo: libera la scheda video" data-i18n-title="Riposo: libera la scheda video">riposo</button>
+  <button id="c-log" title="Registro della conversazione" data-i18n="registro"
+          data-i18n-title="Registro della conversazione">registro</button>
+  <button id="c-stop" title="Ferma tutto (Ctrl+Alt+K)" data-i18n="ferma" data-i18n-title="Ferma tutto (Ctrl+Alt+K)">ferma</button>
 </nav>
 <form id="composer" autocomplete="off">
-  <input id="input" type="text" placeholder="scrivi a Jarvis…" aria-label="Messaggio per Jarvis">
+  <input id="input" type="text" placeholder="scrivi a Jarvis…" aria-label="Messaggio per Jarvis"
+         data-i18n-ph="scrivi a Jarvis…" data-i18n-aria="Messaggio per Jarvis">
 </form>
-<aside id="drawer" aria-label="Registro" hidden>
-  <header><span>registro</span><button id="drawer-close" aria-label="Chiudi il registro">chiudi</button></header>
+<aside id="drawer" aria-label="Registro" data-i18n-aria="Registro" hidden>
+  <header><span data-i18n="registro">registro</span><button id="drawer-close" aria-label="Chiudi il registro"
+          data-i18n="chiudi" data-i18n-aria="Chiudi il registro">chiudi</button></header>
   <div id="log"></div>
   <!-- chiusa di base: chi apre il registro non vede subito che esiste una parola d'ordine -->
   <details id="security" hidden>
-    <summary>voce e sicurezza</summary>
+    <summary data-i18n="voce e sicurezza">voce e sicurezza</summary>
     <p id="sec-status"></p>
     <form id="pass-form" autocomplete="off">
-      <input id="pass-input" type="password" placeholder="nuova parola d'ordine" aria-label="Nuova parola d'ordine" autocomplete="new-password">
-      <button type="submit">imposta</button>
+      <input id="pass-input" type="password" placeholder="nuova parola d'ordine" aria-label="Nuova parola d'ordine" autocomplete="new-password"
+             data-i18n-ph="nuova parola d'ordine" data-i18n-aria="Nuova parola d'ordine">
+      <button type="submit" data-i18n="imposta">imposta</button>
     </form>
     <p id="sec-msg" aria-live="polite"></p>
   </details>
 </aside>
-<section id="cards" aria-label="Schede"></section>
-<div id="offline" hidden>collegamento con Jarvis perso · riprovo…</div>
-<div id="noaudio" hidden>audio non disponibile · Jarvis riprova da solo</div>
+<section id="cards" aria-label="Schede" data-i18n-aria="Schede"></section>
+<div id="offline" hidden data-i18n="collegamento con Jarvis perso · riprovo…">collegamento con Jarvis perso · riprovo…</div>
+<div id="noaudio" hidden data-i18n="audio non disponibile · Jarvis riprova da solo">audio non disponibile · Jarvis riprova da solo</div>
 
 <script src="/static/core.js"></script>
 <script src="/static/themes/mark3.js"></script>

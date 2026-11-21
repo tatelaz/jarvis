@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 
+from .. import lang
 from ..config import Config
 
 THEMES = {"mark3": "Mark III: uno strumento al centro, bianco su nero, la voce azzurra",
@@ -43,4 +44,4 @@ def ui_config(cfg: Config) -> dict:
         accent = ""
     return {"type": "ui_config", "theme": cfg.ui.theme, "accent": accent,
             "text_scale": max(0.7, min(1.8, cfg.ui.text_scale)), "effects": cfg.ui.effects,
-            "user": cfg.persona.user_name, "brain": cfg.brain.claude_model}
+            "user": cfg.persona.user_name, "brain": cfg.brain.claude_model, "lang": lang.norm(cfg.persona.language)}

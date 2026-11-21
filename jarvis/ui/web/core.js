@@ -1,4 +1,31 @@
 "use strict";
+/* I testi della finestra in inglese: la chiave è il testo italiano che si vede di base. */
+const EN = {
+  "in attesa": "standing by", "ti ascolto": "listening", "ragiono": "thinking", "serve una tua decisione": "your decision is needed",
+  "a riposo": "resting", "avvio": "starting", "non collegato": "not connected", "in conversazione": "in conversation",
+  "scheda video libera": "graphics card free", "un compito ti aspetta": "a task is waiting for you",
+  "compito in corso": "task running", "compiti in corso": "tasks running", "microfono": "microphone", "spento": "off",
+  "di' «Jarvis» per riaccendermi": "say “Jarvis” to wake me", "premi riaccendi per riaccendermi": "press wake to wake me",
+  "approva": "approve", "nega": "deny", "ti chiede": "asks you", "sì, procedi": "yes, go ahead", "no": "no", "fatto": "done",
+  "in corso": "running", "in coda": "queued", "collegamento con Jarvis perso": "connection with Jarvis lost",
+  "parla": "talk", "riposo": "rest", "riaccendi": "wake", "registro": "log", "ferma": "stop", "chiudi": "close",
+  "Parla senza dire il nome (Ctrl+Alt+J)": "Talk without saying the name (Ctrl+Alt+J)",
+  "Riposo: libera la scheda video": "Rest: free the graphics card", "Registro della conversazione": "Conversation log",
+  "Ferma tutto (Ctrl+Alt+K)": "Stop everything (Ctrl+Alt+K)", "scrivi a Jarvis…": "type to Jarvis…",
+  "Messaggio per Jarvis": "Message for Jarvis", "Registro": "Log", "Chiudi il registro": "Close the log",
+  "trascina per spostare la finestra": "drag to move the window", "Comandi": "Controls", "Schede": "Cards",
+  "voce e sicurezza": "voice and security", "nuova parola d'ordine": "new passphrase",
+  "Nuova parola d'ordine": "New passphrase", "imposta": "set",
+  "collegamento con Jarvis perso · riprovo…": "connection with Jarvis lost · retrying…",
+  "audio non disponibile · Jarvis riprova da solo": "audio unavailable · Jarvis keeps trying",
+  "audio assente": "no audio", "dispositivo non disponibile": "device unavailable", "interrotto": "interrupted",
+  "riconoscimento acceso · voci": "recognition on · voices",
+  "riconoscimento spento finché non registri la tua voce («Jarvis, impara la mia voce»)":
+    "recognition off until you record your voice (“Jarvis, learn my voice”)",
+  "parola d'ordine impostata": "passphrase set", "parola d'ordine non impostata": "passphrase not set",
+  "parola d'ordine salvata": "passphrase saved", "non salvata": "not saved", "voce di": "voice of", "memoria": "memory",
+  "scheda": "card", "tu": "you", "sistema": "system", "errore": "error", "ospite": "guest", "Chiudi": "Close",
+};
 /* Il motore della finestra di Jarvis.
    - Collegamento con Jarvis (WebSocket): fotografia iniziale, eventi in tempo reale, comandi.
    - Stato condiviso J: cosa sta facendo Jarvis, cosa hai detto, cosa sta dicendo e quanto ne ha già detto.
@@ -12,7 +39,7 @@ const J = {
   history: [], tasks: new Map(), cards: [],
   rest: { active: false, listening: true },
   awakeUntil: 0, muted: false, ptt: false,
-  config: { theme: "mark3", accent: "", text_scale: 1, effects: "pieni", user: "", brain: "" },
+  config: { theme: "mark3", accent: "", text_scale: 1, effects: "pieni", user: "", brain: "", lang: "it" },
   bootAt: 0,                        // l'accensione si rivede a ogni collegamento e a ogni risveglio
 };
 const Themes = (window.JarvisThemes = {});
@@ -25,8 +52,11 @@ const U = {
   ease: (x) => 1 - Math.pow(1 - U.clamp(x), 3),                 // uscita morbida
   easeIO: (x) => { x = U.clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; },
   smooth: (x, t) => 0.5 * Math.sin(x * 3 + t * 1.9) + 0.3 * Math.sin(x * 7 - t * 2.7) + 0.2 * Math.sin(x * 13 + t * 4.1),
-  clock: () => new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
-  date: () => new Date().toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "short" }).replace(/\./g, ""),
+  clock: () => new Date().toLocaleTimeString(U.locale(), { hour: "2-digit", minute: "2-digit" }),
+  date: () => new Date().toLocaleDateString(U.locale(), { weekday: "short", day: "2-digit", month: "short" }).replace(/\./g, ""),
+  locale: () => (J.config.lang === "en" ? "en-GB" : "it-IT"),
+  // i testi della finestra si scrivono in italiano e si traducono qui quando Jarvis parla inglese (persona.language)
+  t: (s) => (J.config.lang === "en" ? EN[s] ?? s : s),
   rgb(hex) { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16, (n >> 8) & 255, n & 255]; },
   rich: () => J.config.effects !== "sobri" && !matchMedia("(prefers-reduced-motion: reduce)").matches,
   // canvas nitido su schermi ad alta densità
@@ -109,7 +139,7 @@ function showAudio(a) {
   el.hidden = !down;
   el.title = down ? a.error || "" : "";
   if (!a || a.replay) return;
-  if (down) addHistory("err", `audio assente: ${a.error || "dispositivo non disponibile"}`);
+  if (down) addHistory("err", `${U.t("audio assente")}: ${a.error || U.t("dispositivo non disponibile")}`);
   else if (a.reason && a.reason !== "avvio") addHistory("sys", `audio: ${a.output} · ${a.input}`);
 }
 
@@ -119,9 +149,9 @@ function renderSecurity() {
   box.hidden = !(id && id.available);
   if (box.hidden) return;
   const names = (id.people || []).map((p) => p.name).join(", ");
-  $("sec-status").textContent = (id.active ? `riconoscimento acceso · voci: ${names}`
-    : "riconoscimento spento finché non registri la tua voce («Jarvis, impara la mia voce»)")
-    + ` · parola d'ordine ${id.passphrase ? "impostata" : "non impostata"}`;
+  $("sec-status").textContent = (id.active ? `${U.t("riconoscimento acceso · voci")}: ${names}`
+    : U.t("riconoscimento spento finché non registri la tua voce («Jarvis, impara la mia voce»)"))
+    + ` · ${U.t(id.passphrase ? "parola d'ordine impostata" : "parola d'ordine non impostata")}`;
 }
 
 function handle(ev) {
@@ -155,7 +185,7 @@ function handle(ev) {
     case "interrupted":
       J.interrupted = true; J.replyDone = true;
       J.reply = ev.spoken ? ev.spoken + " …" : ""; J.said = J.reply.length;
-      addHistory("sys", "interrotto");
+      addHistory("sys", U.t("interrotto"));
       break;
     case "ignored": J.partial = ""; break;
     case "error": addHistory("err", `${ev.where}: ${ev.message}`); break;
@@ -164,7 +194,8 @@ function handle(ev) {
     case "muted": J.muted = !!ev.muted; break;
     case "notice":
       if (ev.kind === "passphrase" && !ev.replay) {
-        $("sec-msg").textContent = ev.info && ev.info.ok ? "parola d'ordine salvata" : `non salvata: ${(ev.info || {}).message || ""}`;
+        $("sec-msg").textContent = ev.info && ev.info.ok ? U.t("parola d'ordine salvata")
+          : `${U.t("non salvata")}: ${(ev.info || {}).message || ""}`;
         if (ev.info && ev.info.ok && J.identity) { J.identity.passphrase = true; renderSecurity(); }
       }
       break;
@@ -172,26 +203,39 @@ function handle(ev) {
     case "audio": showAudio(ev); break;
     case "identity": J.identity = ev; renderSecurity(); break;
     case "enroll":
-      if (!ev.replay) addHistory("sys", `voce di ${ev.name}: ${ev.status} · ${ev.progress}%`);
+      if (!ev.replay) addHistory("sys", `${U.t("voce di")} ${ev.name}: ${ev.status} · ${ev.progress}%`);
       if (ev.status === "fatta" && J.identity) { J.identity.active = true; renderSecurity(); }
       break;
-    case "memory": addHistory("sys", `memoria · ${ev.op}: ${ev.text}`); break;
+    case "memory": addHistory("sys", `${U.t("memoria")} · ${ev.op}: ${ev.text}`); break;
     case "rest":
       if (J.rest.active && !ev.active) J.bootAt = performance.now();  // risveglio: si riaccende con la sua animazione
       J.rest = { active: !!ev.active, listening: ev.listening !== false };
       $("c-rest").classList.toggle("on", J.rest.active);
-      $("c-rest").textContent = J.rest.active ? "riaccendi" : "riposo";
+      $("c-rest").textContent = U.t(J.rest.active ? "riaccendi" : "riposo");
       break;
   }
   theme && theme.event && theme.event(ev);
 }
 
 function applyConfig(c) {
+  const before = J.config.lang;
   Object.assign(J.config, c);
   document.documentElement.style.setProperty("--scale", J.config.text_scale || 1);
   if (J.config.accent) document.body.style.setProperty("--accent", J.config.accent);
   else document.body.style.removeProperty("--accent");
+  translatePage();
+  if (before !== J.config.lang && themeName) themeName = null;  // la grafica si rimonta con i suoi testi fissi tradotti
   useTheme(J.config.theme);
+}
+
+// i testi fissi della pagina (marcati data-i18n*) nella lingua di Jarvis
+function translatePage() {
+  document.documentElement.lang = J.config.lang === "en" ? "en" : "it";
+  for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = U.t(el.dataset.i18n);
+  for (const el of document.querySelectorAll("[data-i18n-title]")) el.title = U.t(el.dataset.i18nTitle);
+  for (const el of document.querySelectorAll("[data-i18n-ph]")) el.placeholder = U.t(el.dataset.i18nPh);
+  for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", U.t(el.dataset.i18nAria));
+  $("c-rest").textContent = U.t(J.rest.active ? "riaccendi" : "riposo");
 }
 
 // ------------------------------------------------------------------ temi
@@ -220,10 +264,10 @@ function accent(fallback) { return U.rgb(J.config.accent) || fallback; }
 // ------------------------------------------------------------------ parti comuni
 function showCard(title, markdown, replay) {
   J.cards.push({ title, markdown });
-  addHistory("sys", `scheda: ${title}`);
+  addHistory("sys", `${U.t("scheda")}: ${title}`);
   if (replay) return;
   const c = document.createElement("div"); c.className = "card";
-  c.innerHTML = `<h3><span></span><button aria-label="Chiudi">×</button></h3><div class="md"></div>`;
+  c.innerHTML = `<h3><span></span><button aria-label="${U.t("Chiudi")}">×</button></h3><div class="md"></div>`;
   c.querySelector("span").textContent = title;
   c.querySelector(".md").innerHTML = U.md(markdown);
   c.querySelector("button").onclick = () => { c.classList.add("out"); setTimeout(() => c.remove(), 340); };
@@ -231,9 +275,10 @@ function showCard(title, markdown, replay) {
   while ($("cards").children.length > 3) $("cards").lastElementChild.remove();
 }
 function renderLog() {
-  const who = { user: J.config.user || "tu", jarvis: "jarvis", sys: "sistema", err: "errore", guest: "ospite" };
+  const who = { user: J.config.user || U.t("tu"), jarvis: "jarvis", sys: U.t("sistema"), err: U.t("errore"),
+                guest: U.t("ospite") };
   $("log").innerHTML = J.history.map((h) => `<div class="entry ${h.who}"><div class="who">${U.esc(h.label || who[h.who])} · ${new Date(h.at)
-    .toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</div><div class="txt">${U.esc(h.text)}</div></div>`).join("");
+    .toLocaleTimeString(U.locale(), { hour: "2-digit", minute: "2-digit" })}</div><div class="txt">${U.esc(h.text)}</div></div>`).join("");
   $("log").scrollTop = $("log").scrollHeight;
 }
 function toggleLog(open) {

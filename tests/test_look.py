@@ -113,3 +113,15 @@ async def test_server_turns_a_settings_change_into_a_redraw():
     await asyncio.wait_for(srv._pump(ws, q), 2)
     assert ws.sent[0]["type"] == "ui_config" and ws.sent[0]["theme"] == "cinema"
     assert ws.sent[1] == {"type": "settings_changed", "key": "speech.tts_speed"}
+
+
+def test_window_language_follows_the_persona():
+    from jarvis.config import Config
+    from jarvis.ui.look import ui_config
+
+    cfg = Config()
+    assert ui_config(cfg)["lang"] == "it"
+    cfg.persona.language = "en"
+    assert ui_config(cfg)["lang"] == "en"
+    cfg.persona.language = "fr"  # scritto a mano nel file: si torna all'italiano
+    assert ui_config(cfg)["lang"] == "it"
