@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from .. import lang
 from ..audio.listener import ListenEvent
 from ..audio.player import Player
 from ..brain.base import BrainUnavailable, Done, Notice, TextDelta, ToolCall, ToolResult, ToolStart
@@ -40,9 +41,8 @@ from .speaker import ResponseSpeaker
 
 log = logging.getLogger("jarvis.conversation")
 
-STOP_WORDS = {"stop", "basta", "zitto", "zitta", "fermo", "fermati", "silenzio", "taci", "aspetta", "smettila",
-              "ok basta", "ok stop", "jarvis stop", "jarvis basta", "basta così", "stop jarvis", "ferma"}
-FILLERS = {"", "mh", "mm", "mmh", "eh", "ehm", "ah", "oh", "uh", "boh", "hm", "ehi"}
+STOP_WORDS = lang.STOP_WORDS  # in entrambe le lingue (jarvis/lang.py)
+FILLERS = lang.FILLERS
 WAKE_NAMES = ("jarvis",)
 
 
@@ -63,7 +63,7 @@ def mentions_wake_word(text: str) -> bool:
 
 def is_stop_command(text: str) -> bool:
     t = normalize(text)
-    t = re.sub(r"\b(jarvis|per favore|grazie)\b", "", t).strip()
+    t = re.sub(r"\b(jarvis|" + "|".join(lang.POLITE) + r")\b", "", t).strip()
     return t in STOP_WORDS or (len(t.split()) <= 3 and any(w in STOP_WORDS for w in t.split()) and len(t) <= 18)
 
 
@@ -83,8 +83,7 @@ def similarity(a: str, b: str) -> float:
 # strumenti che fanno aspettare prima di una risposta: appena il cervello inizia a chiamarli, se non ha ancora
 # detto niente, una frase pronta (tra le COMMON_PHRASES della voce: suona senza attesa). Il 26/10: 21 s muti durante
 # una ricerca web; il 27/10: 7-11 s muti mentre il cervello scriveva l'obiettivo di un compito
-SLOW_TOOLS = {"WebSearch": "Controllo subito.", "WebFetch": "Controllo subito.",
-              "avvia_compito": "Me ne occupo io.", "migliora_jarvis": "Me ne occupo io."}
+SLOW_TOOLS = {"WebSearch": "checking", "WebFetch": "checking", "avvia_compito": "on_it", "migliora_jarvis": "on_it"}
 ENROLL_TAIL_S = 20.0  # dopo la registrazione della voce, chi legge ancora le frasi non sta chiedendo niente
 
 
@@ -105,8 +104,8 @@ class Interruption:
     at: float = field(default_factory=time.time)
 
 
-def _when(until: float | None) -> str:
-    """'fino alle 20:20', 'fino a domani alle 8:05', oppure '' se non si sa."""
+def _when(until: float | None, language: str = "it") -> str:
+    """'fino alle 20:20', 'fino a domani alle 8:05' (o in inglese), oppure '' se non si sa."""
     if not until:
         return ""
     t, today = time.localtime(until), time.localtime()
@@ -114,37 +113,38 @@ def _when(until: float | None) -> str:
     days = (time.mktime((t.tm_year, t.tm_mon, t.tm_mday, 0, 0, 0, 0, 0, -1))
             - time.mktime((today.tm_year, today.tm_mon, today.tm_mday, 0, 0, 0, 0, 0, -1))) / 86400
     if round(days) <= 0:
-        return f"fino alle {hhmm}"
+        return lang.phrase(language, "until_today", hhmm=hhmm)
     if round(days) == 1:
-        return f"fino a domani alle {hhmm}"
-    return f"fino al {t.tm_mday} alle {hhmm}"
+        return lang.phrase(language, "until_tomorrow", hhmm=hhmm)
+    return lang.phrase(language, "until_day", day=t.tm_mday, hhmm=hhmm)
 
 
-def _why(scope: str, until: float | None, provider: str = "claude") -> str:
+def _why(scope: str, until: float | None, provider: str = "claude", language: str = "it") -> str:
     if scope == "provider":
-        when = _when(until)
-        what = "l'uso gratuito di OpenCode" if provider == "opencode" else "l'uso di Claude"
-        return f"Ho esaurito {what}" + (f" {when}" if when else " per ora")
-    return "Il mio cervello principale non risponde"
+        what = lang.phrase(language, "what_opencode" if provider == "opencode" else "what_claude")
+        when = _when(until, language) or lang.phrase(language, "for_now")
+        return lang.phrase(language, "spent", what=what, when=when)
+    return lang.phrase(language, "brain_down")
 
 
-def switch_sentence(info: dict) -> str:
+def switch_sentence(info: dict, language: str = "it") -> str:
     """Cosa dire quando subentra un altro cervello."""
     if info.get("from_provider") == "opencode":  # L'utente ha messo OpenCode in testa
-        return f"{_why(info.get('scope', 'brain'), info.get('until'), 'opencode')}: passo al sistema di riserva."
-    then = {"local": "continuo con il cervello locale",
-            "opencode": "continuo con un modello gratuito di OpenCode"}.get(info.get("to_provider", ""),
-                                                                          "passo al sistema di riserva")
-    return f"{_why(info.get('scope', 'brain'), info.get('until'))}: {then}."
+        why = _why(info.get("scope", "brain"), info.get("until"), "opencode", language)
+        return lang.phrase(language, "switch", why=why, then=lang.phrase(language, "then_backup"))
+    then = {"local": "then_local", "opencode": "then_opencode"}.get(info.get("to_provider", ""), "then_backup")
+    why = _why(info.get("scope", "brain"), info.get("until"), language=language)
+    return lang.phrase(language, "switch", why=why, then=lang.phrase(language, then))
 
 
-def unavailable_sentence(e: BrainUnavailable, address: str, already_switched: bool = False) -> str:
+def unavailable_sentence(e: BrainUnavailable, address: str, already_switched: bool = False,
+                         language: str = "it") -> str:
     """Cosa dire quando nessun cervello può rispondere."""
     if already_switched:
-        return f"Temo che anche il sistema di riserva si sia fermato, {address}. Riprovi tra poco."
+        return lang.phrase(language, "backup_down", address=address)
     if e.exhausted:
-        return f"{_why(e.scope, e.retry_at)}, e non ho un cervello di riserva disponibile."
-    return f"Temo di non riuscire a ragionare in questo momento, {address}. Riprovo tra poco."
+        return lang.phrase(language, "no_backup", why=_why(e.scope, e.retry_at, language=language))
+    return lang.phrase(language, "cannot_think", address=address)
 
 
 class Conversation:
@@ -216,6 +216,15 @@ class Conversation:
             self.thinking = False
 
     # ------------------------------------------------------------ stato
+
+    @property
+    def language(self) -> str:
+        """La lingua in cui Jarvis parla (persona.language): "it" o "en"."""
+        return lang.norm(self.cfg.persona.language)
+
+    @property
+    def address(self) -> str:
+        return lang.address(self.language, self.cfg.persona.address_as)
 
     @property
     def jarvis_active(self) -> bool:
@@ -665,9 +674,11 @@ class Conversation:
             nonlocal filled
             if tool in SLOW_TOOLS and not reply.strip() and not dismissed and not filled:
                 filled = True
-                self.speaker.say(SLOW_TOOLS[tool])
+                self.speaker.say(lang.phrase(self.language, SLOW_TOOLS[tool]))
         first_text_ms = None
-        narration = NarrationFilter()  # 27/10: "Let me check the status." detto ad alta voce prima di uno strumento
+        # 27/10: "Let me check the status." detto ad alta voce prima di uno strumento. In inglese invece quella è
+        # proprio la frase da dire: il filtro si spegne
+        narration = NarrationFilter(active=self.language != "en")
 
         def speak(text: str) -> None:
             nonlocal reply, first_text_ms
@@ -721,17 +732,17 @@ class Conversation:
                         self.bus.emit("notice", kind=ev.kind, info=ev.info)
                         if ev.kind == "brain_switch" and not ev.info.get("back") and not switched:
                             switched = True
-                            self.speaker.say(switch_sentence(ev.info))
+                            self.speaker.say(switch_sentence(ev.info, self.language))
                     elif isinstance(ev, Done):
                         if ev.error:
                             self.bus.emit("error", where="brain", message=ev.error)
                             if not reply.strip() and not dismissed:  # mai il silenzio: si dice che qualcosa è andato storto
-                                self.speaker.say(f"Ho avuto un problema nel formulare la risposta, "
-                                                 f"{self.cfg.persona.address_as}. Può ripetere?")
+                                self.speaker.say(lang.phrase(self.language, "formulation", address=self.address))
             except BrainUnavailable as e:
                 log.error("cervello non disponibile: %s", e)
                 self.bus.emit("error", where="brain", message=str(e))
-                self.speaker.say(unavailable_sentence(e, self.cfg.persona.address_as, already_switched=switched))
+                self.speaker.say(unavailable_sentence(e, self.address, already_switched=switched,
+                                                      language=self.language))
             if not dismissed:  # ciò che restava trattenuto senza uno strumento dopo si dice (es. inglese chiesto)
                 speak(narration.flush())
             self.thinking = False

@@ -84,6 +84,7 @@ SETTABLE = {
     "programmi_attivi": ("schedule.enabled", lambda v: _bool(v)),
     "programmi_dal_riposo": ("schedule.wake_from_rest", lambda v: _bool(v)),
     "voce_di_jarvis": ("speech.tts_voice", lambda v: _voice(v)),
+    "lingua": ("persona.language", lambda v: _language(v)),
 }
 
 
@@ -218,6 +219,17 @@ def _ranged(name: str, lo: float, hi: float, kind: type = int):
 
 _frames = _ranged("fotogrammi", 1, 50)
 
+_LANGUAGES = {"italiano": "it", "italian": "it", "it": "it", "ita": "it", "inglese": "en", "english": "en",
+              "en": "en", "eng": "en"}
+
+
+def _language(v: Any) -> str:
+    key = " ".join(str(v).strip().lower().split())
+    if key not in _LANGUAGES:
+        raise ValueError(f"lingua sconosciuta '{v}' (italiano o inglese)")
+    return _LANGUAGES[key]
+
+
 _VOICES = {"film": "jarvis", "del film": "jarvis", "quella del film": "jarvis", "jarvis": "jarvis",
            "base": "base-it", "di base": "base-it", "italiana": "base-it", "italiano": "base-it", "fasol": "base-it",
            "riccardo": "base-it", "base-it": "base-it", "inglese": "base-en", "english": "base-en", "evers": "base-en",
@@ -243,7 +255,7 @@ NORMALIZE = {"ui.accent": look.color, "ui.theme": _theme, "ui.effects": _effects
              "brain.opencode_privacy": _privacy, "brain.opencode_model": _model,
              "brain.opencode_worker_model": _model,
              "schedule.catch_up_minutes": _ranged("minuti di recupero", 0, 1440, float),
-             "speech.tts_voice": _voice}
+             "speech.tts_voice": _voice, "persona.language": _language}
 
 
 def _parse_value(raw: Any, current: Any) -> Any:

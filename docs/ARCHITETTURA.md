@@ -329,6 +329,24 @@ misurati (timbro e pulizia); clonate, le orecchie di Jarvis le capiscono senza e
 nome non diventa mai un percorso. A voce: `voce_di_jarvis` ("inglese", "di base", "quella del film"), rifiutata se
 la voce non esiste. La lingua della sintesi segue `persona.language`.
 
+## Lingue (dal 21/11)
+
+Jarvis parla italiano o inglese: `persona.language` ("it" o "en"), scelto al primo avvio (di base la lingua di
+Windows) o a voce ("parla in inglese": scorciatoia `lingua`, vale dal riavvio). Quasi tutto ciò che dice lo scrive il
+cervello, quindi la parte principale è la persona: le istruzioni restano in italiano, ma in inglese gli si chiede di
+parlare SEMPRE inglese britannico e gli esempi di frasi sono quelli inglesi ("Right away.", "Let me check.");
+"signore" diventa "sir" (`lang.address`), agli ospiti niente "sir".
+
+`jarvis/lang.py` tiene il resto: le poche frasi fisse dette senza cervello (frase pronta per gli strumenti lenti,
+cambio di cervello, cervello che non risponde), le frasi tenute pronte nella cache della voce, le parole di stop
+(valgono in entrambe le lingue: "basta" e "enough" fermano sempre Jarvis). `speakable(text, lang)` legge numeri, ore,
+date, unità e sigle all'inglese (4,892 / 3.14 / 8:30 / 21/11/2026 / $5 / GPU); la voce sintetizza con la lingua
+della conversazione. In inglese il filtro delle frasi di servizio (`NarrationFilter`) è spento: lì "Let me check the
+weather." è la risposta giusta. Cambiando lingua, una voce inclusa passa a quella della lingua nuova
+(`follow_language`: base-it ⇄ base-en); una voce tua resta. Le orecchie riconoscono la lingua da sole.
+
+Da fare: i testi della finestra (pulsanti, registro, stati) sono ancora in italiano.
+
 ## Auto-riparazione e auto-miglioramento
 
 - Supervisor: riavvio dei processi caduti con backoff, rilevamento microfono scollegato, VRAM

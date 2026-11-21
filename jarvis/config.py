@@ -36,6 +36,7 @@ CHOICES: dict[str, set[str]] = {
     "brain.fast_claude_effort": {"off", "low", "medium", "high"},
     "hands.disposable_browser_channel": {"chrome", "msedge"},
     "speech.tts_model": {"qwen3-1.7b", "qwen3-0.6b", "omnivoice"},
+    "persona.language": {"it", "en"},
     "speech.ears_device": {"cpu", "cuda"},
     "speech.stt_model": {"parakeet-ultra", "parakeet-v3"},
     "system.proposals": {"mai", "settimana", "giorno"},
@@ -124,7 +125,7 @@ class PersonaConfig:
     user_name: str = "Utente"  # come si chiama l'utente
     address_as: str = "signore"  # come Jarvis si rivolge all'utente
     formal: bool = True  # dare del Lei
-    language: str = "it"  # lingua della conversazione
+    language: str = "it"  # lingua in cui Jarvis parla: it (italiano) o en (inglese); la voce di base la segue
 
 
 @dataclass

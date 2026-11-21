@@ -23,6 +23,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .. import lang as lang_mod
 from .. import paths
 from ..audio.stretch import wsola
 from ..audio.voicefx import VoiceFx, VoiceFxParams
@@ -31,12 +32,7 @@ from .tts import TtsClient, Voice
 
 log = logging.getLogger("jarvis.voice")
 
-COMMON_PHRASES = [
-    "Subito, signore.", "Certamente, signore.", "Certamente.", "Subito.", "Come desidera.", "Fatto.",
-    "Un momento.", "Un attimo, signore.", "Me ne occupo io.", "Ricevuto.", "Va bene.", "D'accordo.",
-    "Ecco fatto.", "Sì, signore.", "Bentornato, signore.", "Buongiorno, signore.", "Buonasera, signore.",
-    "Ai suoi ordini.", "Al suo servizio, signore.", "Ci penso io.", "Controllo subito.", "Verifico subito.",
-]
+COMMON_PHRASES = lang_mod.COMMON_PHRASES["it"]  # le frasi tenute pronte: jarvis/lang.py
 
 
 class VoiceError(RuntimeError):
@@ -102,6 +98,7 @@ class VoiceOutput:
         self.model = model
         self.fallback_model = fallback_model
         self.language = language
+        self.lang = "en" if language == "English" else "it"  # come si leggono numeri, date e sigle
         self.fx = VoiceFx(VoiceFxParams(**voice_meta.get("fx", {})))
         self.seed = int(voice_meta.get("seed", 7))
         self._speed = speed  # impostazione "velocità voce" (1 = normale); può cambiare mentre gira
@@ -176,7 +173,7 @@ class VoiceOutput:
 
     def estimate_seconds(self, text: str) -> float:
         """Quanto ci vorrà a sintetizzare questo testo (0 se è già in cache)."""
-        spoken = speakable(text)
+        spoken = speakable(text, self.lang)
         if not spoken or self._cache_get(self._key(spoken)) is not None:
             return 0.0
         return self.synth_scale * (self.synth_a + self.synth_b * len(spoken))
@@ -188,26 +185,26 @@ class VoiceOutput:
 
     def is_cached(self, text: str) -> bool:
         """Vero se la frase ha già l'audio pronto: suonerà senza attesa."""
-        spoken = speakable(text)
+        spoken = speakable(text, self.lang)
         return bool(spoken) and self._cache_get(self._key(spoken)) is not None
 
     # ------------------------------------------------------------ sintesi
 
-    async def prime(self, text: str = "Sistemi in linea.") -> float:
+    async def prime(self, text: str = "") -> float:
         """Carica davvero il modello con una sintesi vera, saltando la cache.
 
         Il motore carica i modelli al primo uso (~5 s): se la frase di prova arrivasse dalla cache, quel
         costo finirebbe sulla prima risposta vera. Restituisce i secondi impiegati."""
         async with self._lock:
             t = time.perf_counter()
-            await self._synth_checked(speakable(text))
+            await self._synth_checked(speakable(text or lang_mod.phrase(self.lang, "online"), self.lang))
             return time.perf_counter() - t
 
     async def say(self, text: str, background: bool = False) -> tuple[np.ndarray, int, str]:
         """Restituisce (audio, frequenza, testo effettivamente pronunciato).
 
         background=True (riscaldamento della cache) cede sempre il passo alle frasi vere."""
-        spoken = speakable(text)
+        spoken = speakable(text, self.lang)
         if not spoken:
             return np.zeros(0, np.float32), 24000, ""
         key = self._key(spoken)
@@ -273,8 +270,8 @@ class VoiceOutput:
     async def warm_up(self, phrases: list[str] | None = None) -> int:
         """Prepara in anticipo le frasi ricorrenti (si fa quando il motore è libero)."""
         n = 0
-        for p in phrases or COMMON_PHRASES:
-            if self._cache_get(self._key(speakable(p))) is None:
+        for p in phrases or lang_mod.COMMON_PHRASES[self.lang]:
+            if self._cache_get(self._key(speakable(p, self.lang))) is None:
                 try:
                     await self.say(p, background=True)
                     n += 1

@@ -853,6 +853,20 @@ MUTATIONS = [
      'pagina del primo avvio: il microfono si chiude uscendo dalla prova'),
     ('jarvis/setup/web/setup.js', '      if (m.heard) $("#mic-meter").classList.add("ok");', '', 'tests/test_setup_page.py',
      'pagina del primo avvio: si vede quando il microfono sente'),
+    ('jarvis/lang.py', '    if norm(lang) == "en" and address_as.strip().lower() in ("signore", "signor"):', '    if False:', 'tests/test_lang.py',
+     'inglese: signore diventa sir'),
+    ('jarvis/lang.py', '    if voice.startswith("base-") and voice != f"base-{code}":', '    if voice != f"base-{code}":', 'tests/test_lang.py',
+     'inglese: una voce tua non cambia con la lingua'),
+    ('jarvis/core/conversation.py', '        narration = NarrationFilter(active=self.language != "en")', '        narration = NarrationFilter()', 'tests/test_lang.py',
+     'inglese: le frasi inglesi prima di uno strumento si dicono'),
+    ('jarvis/speech/text.py', '(":" if lang == "en" else "[:.]")', '"[:.]"', 'tests/test_lang.py',
+     'inglese: 3.14 non è un orario'),
+    ('jarvis/brain/persona.py', '        if guest:  # di un ospite non si sa come rivolgersi', '        if False:', 'tests/test_lang.py',
+     'inglese: niente sir a un ospite'),
+    ('jarvis/tools/front.py', '    if key not in _LANGUAGES:', '    if False:', 'tests/test_lang.py',
+     'inglese: una lingua sconosciuta si rifiuta'),
+    ('jarvis/setup/flow.py', '        follow_language(self.store, lang)', '        pass', 'tests/test_setup_flow.py',
+     'primo avvio: la voce di base segue la lingua scelta'),
 ]
 
 

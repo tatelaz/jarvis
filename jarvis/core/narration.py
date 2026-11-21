@@ -23,9 +23,10 @@ class NarrationFilter:
     """feed() restituisce il testo da pronunciare (vuoto se lo trattiene), tool() scarta la frase trattenuta,
     flush() restituisce ciò che resta a fine risposta."""
 
-    def __init__(self) -> None:
+    def __init__(self, active: bool = True) -> None:
         self.held = ""
-        self.screening = True  # all'inizio della risposta e dopo ogni strumento
+        self.screening = active  # all'inizio della risposta e dopo ogni strumento (spento: Jarvis parla inglese)
+        self.active = active
 
     def feed(self, text: str) -> str:
         if not self.screening:
@@ -39,7 +40,7 @@ class NarrationFilter:
     def tool(self) -> None:
         """Parte uno strumento: la frase di servizio trattenuta non si dice; il testo dopo si controlla di nuovo."""
         self.held = ""
-        self.screening = True
+        self.screening = self.active
 
     def flush(self) -> str:
         out, self.held = self.held, ""

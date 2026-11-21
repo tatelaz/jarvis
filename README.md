@@ -1,6 +1,6 @@
 # Jarvis
 
-Assistente vocale in italiano per Windows, ispirato al JARVIS dei film di Iron Man. Lo chiami per nome, gli parli
+Assistente vocale per Windows, in italiano o in inglese, ispirato al JARVIS dei film di Iron Man. Lo chiami per nome, gli parli
 come a una persona e lui risponde con la sua voce, usa il PC al posto tuo e lavora in background mentre continui a
 parlargli.
 

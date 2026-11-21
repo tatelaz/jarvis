@@ -21,6 +21,7 @@ from typing import Any
 
 from .. import paths
 from ..config import Config, ConfigStore
+from ..lang import follow_language
 from ..speech.engine import BUNDLED_VOICES, voice_dir
 from . import catalog, pc
 from .brains import ClaudeCode
@@ -99,6 +100,7 @@ class Setup:
         if lang not in LANGUAGES:
             raise SetupError("lingua_sconosciuta")
         self.store.set("persona.language", lang)
+        follow_language(self.store, lang)  # la voce di base segue la lingua (una voce tua resta)
 
     # --- il PC ---
 

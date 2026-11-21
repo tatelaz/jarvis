@@ -36,6 +36,7 @@ from .identity.guard import LEGACY, Identity
 from .identity.model import SpeakerModel
 from .identity.people import People
 from .improve.diary import Diary, Recorder, crash_entries, summary_event
+from .lang import follow_language
 from .media.omni import GpuLease, Omni
 from .media.service import MediaWatcher
 from .memory.embed import Embedder
@@ -233,7 +234,9 @@ class Jarvis:
         apps = self._build_apps() if self.backend is None else None  # le prove non toccano le app
         services = Services(self.bus, self.store, self.memory, self.tasks, voice.fx, restart=self.request_restart,
                             shutdown=self.request_shutdown, rest=self.request_rest,
-                            appliers={"system.autostart": autostart.apply}, voices=admin, diary=self.diary,
+                            appliers={"system.autostart": autostart.apply,
+                                      "persona.language": lambda code: follow_language(self.store, code)},
+                            voices=admin, diary=self.diary,
                             apps=apps, media=self._build_media() if self.backend is None else None,
                             free_models=kit, schedule=self.scheduler,
                             owner_speaking=lambda: self.identity is None or self.conv is None or self.conv.voice.owner)

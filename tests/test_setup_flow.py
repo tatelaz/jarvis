@@ -549,3 +549,9 @@ async def test_audio_through_the_server(server, heard):
     assert (await call(server, "POST", "/api/mic/stop", {}))[0] == 200
     assert (await call(server, "POST", "/api/audio", {"input": "x", "output": ""})) == \
            (409, {"error": "dispositivo_sconosciuto"})
+
+
+def test_choosing_english_in_the_setup_switches_the_included_voice(setup):
+    setup.store.set("speech.tts_voice", "base-it")
+    setup.set_language("en")
+    assert setup.store.config.speech.tts_voice == "base-en"

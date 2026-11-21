@@ -5,7 +5,7 @@ Due compiti:
    pezzo esce il prima possibile (anche a una virgola), così Jarvis inizia a parlare mentre il
    modello sta ancora scrivendo; i successivi seguono le frasi.
 2. `speakable`: toglie ciò che non si legge ad alta voce (markdown, codice, link, emoji) e rende
-   leggibili numeri, orari, percentuali, valute e sigle in italiano.
+   leggibili numeri, orari, percentuali, valute e sigle, in italiano o in inglese (`lang`).
 """
 
 from __future__ import annotations
@@ -82,9 +82,9 @@ _INLINE_CODE = re.compile(r"`([^`]*)`")
 _PATH = re.compile(r"(?:[A-Za-z]:\\|\\\\|(?<![\w.])~?/)[^\s,;]+")
 
 
-def _url_to_speech(m: re.Match) -> str:
+def _url_to_speech(m: re.Match, dot: str = " punto ") -> str:
     host = re.sub(r"^(https?://)?(www\.)?", "", m.group(0), flags=re.I).split("/")[0]
-    return host.replace(".", " punto ")
+    return host.replace(".", dot)
 
 
 def _time(m: re.Match) -> str:
@@ -134,12 +134,95 @@ _UNIT_RE = re.compile(
 _CURRENCY_PREFIX = re.compile(r"([€$£])\s?(\d+(?:[.,]\d+)?)")
 
 
-def speakable(text: str) -> str:
-    """Testo pronto per il TTS. Il contenuto non leggibile viene tolto, non inventato."""
+# ---------------------------------------------------------------- inglese
+
+_ONES_EN = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+_MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+              "November", "December"]
+_UNITS_EN = {
+    "km/h": "kilometres per hour", "km": "kilometres", "m": "metres", "cm": "centimetres", "mm": "millimetres",
+    "kg": "kilos", "g": "grams", "°C": "degrees", "°": "degrees", "€": "euros", "$": "dollars", "£": "pounds",
+    "%": "percent", "GB": "gigabytes", "MB": "megabytes", "KB": "kilobytes", "TB": "terabytes",
+    "GHz": "gigahertz", "MHz": "megahertz", "Hz": "hertz", "ms": "milliseconds", "h": "hours",
+    "min": "minutes", "s": "seconds", "W": "watts", "kW": "kilowatts", "V": "volts", "fps": "frames per second",
+}
+_WORD_ACRONYMS_EN = {"NASA", "NATO", "UNESCO", "UEFA", "FIFA", "IKEA", "LASER", "RADAR", "RAM", "ROM", "LED", "COVID",
+                     "OK", "SIM", "PIN", "GIF", "JPEG", "ASAP", "SCUBA"}
+_FIXED_EN = {"e.g.": "for example", "i.e.": "that is", "etc.": "et cetera", "vs.": "versus", "vs": "versus",
+             "Mr.": "Mister", "Mrs.": "Missus", "Dr.": "Doctor", "OK": "okay", "WIFI": "wifi", "Wi-Fi": "wifi",
+             "e-mail": "email"}
+
+
+def _int_en(n: int) -> str:
+    return num2words(n, lang="en")
+
+
+def number_en(token: str) -> str:
+    """'4,892' -> four thousand, eight hundred and ninety-two; '3.14' -> three point one four."""
+    t = token.strip()
+    neg = t.startswith("-")
+    t = t.lstrip("+-")
+    if re.fullmatch(r"\d{1,3}(,\d{3})+(\.\d+)?", t):  # migliaia all'inglese: 4,892 / 1,250,000.5
+        t = t.replace(",", "")
+    if re.fullmatch(r"\d+\.\d+", t):
+        ip, dp = t.split(".")
+        out = f"{_int_en(int(ip))} point " + " ".join(_ONES_EN[int(c)] for c in dp)
+    elif t.isdigit():
+        out = _int_en(int(t))
+    else:
+        return token
+    return ("minus " if neg else "") + out
+
+
+def _time_en(m: re.Match) -> str:
+    h, mi = int(m.group(1)), int(m.group(2))
+    if mi == 0:
+        return {0: "midnight", 12: "noon"}.get(h, f"{_int_en(h)} o'clock")
+    hs = _int_en(h or 12)
+    return f"{hs} oh {_int_en(mi)}" if mi < 10 else f"{hs} {_int_en(mi)}"
+
+
+def _date_en(m: re.Match) -> str:
+    d, mo = int(m.group(1)), int(m.group(2))
+    y = m.group(3)
+    if not (1 <= mo <= 12 and 1 <= d <= 31):
+        return m.group(0)
+    out = f"the {num2words(d, to='ordinal', lang='en')} of {_MONTHS_EN[mo - 1]}"
+    if y:
+        yy = int(y)
+        out += f" {num2words(yy + 2000 if yy < 100 else yy, to='year', lang='en')}"
+    return out
+
+
+def _unit_en(m: re.Match) -> str:
+    num, unit = m.group(1), m.group(2)
+    words, name = number_en(num), _UNITS_EN[unit]
+    if words == "one" and name.endswith("s") and " " not in name and unit not in ("%",):
+        name = name[:-1]  # one kilometre, one euro, one second
+    return f"{words} {name}"
+
+
+def _rules(lang: str) -> dict:
+    if lang == "en":
+        return {"fixed": _FIXED_EN, "time": _time_en, "date": _date_en, "unit": _unit_en,
+                "number": number_en, "words": _WORD_ACRONYMS_EN, "spell": lambda a: " ".join(a.upper()),
+                "dot": " dot ", "and": " and ", "plus": " plus ", "equals": " equals ", "then": ", then ",
+                "numbers": re.compile(r"(?<![\w])[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\w])"
+                                      r"|(?<![\w,])[+-]?\d+(?:\.\d+)?(?![\w])")}
+    return {"fixed": _FIXED, "time": _time, "date": _date, "unit": _unit, "number": number_it,
+            "words": _WORD_ACRONYMS, "spell": spell, "dot": " punto ", "and": " e ", "plus": " più ",
+            "equals": " uguale ", "then": ", poi ",
+            "numbers": re.compile(r"(?<![\w])[+-]?\d{1,3}(?:\.\d{3})+(?:,\d+)?(?![\w])"
+                                  r"|(?<![\w.])[+-]?\d+(?:[.,]\d+)?(?![\w])")}
+
+
+def speakable(text: str, lang: str = "it") -> str:
+    """Testo pronto per il TTS, in italiano o in inglese. Il contenuto non leggibile viene tolto, non inventato."""
+    r = _rules(lang)
     t = unicodedata.normalize("NFC", text)
     t = _CODE_BLOCK.sub(" ", t)
     t = _MD_LINK.sub(r"\1", t)
-    t = _URL.sub(_url_to_speech, t)
+    t = _URL.sub(lambda m: _url_to_speech(m, r["dot"]), t)
     t = _INLINE_CODE.sub(r"\1", t)
     t = _PATH.sub(lambda m: m.group(0).rstrip("\\/").replace("\\", "/").split("/")[-1], t)
     t = _EMOJI.sub("", t)
@@ -151,16 +234,16 @@ def speakable(text: str) -> str:
     t = re.sub(r"[ \t]*\n+[ \t]*", ". ", t)
     t = re.sub(r"\.\s*\.(?!\.)", ".", t)
     # forme fisse e sigle
-    for k, v in _FIXED.items():
+    for k, v in r["fixed"].items():
         t = re.sub(rf"(?<![\w]){re.escape(k)}(?![\w])", v, t)
     t = _CURRENCY_PREFIX.sub(lambda m: f"{m.group(2)} {m.group(1)}", t)
-    t = re.sub(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b(?![.,]\d)", _time, t)
-    t = re.sub(r"\b(\d{1,2})/(\d{1,2})(?:/(\d{2}|\d{4}))?\b", _date, t)
-    t = _UNIT_RE.sub(_unit, t)
-    t = re.sub(r"(?<![\w])[+-]?\d{1,3}(?:\.\d{3})+(?:,\d+)?(?![\w])|(?<![\w.])[+-]?\d+(?:[.,]\d+)?(?![\w])",
-               lambda m: number_it(m.group(0)), t)
-    t = re.sub(r"\b([A-Z]{2,5})\b", lambda m: m.group(1) if m.group(1) in _WORD_ACRONYMS else spell(m.group(1)), t)
-    t = t.replace("&", " e ").replace("+", " più ").replace("=", " uguale ").replace("→", ", poi ")
+    # in italiano anche 8.30 è un'ora; in inglese 8.30 è un numero (3.14 non è un orario)
+    t = re.sub(r"\b([01]?\d|2[0-3])" + (":" if lang == "en" else "[:.]") + r"([0-5]\d)\b(?![.,]\d)", r["time"], t)
+    t = re.sub(r"\b(\d{1,2})/(\d{1,2})(?:/(\d{2}|\d{4}))?\b", r["date"], t)
+    t = _UNIT_RE.sub(r["unit"], t)
+    t = r["numbers"].sub(lambda m: r["number"](m.group(0)), t)
+    t = re.sub(r"\b([A-Z]{2,5})\b", lambda m: m.group(1) if m.group(1) in r["words"] else r["spell"](m.group(1)), t)
+    t = t.replace("&", r["and"]).replace("+", r["plus"]).replace("=", r["equals"]).replace("→", r["then"])
     t = re.sub(r"[\"“”«»<>{}\[\]^]", "", t)
     t = re.sub(r"\s+([,.;:!?])", r"\1", t)
     t = re.sub(r"([,;:])(?=\S)", r"\1 ", t)
