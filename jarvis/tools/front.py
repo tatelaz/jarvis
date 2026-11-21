@@ -36,6 +36,7 @@ class Services:
     schedule: Any = None  # Scheduler: ciò che Jarvis fa da solo a un'ora o a ripetizione (jarvis/scheduler.py)
     # chi parla adesso è l'utente? (i programmi degli ospiti: solo promemoria, e vedono solo i loro)
     owner_speaking: Callable[[], bool] = lambda: True
+    welcome: Any = None  # Welcome: la presentazione a voce dopo il primo avvio (jarvis/setup/welcome.py)
     # effetti sul PC di certe impostazioni (es. avvio automatico): ricevono il valore, dicono cosa hanno fatto
     appliers: dict[str, Callable[[Any], str]] = field(default_factory=dict)
 
@@ -49,7 +50,7 @@ TOOL_GROUPS = {
     "ricorda": "memoria", "cerca_memoria": "memoria", "dimentica": "memoria",
     "impostazioni": "sistema", "impostazione": "sistema", "riavvia": "sistema", "riposo": "sistema",
     "spegniti": "sistema", "migliora_jarvis": "sistema", "proposte": "sistema", "rispondi_proposta": "sistema",
-    "modelli_gratis": "sistema",
+    "modelli_gratis": "sistema", "presentazione": "sistema",
     "avvia_compito": "compiti", "messaggio_compito": "compiti", "annulla_compito": "compiti",
     "conferma_compito": "compiti", "stato_compiti": "compiti",
     "impara_voce": "voci", "voci_conosciute": "voci", "permessi_voce": "voci", "dimentica_voce": "voci",
@@ -632,6 +633,36 @@ def build_front_tools(s: Services) -> ToolRegistry:
             return "\n".join(rows) if rows else "nessun compito"
 
     # ---------------------------------------------------------- programmi (a un'ora, a ripetizione)
+
+    if s.welcome is not None:
+        from ..setup.welcome import STEPS
+
+        welcome = s.welcome
+
+        @reg.register("presentazione", "La configurazione a voce dopo l'installazione (nome, tu o Lei, la sua "
+                      "voce, le app, le abitudini). stato = i passi rimasti; fatto o salta con il passo; rimanda = "
+                      "\"dopo\" (fino alla prossima accensione); fine = basta così; ricomincia = da capo, per "
+                      "\"rifacciamo la configurazione\". Per \"continuiamo la configurazione\": stato.",
+                      schema({"azione": {"type": "string", "enum": ["stato", "fatto", "salta", "rimanda", "fine",
+                                                                    "ricomincia"]},
+                              "passo": {"type": "string", "enum": list(STEPS)}}, ["azione"]))
+        def presentazione(args):
+            action, step = args["azione"], str(args.get("passo") or "")
+            try:
+                if action in ("fatto", "salta"):
+                    return welcome.mark(step, "fatto" if action == "fatto" else "saltato")
+            except ValueError as e:
+                return f"Errore: {e}"
+            if action == "rimanda":
+                welcome.postponed = True
+                return "rimandata: la riproponi alla prossima accensione, o quando lo chiede"
+            if action == "fine":
+                welcome.finish()
+                return "presentazione finita"
+            if action == "ricomincia":
+                welcome.restart()
+                return welcome.listing()
+            return welcome.listing()
 
     if s.schedule is not None:
         sch = s.schedule

@@ -274,6 +274,7 @@ def test_every_front_tool_has_a_permission_decision(tmp_path):
     from jarvis.core.bus import Bus
     from jarvis.memory.store import Memory
     from jarvis.scheduler import Scheduler
+    from jarvis.setup.welcome import Welcome
     from jarvis.tools.front import BASE_TOOLS, TOOL_GROUPS, Services, build_front_tools
 
     class Tasks:
@@ -282,7 +283,8 @@ def test_every_front_tool_has_a_permission_decision(tmp_path):
 
     mem = Memory(tmp_path / "m.db")
     s = Services(Bus(), ConfigStore(tmp_path / "c.yaml"), mem, tasks=Tasks(), restart=lambda: "", shutdown=lambda: "",
-                 rest=lambda: "", voices=object(), free_models=object(), schedule=Scheduler(None, lambda p, d: None))
+                 rest=lambda: "", voices=object(), free_models=object(), schedule=Scheduler(None, lambda p, d: None),
+                 welcome=Welcome(tmp_path / "p.json", tmp_path / "f.json"))
     reg = build_front_tools(s)
     names = set(reg.names())
     assert names <= set(TOOL_GROUPS) | BASE_TOOLS, names - set(TOOL_GROUPS) - BASE_TOOLS  # nessuno senza decisione

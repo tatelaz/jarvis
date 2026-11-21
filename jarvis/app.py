@@ -9,7 +9,7 @@ import os
 import time
 from pathlib import Path
 
-from . import autostart, health, paths, winjob
+from . import autostart, health, lang, paths, winjob
 from .apps import games, gmail, whatsapp
 from .apps.base import AppError, Apps
 from .audio.devices import ResilientBackend
@@ -44,6 +44,7 @@ from .memory.keeper import MemoryKeeper
 from .memory.store import Memory
 from .opencode_kit import OpenCodeKit
 from .scheduler import Plan, Scheduler, dispatch
+from .setup.welcome import Welcome
 from .speech import engine
 from .speech.stt import transcribe_file
 from .speech.tts import TtsClient
@@ -80,6 +81,10 @@ class Jarvis:
         # idem la scelta della cancellazione d'eco per dispositivo (in aec.json c'era una "stanza simulata")
         self.aec_memory = paths.DATA_DIR / "cache" / "aec.json" if backend is None else None
         # e il diario degli errori (auto-miglioramento spontaneo)
+        # la presentazione a voce dopo il primo avvio (solo il Jarvis vero: le prove non hanno un primo avvio)
+        self.welcome = (Welcome(paths.DATA_DIR / "setup" / "presentazione.json", paths.DATA_DIR / "setup" / "fatto.json",
+                                language=lambda: lang.norm(self.cfg.persona.language))
+                        if backend is None else None)
         self.diary = Diary(paths.data_path("diario.db") if backend is None else paths.data_path("prove", "diario_prove.db"))
         self.recorder = Recorder(self.diary, self.cfg.persona.user_name)
         # i programmi (promemoria, richieste e compiti a un'ora o a ripetizione); le prove hanno i loro
@@ -239,7 +244,8 @@ class Jarvis:
                             voices=admin, diary=self.diary,
                             apps=apps, media=self._build_media() if self.backend is None else None,
                             free_models=kit, schedule=self.scheduler,
-                            owner_speaking=lambda: self.identity is None or self.conv is None or self.conv.voice.owner)
+                            owner_speaking=lambda: self.identity is None or self.conv is None or self.conv.voice.owner,
+                            welcome=self.welcome)
         tools = build_front_tools(services)
         kit.mount_front(tools)  # gli stessi strumenti (con gli stessi permessi) anche per il cervello su OpenCode
         if self.identity is not None:  # i permessi li controlla il codice, a ogni strumento
@@ -324,6 +330,8 @@ class Jarvis:
         if problems:
             self.conv.notify("Avviso di sistema, problemi trovati all'avvio: " + " ".join(problems)
                              + " Riferiscili all'utente in breve.")
+        if self.welcome is not None and (event := self.welcome.start_event(cfg.persona.user_name)):
+            self.conv.notify(event)  # dopo il primo avvio: la presentazione a voce
         self._background(self.scheduler.run())  # dopo "pronto": i programmi "a ogni accensione" e i recuperi
 
     async def _fire_plan(self, plan: Plan, due_at: float) -> None:

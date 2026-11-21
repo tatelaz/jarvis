@@ -329,6 +329,18 @@ misurati (timbro e pulizia); clonate, le orecchie di Jarvis le capiscono senza e
 nome non diventa mai un percorso. A voce: `voce_di_jarvis` ("inglese", "di base", "quella del film"), rifiutata se
 la voce non esiste. La lingua della sintesi segue `persona.language`.
 
+## Presentazione a voce (dal 21/11)
+
+Dopo il primo avvio grafico (`data/setup/fatto.json`) il resto della configurazione si fa parlando: alla prima
+accensione il cervello riceve un [EVENTO] (`jarvis/setup/welcome.py`, `Welcome.start_event`) che gli chiede di
+presentarsi e di guidare i passi uno alla volta: nome e come rivolgersi, tu o Lei (non in inglese), la voce
+dell'utente (impara_voce), le app (WhatsApp, Gmail, giochi), le abitudini da ricordare (solo dopo un sì). Lo
+strumento `presentazione` (solo per l'utente, gruppo sistema) dice i passi rimasti e li segna fatti o saltati; finiti
+tutti, la presentazione è finita da sola. "Dopo" la rimanda alla prossima accensione (allora si chiede se continuare),
+"continuiamo la configurazione" la riprende, "rifacciamo la configurazione" la ricomincia. La parola d'ordine non è un
+passo: si imposta dalla finestra e non si chiede né si dice mai a voce. Una copia installata a mano (senza il primo
+avvio grafico) non la propone.
+
 ## Lingue (dal 21/11)
 
 Jarvis parla italiano o inglese: `persona.language` ("it" o "en"), scelto al primo avvio (di base la lingua di

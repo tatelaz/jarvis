@@ -873,6 +873,16 @@ MUTATIONS = [
      'finestra in inglese: anche i testi fissi della grafica'),
     ('jarvis/ui/look.py', '"lang": lang.norm(cfg.persona.language)}', '"lang": "it"}', 'tests/test_look.py',
      'finestra in inglese: la lingua arriva dalla persona'),
+    ('jarvis/setup/welcome.py', '        return self.setup_done.exists() and not self.state()["finished"] and not self.postponed \\', '        return not self.state()["finished"] and not self.postponed \\', 'tests/test_welcome.py',
+     'presentazione: solo dopo il primo avvio grafico'),
+    ('jarvis/setup/welcome.py', '        return [s for s in STEPS if s not in done and not (s == "registro" and self.language() == "en")]', '        return [s for s in STEPS if s not in done]', 'tests/test_welcome.py',
+     'presentazione: in inglese niente tu o Lei'),
+    ('jarvis/setup/welcome.py', '            st["finished"] = True\n        self._save(st)\n        return "presentazione finita"', '            pass\n        self._save(st)\n        return "presentazione finita"', 'tests/test_welcome.py',
+     'presentazione: finiti i passi è finita'),
+    ('jarvis/setup/welcome.py', 'if k in STEPS and v in MARKS}', 'if True}', 'tests/test_welcome.py',
+     'presentazione: uno stato rovinato si legge con prudenza'),
+    ('jarvis/tools/front.py', '            welcome.postponed = True', '            pass', 'tests/test_welcome.py',
+     'presentazione: dopo vuol dire alla prossima accensione'),
 ]
 
 
