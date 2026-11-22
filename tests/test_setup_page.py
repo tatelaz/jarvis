@@ -106,6 +106,38 @@ async def check_fits(page) -> None:
     await page.set_viewport_size({"width": SIZES[0][0], "height": SIZES[0][1]})
 
 
+INSIDE_RING = """() => {  // i testi del benvenuto che escono dal cerchio interno (raggio 214 su 560 del disegno)
+  const h = document.querySelector('.halo').getBoundingClientRect();
+  const cx = h.left + h.width / 2, cy = h.top + h.height / 2, r = h.width * 214 / 560 - 4;
+  const out = [];
+  for (const el of document.querySelectorAll('[data-step="hello"] .kicker, [data-step="hello"] .t, [data-step="hello"] .s')) {
+    const range = document.createRange(); range.selectNodeContents(el);
+    for (const b of range.getClientRects())  // ogni riga di testo, non la scatola intera
+      for (const [x, y] of [[b.left, b.top], [b.right, b.top], [b.left, b.bottom], [b.right, b.bottom]])
+        if (Math.hypot(x - cx, y - cy) > r) out.push(el.className + ': ' + el.textContent.slice(0, 30));
+  }
+  return [...new Set(out)];
+}"""
+
+
+async def check_inside_ring(page) -> None:
+    for w, hgt in SIZES:
+        await page.set_viewport_size({"width": w, "height": hgt})
+        await page.wait_for_timeout(60)
+        assert await page.evaluate(INSIDE_RING) == [], f"a {w}x{hgt}"
+    await page.set_viewport_size({"width": SIZES[0][0], "height": SIZES[0][1]})
+
+
+@pytest.mark.parametrize("locale", ["it-IT", "en-GB"])
+async def test_the_welcome_stays_inside_the_ring(tmp_path, locale):
+    """Visto nella Sandbox il 22/11: in inglese la frase sotto il titolo usciva dal cerchio."""
+    async with opened(tmp_path, locale=locale) as (h, page):
+        await on(page, "hello")
+        await page.wait_for_function(f"document.documentElement.lang === '{locale[:2]}'")
+        await check_inside_ring(page)
+        assert h.errors == []
+
+
 async def text(page, selector: str) -> str:
     return ((await page.locator(selector).text_content()) or "").strip()  # il testo, non le maiuscole dello stile
 

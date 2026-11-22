@@ -61,6 +61,8 @@ body[data-current="dl"] .halo .arc { opacity: 0; }
 .kicker { font: 500 10.5px/1 var(--cond); letter-spacing: .42em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 14px; }
 .t { margin: 0; font: 200 clamp(28px, 5.4vh, 40px)/1.15 var(--text); letter-spacing: -.015em; }
 .hello .t { font-size: clamp(32px, 6.4vh, 46px); }
+/* il benvenuto sta dentro il cerchio (raggio 214 su 560): la frase va a capo prima del bordo, anche in inglese */
+.hello .s { max-width: calc(min(560px, 78vh) * .6); text-wrap: balance; }
 .s { margin: 12px 0 0; color: var(--ink-2); max-width: 520px; font-size: 15px; }
 .act { margin-top: clamp(16px, 4vh, 28px); display: flex; gap: 10px; justify-content: center; }
 .hint { margin: 14px 0 0; max-width: 560px; color: var(--ink-2); font-size: 13px; min-height: 19px; }

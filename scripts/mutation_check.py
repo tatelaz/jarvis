@@ -1067,6 +1067,21 @@ MUTATIONS = [
     ('jarvis/__main__.py', '    certs.trust_windows()\n    from . import toolbox\n    from .config import ConfigStore\n    from .setup import flow\n',
      '    from . import toolbox\n    from .config import ConfigStore\n    from .setup import flow\n    certs.trust_windows()\n', 'tests/test_certs.py',
      'certificati: truststore prima di importare aiohttp (o i download non lo usano)'),
+    ('jarvis/setup/web/setup.css', '.hello .s { max-width: calc(min(560px, 78vh) * .6); text-wrap: balance; }\n',
+     '', 'tests/test_setup_page.py',
+     'primo avvio: il benvenuto sta dentro il cerchio anche in inglese'),
+    ('jarvis/ui/window.py', '    return ("cartella", found) if found else ("browser", None)',
+     '    return ("browser", None)', 'tests/test_window_engine.py',
+     'finestra: WebView2 non registrato si usa dalla sua cartella'),
+    ('jarvis/ui/window.py', '        webview.settings["WEBVIEW2_RUNTIME_PATH"] = str(folder)\n',
+     '', 'tests/test_window_engine.py',
+     'finestra: a pywebview si dà la cartella di WebView2 (o passa a Internet Explorer)'),
+    ('jarvis/ui/window.py', '    if how == "browser":',
+     '    if False:', 'tests/test_window_engine.py',
+     'finestra: senza WebView2 la pagina va nel browser, mai Internet Explorer'),
+    ('jarvis/ui/window.py', 'if re.fullmatch(r"\\d+(\\.\\d+){1,3}", d.name) and (d / "msedgewebview2.exe").is_file():',
+     'if re.fullmatch(r"\\d+(\\.\\d+){1,3}", d.name):', 'tests/test_window_engine.py',
+     "finestra: solo le cartelle di WebView2 con l'eseguibile"),
 ]
 
 
