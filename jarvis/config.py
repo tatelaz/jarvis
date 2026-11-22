@@ -41,6 +41,7 @@ CHOICES: dict[str, set[str]] = {
     "speech.ears_device": {"cpu", "cuda"},
     "speech.stt_model": {"parakeet-ultra", "parakeet-v3"},
     "system.proposals": {"mai", "settimana", "giorno"},
+    "system.updates": {"automatici", "chiedi", "spenti"},
     "ui.theme": {"mark3", "cinema"},
     "ui.effects": {"pieni", "sobri"},
     "memory.keeper_brain": {"auto", "claude", "opencode", "cloud"},
@@ -170,6 +171,9 @@ class SystemConfig:
     # proposte di miglioria dal diario degli errori: "settimana" (al massimo un riepilogo a settimana, 3 proposte),
     # "giorno", oppure "mai" (resta solo "hai proposte?")
     proposals: str = "settimana"
+    # versioni nuove dalle release di GitHub (solo le copie installate, jarvis/updates.py): "automatici" le installa
+    # da solo quando Jarvis è fermo, "chiedi" lo dice e aspetta un sì, "spenti" non controlla nemmeno
+    updates: str = "automatici"
 
 
 @dataclass
@@ -254,6 +258,7 @@ LIVE_SETTINGS = {
     "audio.max_silence_ms", "audio.turn_threshold", "audio.pre_roll_ms", "system.autostart", "system.rest_keeps_ears",
     "audio.echo_reference",  # la pipeline la rilegge a ogni blocco di 10 ms
     "system.proposals",  # il controllo del riepilogo la rilegge a ogni giro
+    "system.updates",  # il controllo degli aggiornamenti la rilegge a ogni giro (jarvis/updates.py)
     "ui.theme", "ui.accent", "ui.text_scale", "ui.effects",  # la finestra le riceve e si ridisegna subito
     "memory.keeper", "memory.keeper_idle_s", "memory.keeper_brain",  # il custode le rilegge a ogni giro
     "identity.threshold", "identity.unlock_minutes",  # rilette a ogni frase

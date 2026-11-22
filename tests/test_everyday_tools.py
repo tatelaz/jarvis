@@ -135,7 +135,7 @@ def tools(tmp_path):
                  restart=lambda: "riavvio in arrivo", shutdown=lambda: "spegnimento in arrivo",
                  rest=lambda: "riposo in arrivo", diary=Diary(), apps=Apps([App("prova", "Prova", "pc")]),
                  media=FakeMedia(), free_models=object(), schedule=Scheduler(None, lambda p, due: None),
-                 welcome=Welcome(tmp_path / "presentazione.json", tmp_path / "fatto.json"))
+                 welcome=Welcome(tmp_path / "presentazione.json", tmp_path / "fatto.json"), updates=object())
     yield build_front_tools(s), s
     mem.close()
 
@@ -423,7 +423,8 @@ TESTED_ELSEWHERE = {"impostazioni", "impostazione", "riavvia", "spegniti", "mode
                     "guarda_video",  # tests/test_media.py
                     "proposte", "rispondi_proposta",  # tests/test_improve.py
                     "programma", "programmi", "togli_programma",  # tests/test_scheduler.py
-                    "presentazione"}  # tests/test_welcome.py
+                    "presentazione",  # tests/test_welcome.py
+                    "aggiornamenti"}  # tests/test_updates.py
 
 
 def test_every_tool_is_tested(tools):

@@ -9,7 +9,7 @@ import os
 import time
 from pathlib import Path
 
-from . import autostart, health, lang, paths, winjob
+from . import autostart, health, lang, paths, updates, winjob
 from .apps import games, gmail, whatsapp
 from .apps.base import AppError, Apps
 from .audio.devices import ResilientBackend
@@ -60,6 +60,7 @@ from .tools import system as system_tools
 from .tools.front import Services, build_front_tools
 from .ui.hotkeys import Hotkeys
 from .ui.server import UiServer
+from .updates import Updater
 
 log = logging.getLogger("jarvis.app")
 AUDIO_OUTAGE_TO_MENTION_S = 10.0  # un audio sparito per meno (cuffie ricollegate al volo) non merita parole
@@ -85,6 +86,9 @@ class Jarvis:
         self.aec_memory = paths.DATA_DIR / "cache" / "aec.json" if backend is None else None
         # e il diario degli errori (auto-miglioramento spontaneo)
         # la presentazione a voce dopo il primo avvio (solo il Jarvis vero: le prove non hanno un primo avvio)
+        # versioni nuove dalle release di GitHub: solo il Jarvis vero (e da solo solo nelle copie installate)
+        self.updates = (Updater(lambda: self.cfg.system.updates, lambda text: self.conv and self.conv.notify(text),
+                                self.request_shutdown) if backend is None else None)
         self.welcome = (Welcome(paths.DATA_DIR / "setup" / "presentazione.json", paths.DATA_DIR / "setup" / "fatto.json",
                                 language=lambda: lang.norm(self.cfg.persona.language))
                         if backend is None else None)
@@ -248,7 +252,7 @@ class Jarvis:
                             apps=apps, media=self._build_media() if self.backend is None else None,
                             free_models=kit, schedule=self.scheduler,
                             owner_speaking=lambda: self.identity is None or self.conv is None or self.conv.voice.owner,
-                            welcome=self.welcome)
+                            welcome=self.welcome, updates=self.updates)
         tools = build_front_tools(services)
         kit.mount_front(tools)  # gli stessi strumenti (con gli stessi permessi) anche per il cervello su OpenCode
         if self.identity is not None:  # i permessi li controlla il codice, a ogni strumento
@@ -304,8 +308,9 @@ class Jarvis:
         self._background(self._keep_memory(front_cwd))
         self._background(self._keep_diary())
         self._background(self._keep_apps())
-        if self.backend is None:  # le prove non accendono OpenCode né fanno esami
+        if self.backend is None:  # le prove non accendono OpenCode né fanno esami, né si aggiornano
             self._background(self._keep_opencode())
+            self._background(self._keep_updated())
 
         self.ui = UiServer(self, port=cfg.ui.port)
         await self.ui.start()
@@ -413,6 +418,25 @@ class Jarvis:
                     await self.whatsapp.tick()
                 except Exception:  # un'app che non risponde non deve mai fermare Jarvis
                     log.exception("controllo di WhatsApp fallito")
+
+    async def _keep_updated(self) -> None:
+        """Ogni minuto: versioni nuove da GitHub; installate da sole solo con Jarvis fermo (jarvis/updates.py)."""
+        if self.updates is None:
+            return
+        if said := self.updates.after_restart():  # com'è andato l'aggiornamento di prima, se c'era
+            await asyncio.sleep(20)  # dopo il saluto dell'accensione
+            if self.conv is not None:
+                self.conv.notify(said)
+        while True:
+            await asyncio.sleep(60)
+            if self.conv is None:
+                continue
+            busy = updates.busy_now(self.resting, self.conv, self.tasks)
+            quiet = 0.0 if busy else time.time() - self.recorder.last_activity_at
+            try:
+                await self.updates.tick(quiet, busy)
+            except Exception:  # un aggiornamento non riuscito non deve mai fermare Jarvis
+                log.exception("controllo degli aggiornamenti fallito")
 
     async def _keep_opencode(self) -> None:
         """Ogni minuto: OpenCode spento se non serve più; esame dei modelli gratis quando tocca, solo in quiete."""

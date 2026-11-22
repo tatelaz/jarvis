@@ -355,7 +355,38 @@ scura; a fine copia prepara Python e le librerie con `uv sync --frozen --no-dev 
 Python dentro `tools\python` (si disinstalla con Jarvis); crea i collegamenti (menu Start, Desktop facoltativo) e apre
 Jarvis, che parte dal primo avvio. Disinstallando chiede se tenere dati e modelli; in silenzio li tiene sempre.
 Provato il 21/11: installazione silenziosa in 34-47 s, librerie a posto, disinstallazione pulita. Per le prove usare
-`/TASKS=""`: senza, il collegamento sul Desktop sostituisce un "Jarvis.lnk" che c'è già.
+`/TASKS=""`: senza, il collegamento sul Desktop sostituisce un "Jarvis.lnk" che c'è già. Non è firmato (un certificato
+costa circa 200 € l'anno): Windows mostra "PC protetto"; da repository pubblico si può chiedere la firma gratuita di
+SignPath Foundation.
+
+## Aggiornamenti (dal 22/11)
+
+`jarvis/updates.py`, solo per le copie installate (senza `.git`; chi sviluppa usa git). Una volta al giorno chiede
+a GitHub l'elenco delle release (non "l'ultima": anche `modelli-1` è una release) e prende la più nuova con tag
+`vX.Y.Z` sopra la versione di `pyproject.toml`, non bozza né anteprima, con l'asset `Jarvis-Setup-X.Y.Z.exe`
+scaricabile dalle release del progetto e la sua impronta SHA-256 (il campo `digest` di GitHub): senza impronta non
+si installa niente. L'installatore si scarica con lo scaricatore del primo avvio (`engine/aggiornamenti`, ripresa,
+controllo dell'impronta). Poi `system.updates`: "automatici" (di base) installa quando Jarvis è fermo da 15 minuti
+e non è occupato (`busy_now`: riposo, conversazione, compiti in corso), "chiedi" lo dice una volta e aspetta lo
+strumento `aggiornamenti` (azione installa), "spenti" non chiede nemmeno a GitHub. Dopo un errore riprova dopo 3 ore.
+
+Per installare Jarvis scrive `data/state/aggiornamento.json`, lancia un PowerShell nascosto e staccato
+(`CREATE_NO_WINDOW` + gruppo nuovo + uscita dal job; non `DETACHED_PROCESS`, che senza console lo fa morire subito)
+e si spegne con il codice 0, così anche il guardiano si ferma. Il PowerShell aspetta che Jarvis e il guardiano
+siano chiusi, lancia l'installatore con `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=...` (registro in
+`data/logs/aggiornamento.log`; l'installatore riusa la cartella e le scelte di prima) e riaccende Jarvis come il
+collegamento. Alla ripartenza Jarvis dice com'è andata (versione nuova o "non è riuscito"), una volta sola.
+Finché il repository è privato GitHub risponde 404: nessun aggiornamento e nessun errore.
+
+Per pubblicare una versione: alzare `version` in `pyproject.toml` (es. 0.2.0), fare il commit, costruire
+l'installatore (`python scripts/build_installer.py`) e creare la release con il tag e l'installatore:
+`gh release create v0.2.0 build/Jarvis-Setup-0.2.0.exe`. GitHub calcola da solo l'impronta dell'asset; il nome deve
+restare `Jarvis-Setup-<versione>.exe`, o le copie installate non la prendono.
+
+Provato il 22/11: il processo a parte con un installatore e un Jarvis finti, in un percorso con spazi e apostrofo,
+aspetta la chiusura, installa, riaccende dopo la fine dell'installatore, e finisce anche dopo l'uscita di chi l'ha
+lanciato; l'installatore vero lanciato sopra una copia installata (come fa l'aggiornamento) finisce in 5 s nella
+stessa cartella, tiene i dati e le librerie.
 
 ## Presentazione a voce (dal 21/11)
 

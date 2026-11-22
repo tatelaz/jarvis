@@ -52,6 +52,16 @@ le librerie e apre Jarvis, che parte dal primo avvio (controllo del PC, cervello
 microfono e casse); il resto lo chiede lui a voce. Chi preferisce i sorgenti: `git clone`, `uv sync`,
 `python -m jarvis`.
 
+L'installatore non è firmato: un certificato per firmare i programmi costa circa 200 € l'anno, che questo progetto
+non ha. Per questo al primo avvio Windows mostra "PC protetto" e bisogna scegliere "Ulteriori informazioni" e poi
+"Esegui comunque". Quando il repository sarà pubblico si potrà chiedere la firma gratuita di
+[SignPath Foundation](https://signpath.org/), che firma i progetti open source. Nel frattempo ogni release ha
+l'impronta SHA-256 dell'installatore, per controllare che sia quello pubblicato.
+
+Le copie installate si aggiornano da sole dalle release di GitHub (solo versioni con l'impronta dell'installatore,
+installate quando Jarvis è fermo; si può scegliere "chiedi" o "spenti", anche a voce). Le copie prese con `git`
+si aggiornano con `git pull`.
+
 ## Sviluppo
 
 Serve [uv](https://docs.astral.sh/uv/).

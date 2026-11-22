@@ -37,6 +37,7 @@ class Services:
     # chi parla adesso è l'utente? (i programmi degli ospiti: solo promemoria, e vedono solo i loro)
     owner_speaking: Callable[[], bool] = lambda: True
     welcome: Any = None  # Welcome: la presentazione a voce dopo il primo avvio (jarvis/setup/welcome.py)
+    updates: Any = None  # Updater: le versioni nuove dalle release di GitHub (jarvis/updates.py)
     # effetti sul PC di certe impostazioni (es. avvio automatico): ricevono il valore, dicono cosa hanno fatto
     appliers: dict[str, Callable[[Any], str]] = field(default_factory=dict)
 
@@ -50,7 +51,7 @@ TOOL_GROUPS = {
     "ricorda": "memoria", "cerca_memoria": "memoria", "dimentica": "memoria",
     "impostazioni": "sistema", "impostazione": "sistema", "riavvia": "sistema", "riposo": "sistema",
     "spegniti": "sistema", "migliora_jarvis": "sistema", "proposte": "sistema", "rispondi_proposta": "sistema",
-    "modelli_gratis": "sistema", "presentazione": "sistema",
+    "modelli_gratis": "sistema", "presentazione": "sistema", "aggiornamenti": "sistema",
     "avvia_compito": "compiti", "messaggio_compito": "compiti", "annulla_compito": "compiti",
     "conferma_compito": "compiti", "stato_compiti": "compiti",
     "impara_voce": "voci", "voci_conosciute": "voci", "permessi_voce": "voci", "dimentica_voce": "voci",
@@ -67,6 +68,7 @@ SETTABLE = {
     "interrompibile": ("audio.barge_in", lambda v: _bool(v)),
     "cervello": ("brain.provider", lambda v: _provider(v)),
     "accesso_claude": ("brain.claude_access", lambda v: _access(v)),
+    "aggiornamenti": ("system.updates", lambda v: _updates(v)),
     "grafica": ("ui.theme", lambda v: _theme(v)),
     "colore": ("ui.accent", lambda v: look.color(v)),
     "grandezza_testo": ("ui.text_scale", lambda v: _scale(v)),
@@ -105,6 +107,20 @@ _PRIVACY = {"tutti": "tutti", "tutte": "tutti", "qualsiasi": "tutti", "nessun li
             "senza addestramento": "senza addestramento", "no addestramento": "senza addestramento",
             "niente addestramento": "senza addestramento", "privati": "senza addestramento",
             "solo privati": "senza addestramento", "riservati": "senza addestramento", "privacy": "senza addestramento"}
+
+
+_UPDATES = {"automatici": "automatici", "automatico": "automatici", "da solo": "automatici", "sì": "automatici",
+            "si": "automatici", "acceso": "automatici", "accesi": "automatici",
+            "chiedi": "chiedi", "chiedimi": "chiedi", "chiedere": "chiedi", "avvisa": "chiedi", "avvisami": "chiedi",
+            "prima chiedi": "chiedi",
+            "spenti": "spenti", "spento": "spenti", "no": "spenti", "mai": "spenti", "off": "spenti"}
+
+
+def _updates(v: Any) -> str:
+    key = " ".join(str(v).strip().lower().split())
+    if key not in _UPDATES:
+        raise ValueError(f"aggiornamenti '{v}' sconosciuto (automatici, chiedi o spenti)")
+    return _UPDATES[key]
 
 
 def _access(v: Any) -> str:
@@ -268,7 +284,7 @@ def _voice(v: Any) -> str:
     return name
 
 NORMALIZE = {"ui.accent": look.color, "ui.theme": _theme, "ui.effects": _effects, "ui.text_scale": _scale,
-             "brain.provider": _provider, "brain.claude_access": _access, "audio.echo_reference": _reference, "system.proposals": _proposals,
+             "brain.provider": _provider, "brain.claude_access": _access, "system.updates": _updates, "audio.echo_reference": _reference, "system.proposals": _proposals,
              "apps.whatsapp": _whatsapp, "media.omni": _omni, "media.frames": _frames,
              "media.frame_px": _ranged("lato dei fotogrammi", 256, 1568),
              "media.max_minutes": _ranged("minuti", 1, 240, float),
@@ -683,6 +699,24 @@ def build_front_tools(s: Services) -> ToolRegistry:
                 welcome.restart()
                 return welcome.listing()
             return welcome.listing()
+
+    if s.updates is not None:
+        upd = s.updates
+
+        @reg.register("aggiornamenti", "Le versioni nuove di Jarvis (dalle release su GitHub). stato = versione "
+                      "installata e se ce n'è una nuova; controlla = chiede subito a GitHub; installa = installa "
+                      "quella pronta: Jarvis si spegne e si riaccende da solo dopo un paio di minuti (prima dillo in "
+                      "una frase). Se installarle da sole: impostazione aggiornamenti (automatici, chiedi, spenti).",
+                      schema({"azione": {"type": "string", "enum": ["stato", "controlla", "installa"]}}, ["azione"]))
+        async def aggiornamenti(args):
+            action = args.get("azione")
+            if action == "installa":
+                return upd.apply()
+            if action == "controlla":
+                if not upd.enabled():
+                    return upd.describe()
+                await upd.check()
+            return upd.describe()
 
     if s.schedule is not None:
         sch = s.schedule
