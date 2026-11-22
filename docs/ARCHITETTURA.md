@@ -345,6 +345,21 @@ misurati (timbro e pulizia); clonate, le orecchie di Jarvis le capiscono senza e
 nome non diventa mai un percorso. A voce: `voce_di_jarvis` ("inglese", "di base", "quella del film"), rifiutata se
 la voce non esiste. La lingua della sintesi segue `persona.language`.
 
+### Voce da un file (dal 22/11)
+
+`jarvis/speech/voice_maker.py`, strumento `crea_voce` (solo l'utente): da un file audio o video del PC (percorso o
+nome cercato come per i video) fa una voce in `data/voices/<nome>`, come quelle incluse. Il pezzo di 10-14 s lo
+sceglie `best_span` se non lo dice chi chiede: finestre da 50 ms con la voce (entro 25 dB dai picchi del parlato),
+inizio e fine in una pausa, punteggio = quanta voce, meno le pause più lunghe di 0,8 s, meno i tratti saturati;
+sotto 0,55 (il parlato pulito delle voci incluse sta a 0,85-0,89) chiede di indicare inizio e fine. Si guarda nei
+primi 10 minuti. Il pezzo va a 24 kHz mono, il parlato a circa -20 dBFS con i picchi sotto 0,97 e attacco e coda
+sfumati; le orecchie ne scrivono il testo (almeno quattro parole, o niente voce). Nessuna voce esistente si
+sovrascrive e i nomi `base-*` restano delle incluse. La scheda dice che la voce è **ispirata** a quella del file ma
+non è la voce vera (`"imitation": true`, avvertenza nella descrizione) e Jarvis lo dice ogni volta; effetto del film
+di base, o voce pulita. Provata dal vero il 22/11 sul capitolo di LibriVox da cui viene `base-it`: pezzo scelto da
+solo in 5,6 s (11,2 s, testo capito giusto), poi Qwen3-TTS ha parlato con la voce nuova e le orecchie hanno riletto
+la frase senza errori.
+
 ## Installatore (dal 21/11)
 
 `installer/jarvis.iss` (Inno Setup 6) e `scripts/build_installer.py`, che mette insieme il codice dell'ultimo commit

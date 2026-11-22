@@ -333,8 +333,8 @@ def scan_video(path: Path, start: float, end: float, max_px: int, max_samples: i
     return out
 
 
-def load_audio(path: Path, start: float, end: float) -> np.ndarray:
-    """L'audio dell'intervallo, mono a 16 kHz in float32."""
+def load_audio(path: Path, start: float, end: float, rate: int = SR) -> np.ndarray:
+    """L'audio dell'intervallo, mono in float32 (di norma a 16 kHz, come vogliono le orecchie)."""
     av = _av()
     with _open(path) as c:
         if not c.streams.audio:
@@ -342,10 +342,10 @@ def load_audio(path: Path, start: float, end: float) -> np.ndarray:
         a = c.streams.audio[0]
         if start > 0:
             c.seek(int(start * 1_000_000), backward=True)  # in microsecondi (AV_TIME_BASE)
-        rs = av.AudioResampler(format="flt", layout="mono", rate=SR)
+        rs = av.AudioResampler(format="flt", layout="mono", rate=rate)
         parts: list[np.ndarray] = []
         skip: int | None = None
-        limit = int((end - start) * SR)
+        limit = int((end - start) * rate)
         got = 0
 
         def add(frames) -> None:
@@ -358,7 +358,7 @@ def load_audio(path: Path, start: float, end: float) -> np.ndarray:
         try:
             for f in c.decode(a):
                 if skip is None:  # dopo un salto si riparte un po' prima: si scarta quel pezzo
-                    skip = max(0, round((start - (f.time if f.time is not None else start)) * SR))
+                    skip = max(0, round((start - (f.time if f.time is not None else start)) * rate))
                 add(rs.resample(f))
                 if got >= skip + limit:
                     break

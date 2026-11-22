@@ -38,6 +38,7 @@ class Services:
     owner_speaking: Callable[[], bool] = lambda: True
     welcome: Any = None  # Welcome: la presentazione a voce dopo il primo avvio (jarvis/setup/welcome.py)
     updates: Any = None  # Updater: le versioni nuove dalle release di GitHub (jarvis/updates.py)
+    voice_maker: Any = None  # VoiceMaker: una voce nuova da un file audio o video (jarvis/speech/voice_maker.py)
     # effetti sul PC di certe impostazioni (es. avvio automatico): ricevono il valore, dicono cosa hanno fatto
     appliers: dict[str, Callable[[Any], str]] = field(default_factory=dict)
 
@@ -51,7 +52,7 @@ TOOL_GROUPS = {
     "ricorda": "memoria", "cerca_memoria": "memoria", "dimentica": "memoria",
     "impostazioni": "sistema", "impostazione": "sistema", "riavvia": "sistema", "riposo": "sistema",
     "spegniti": "sistema", "migliora_jarvis": "sistema", "proposte": "sistema", "rispondi_proposta": "sistema",
-    "modelli_gratis": "sistema", "presentazione": "sistema", "aggiornamenti": "sistema",
+    "modelli_gratis": "sistema", "presentazione": "sistema", "aggiornamenti": "sistema", "crea_voce": "sistema",
     "avvia_compito": "compiti", "messaggio_compito": "compiti", "annulla_compito": "compiti",
     "conferma_compito": "compiti", "stato_compiti": "compiti",
     "impara_voce": "voci", "voci_conosciute": "voci", "permessi_voce": "voci", "dimentica_voce": "voci",
@@ -717,6 +718,36 @@ def build_front_tools(s: Services) -> ToolRegistry:
                     return upd.describe()
                 await upd.check()
             return upd.describe()
+
+    if s.voice_maker is not None:
+        maker = s.voice_maker
+
+        @reg.register("crea_voce", "Crea una voce nuova per te da un file audio o video sul PC (percorso completo, "
+                      "oppure il nome di un file nel Desktop, nei Download, in Video o in Musica). Serve una sola "
+                      "persona che parla chiaro, senza musica sotto. Il pezzo di 10-14 secondi lo scelgo io, oppure "
+                      "inizio e fine (es. 1:02 e 1:14). di_chi: di chi è la voce (per la scheda). effetto: sì = "
+                      "l'effetto del film come la voce di Jarvis (di base), no = voce pulita. Dopo dillo SEMPRE: la "
+                      "voce ottenuta è ispirata a quella vera ma non è la voce vera, ed è solo per uso personale. "
+                      "Per usarla: impostazione voce_di_jarvis con il nome.",
+                      schema({"file": {"type": "string"}, "nome": {"type": "string"}, "di_chi": {"type": "string"},
+                              "inizio": {"type": "string"}, "fine": {"type": "string"},
+                              "effetto": {"type": "boolean"}}, ["file", "nome"]))
+        async def crea_voce(args):
+            from ..media.fetch import MediaError, default_folders, find_local
+            from ..media.watch import clock, parse_time
+            from ..speech.voice_maker import VoiceMakerError
+
+            try:
+                path = find_local(str(args["file"]), default_folders())
+                made = await maker.make(path, str(args["nome"]), parse_time(args.get("inizio")),
+                                        parse_time(args.get("fine")), whose=str(args.get("di_chi") or ""),
+                                        effect=_bool(args.get("effetto", True)))
+            except (MediaError, VoiceMakerError) as e:
+                return f"Errore: {e}"
+            return (f"voce '{made.name}' creata da {path.name} ({clock(made.start)}-{clock(made.end)}); parole capite: "
+                    f"\"{made.text[:160]}\". Dillo all'utente: è ispirata alla voce vera ma NON è la voce vera (è "
+                    "un'imitazione fatta dal modello da pochi secondi), solo per uso personale. Per usarla: "
+                    f"impostazione voce_di_jarvis = {made.name}.")
 
     if s.schedule is not None:
         sch = s.schedule

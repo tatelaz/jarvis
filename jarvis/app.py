@@ -50,6 +50,7 @@ from .speech import engine
 from .speech.stt import transcribe_file
 from .speech.tts import TtsClient
 from .speech.voice import VoiceOutput
+from .speech.voice_maker import VoiceMaker
 from .tasks.claude_worker import ClaudeWorker
 from .tasks.hands import DesktopLease, build_hands
 from .tasks.manager import ACTIVE, TaskManager
@@ -252,7 +253,9 @@ class Jarvis:
                             apps=apps, media=self._build_media() if self.backend is None else None,
                             free_models=kit, schedule=self.scheduler,
                             owner_speaking=lambda: self.identity is None or self.conv is None or self.conv.voice.owner,
-                            welcome=self.welcome, updates=self.updates)
+                            welcome=self.welcome, updates=self.updates,
+                            voice_maker=(VoiceMaker(self.stt, language=lambda: lang.norm(cfg.persona.language))
+                                         if self.backend is None else None))
         tools = build_front_tools(services)
         kit.mount_front(tools)  # gli stessi strumenti (con gli stessi permessi) anche per il cervello su OpenCode
         if self.identity is not None:  # i permessi li controlla il codice, a ogni strumento

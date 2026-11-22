@@ -28,6 +28,9 @@ una ricerca sul web.
   base e niente informazioni personali. I permessi li controlla il codice, non il modello.
 - Programmi. Promemoria, richieste da eseguire a un'ora ("ogni mattina alle 8 il riassunto delle notizie") e
   compiti a ripetizione.
+- Voce a scelta. Oltre alle voci incluse ne crea una nuova da un file audio o video ("crea una voce da questa
+  intervista"): sceglie da solo 10-14 secondi di parlato pulito e li trascrive. La voce che ne esce è ispirata a
+  quella vera ma non è la voce vera: è un'imitazione fatta dal modello da pochi secondi, solo per uso personale.
 - Si configura a voce. Ogni impostazione si cambia parlando ("parla più lentamente", "metti la grafica cinema");
   per cambiamenti più profondi modifica il proprio codice in una copia separata, con i test, e chiede conferma.
 - Non si ferma. Un guardiano lo riavvia se cade e torna all'ultima versione sana; se l'audio sparisce va avanti e
@@ -42,7 +45,7 @@ una ricerca sul web.
 | Memoria | 32 GB | |
 | Disco | circa 10 GB, più 5 GB per il modello di musica e suoni | |
 | Cervello | abbonamento Claude Pro o Max, oppure una chiave API | in alternativa OpenCode (gratis, senza account) o Ollama |
-| Altro | microfono, Chrome (per WhatsApp), Node 22 | |
+| Altro | microfono; per WhatsApp Chrome o Edge | OpenCode, Node.js e Git li scarica il primo avvio, se mancano |
 
 ## Installazione
 
