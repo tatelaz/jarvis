@@ -603,6 +603,7 @@ dependencies = [
     { name = "pycaw" },
     { name = "pystray" },
     { name = "pywebview" },
+    { name = "pywin32" },
     { name = "pyyaml" },
     { name = "scipy" },
     { name = "soundcard" },
@@ -610,6 +611,7 @@ dependencies = [
     { name = "soundfile" },
     { name = "soxr" },
     { name = "tokenizers" },
+    { name = "truststore" },
     { name = "uiautomation" },
     { name = "yt-dlp", extra = ["default"] },
 ]
@@ -639,6 +641,7 @@ requires-dist = [
     { name = "pycaw", specifier = ">=20260927" },
     { name = "pystray", specifier = ">=0.19" },
     { name = "pywebview", specifier = ">=5.4" },
+    { name = "pywin32", specifier = ">=312" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "scipy", specifier = ">=1.18.1" },
     { name = "soundcard", specifier = ">=0.4.6" },
@@ -646,6 +649,7 @@ requires-dist = [
     { name = "soundfile", specifier = ">=0.13" },
     { name = "soxr", specifier = ">=0.5" },
     { name = "tokenizers", specifier = ">=0.21" },
+    { name = "truststore", specifier = ">=0.10.4" },
     { name = "uiautomation", specifier = ">=2.0.29" },
     { name = "yt-dlp", extras = ["default"], specifier = ">=2026.10.26" },
 ]

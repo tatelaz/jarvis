@@ -28,6 +28,8 @@ dependencies = [
     "av>=19.0.2",  # guardare video e audio (jarvis/media): FFmpeg dentro il pacchetto, niente programmi esterni
     "yt-dlp[default]>=2026.10.26",  # scaricare da YouTube e altri siti; YouTube cambia spesso: tenerlo aggiornato
     "soundfile>=0.13",
+    "pywin32>=312",  # DPAPI (win32crypt) per chiavi e password: prima arrivava solo come dipendenza di mcp
+    "truststore>=0.10.4",  # HTTPS su un Windows nuovo: i certificati li verifica Windows (jarvis/certs.py)
 ]
 
 [dependency-groups]
