@@ -272,6 +272,19 @@ async def test_a_pc_without_nvidia_cannot_go_on(tmp_path):
         assert h.errors == []
 
 
+@pytest.mark.parametrize("locale", ["it-IT", "en-GB"])
+async def test_a_card_without_driver_and_one_of_each_audio_device(tmp_path, locale):
+    """Visto nella Sandbox: "RTX 4060 · 0 GB" (memoria non letta senza driver) e "1 outputs"."""
+    gpu = pc.Gpu("NVIDIA GeForce RTX 4060", "nvidia", 0, "")
+    async with opened(tmp_path, locale=locale, gather=lambda: facts(gpu, speakers=1)) as (h, page):
+        await page.click('[data-step="hello"] [data-next]')
+        await page.wait_for_selector('#rows .row[data-row="gpu"].bad')
+        assert await text(page, '[data-row="gpu"] .v') == "NVIDIA GeForce RTX 4060"
+        assert await text(page, '[data-row="audio"] .v') == (
+            "1 microfono · 1 uscita" if locale == "it-IT" else "1 microphone · 1 output")
+        assert h.errors == []
+
+
 async def test_a_stopped_download_can_be_retried(tmp_path):
     async with opened(tmp_path) as (h, page):
         h.setup.downloader.fail = DownloadError("voce: interrotto")

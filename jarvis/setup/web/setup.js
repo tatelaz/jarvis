@@ -18,8 +18,8 @@ const T = {
     pc_t: "Guardo il tuo PC", pc_s: "Scelgo i modelli giusti per la tua scheda video e la tua memoria.",
     pc_gpu: "Scheda video", pc_ram: "Memoria", pc_disk: "Spazio libero", pc_audio: "Audio", pc_net: "Connessione",
     pc_wait: "controllo…", no_gpu: "nessuna scheda NVIDIA", free_need: "{free} liberi · servono {need}",
-    nothing_to_get: "{free} liberi · niente da scaricare", mics: "{m} microfono · {s} uscite",
-    mics_n: "{m} microfoni · {s} uscite", net_ok: "raggiungibile", net_no: "assente",
+    nothing_to_get: "{free} liberi · niente da scaricare", mic1: "{m} microfono", micN: "{m} microfoni", out1: "{s} uscita",
+    outN: "{s} uscite", net_ok: "raggiungibile", net_no: "assente",
     p_completo: "Profilo completo", p_completo_s: "Voce e orecchie sulla scheda video: rispondo in circa due secondi.",
     p_leggero: "Profilo leggero", p_leggero_s: "Una voce più piccola, per stare nella memoria della scheda video.",
     p_processore: "Solo processore", p_processore_s: "Senza una scheda NVIDIA la mia voce per ora non parte.",
@@ -81,8 +81,8 @@ const T = {
     pc_t: "Looking at your PC", pc_s: "I pick the right models for your graphics card and memory.",
     pc_gpu: "Graphics", pc_ram: "Memory", pc_disk: "Free space", pc_audio: "Audio", pc_net: "Connection",
     pc_wait: "checking…", no_gpu: "no NVIDIA card", free_need: "{free} free · {need} needed",
-    nothing_to_get: "{free} free · nothing to download", mics: "{m} microphone · {s} outputs",
-    mics_n: "{m} microphones · {s} outputs", net_ok: "reachable", net_no: "offline",
+    nothing_to_get: "{free} free · nothing to download", mic1: "{m} microphone", micN: "{m} microphones", out1: "{s} output",
+    outN: "{s} outputs", net_ok: "reachable", net_no: "offline",
     p_completo: "Full profile", p_completo_s: "Voice and hearing on the graphics card: I answer in about two seconds.",
     p_leggero: "Light profile", p_leggero_s: "A smaller voice, to fit in the graphics card's memory.",
     p_processore: "Processor only", p_processore_s: "Without an NVIDIA card my voice can't run yet.",
@@ -234,10 +234,11 @@ async function enterPc() {
 function renderPc(animate) {
   const { facts, profile } = pcData;
   const bad = new Set(profile.blockers), notes = new Set(profile.notes);
-  const gpu = facts.gpu ? `${facts.gpu.name} · ${num(facts.gpu.vram_mb / 1024)} GB` : t("no_gpu");
+  const gpu = !facts.gpu ? t("no_gpu")  // memoria sconosciuta (senza driver): solo il nome, non "0 GB"
+    : facts.gpu.vram_mb ? `${facts.gpu.name} · ${num(facts.gpu.vram_mb / 1024)} GB` : facts.gpu.name;
   const disk = profile.download_mb ? t("free_need", { free: size(facts.free_mb * 2 ** 20), need: size(profile.need_mb * 2 ** 20) })
     : t("nothing_to_get", { free: size(facts.free_mb * 2 ** 20) });
-  const audio = t(facts.mics === 1 ? "mics" : "mics_n", { m: facts.mics, s: facts.speakers });
+  const audio = `${t(facts.mics === 1 ? "mic1" : "micN", { m: facts.mics })} · ${t(facts.speakers === 1 ? "out1" : "outN", { s: facts.speakers })}`;
   const rows = {
     gpu: [gpu, bad.has("voce_solo_nvidia") ? "bad" : notes.has("da_misurare") ? "warn" : "ok"],
     ram: [`${Math.round(facts.ram_mb / 1024)} GB`, bad.has("poca_ram") ? "bad" : "ok"],  // 15,9 GB è un PC da 16

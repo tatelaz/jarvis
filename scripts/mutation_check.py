@@ -1082,6 +1082,12 @@ MUTATIONS = [
     ('jarvis/ui/window.py', 'if re.fullmatch(r"\\d+(\\.\\d+){1,3}", d.name) and (d / "msedgewebview2.exe").is_file():',
      'if re.fullmatch(r"\\d+(\\.\\d+){1,3}", d.name):', 'tests/test_window_engine.py',
      "finestra: solo le cartelle di WebView2 con l'eseguibile"),
+    ('jarvis/setup/web/setup.js', '    : facts.gpu.vram_mb ? `${facts.gpu.name} · ${num(facts.gpu.vram_mb / 1024)} GB` : facts.gpu.name;',
+     '    : `${facts.gpu.name} · ${num(facts.gpu.vram_mb / 1024)} GB`;', 'tests/test_setup_page.py',
+     'primo avvio: una scheda senza memoria nota non diventa «0 GB»'),
+    ('jarvis/setup/web/setup.js', '${t(facts.speakers === 1 ? "out1" : "outN", { s: facts.speakers })}',
+     '${t("outN", { s: facts.speakers })}', 'tests/test_setup_page.py',
+     'primo avvio: «1 uscita», non «1 uscite»'),
 ]
 
 
