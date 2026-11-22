@@ -79,7 +79,8 @@ def setup(tmp_path):
     store = ConfigStore(tmp_path / "config.yaml")
     s = flow.Setup(store, FakeDownloader(tmp_path), gather=lambda: facts(RTX), claude=FakeClaude(),
                    voices_dir=tmp_path / "voices", done_path=tmp_path / "setup" / "fatto.json",
-                   bundled_voices=tmp_path / "incluse")  # di base senza voci: si prova anche la voce mancante
+                   bundled_voices=tmp_path / "incluse",  # di base senza voci: si prova anche la voce mancante
+                   missing_tools=lambda: list(catalog.TOOLS))  # un PC senza OpenCode, Node e Git
     return s
 
 
@@ -458,7 +459,8 @@ async def test_run_without_window_ends_when_closed(tmp_path, monkeypatch):
 
     def fake_setup(st):
         made["s"] = flow.Setup(st, FakeDownloader(tmp_path), gather=lambda: facts(RTX), claude=FakeClaude(),
-                               voices_dir=tmp_path / "voices", done_path=tmp_path / "fatto.json")
+                               voices_dir=tmp_path / "voices", done_path=tmp_path / "fatto.json",
+                               missing_tools=lambda: [])
         return made["s"]
 
     monkeypatch.setattr(run_mod, "make_setup", fake_setup)
@@ -555,3 +557,37 @@ def test_choosing_english_in_the_setup_switches_the_included_voice(setup):
     setup.store.set("speech.tts_voice", "base-it")
     setup.set_language("en")
     assert setup.store.config.speech.tts_voice == "base-en"
+
+
+# --- gli strumenti (OpenCode, Node.js, Git) ---
+
+
+async def test_tools_missing_on_the_pc_come_with_the_download_on_their_own_row(setup):
+    await setup.check_pc()
+    assert setup.tools == list(catalog.TOOLS)
+    tool_files = {f.dest for k in catalog.TOOLS for f in catalog.PACKAGES[k].files}
+    assert tool_files <= {f.dest for f in setup.plan()}
+    status = await download_all(setup)
+    assert status["groups"][-1]["key"] == "tools"
+    assert status["groups"][-1]["total"] == sum(catalog.PACKAGES[k].size for k in catalog.TOOLS)
+
+
+async def test_a_pc_that_has_its_tools_downloads_none_of_them(setup):
+    setup.missing_tools = lambda: []
+    status = await download_all(setup)
+    assert "tools" not in [g["key"] for g in status["groups"]]
+    assert not any(f.dest.startswith("engine/tools/") for f in setup.plan())
+
+
+async def test_only_tool_packages_can_be_added_to_the_plan(setup):
+    setup.missing_tools = lambda: ["tool-git", "voice-small", "nulla"]  # un controllo sbagliato non cambia la voce
+    await setup.check_pc()
+    assert setup.tools == ["tool-git"]
+    assert [f.dest for f in setup.plan()][-1] == catalog.PACKAGES["tool-git"].files[0].dest
+    assert catalog.PACKAGES["voice-small"].files[0].dest not in {f.dest for f in setup.plan()}
+
+
+def test_every_row_of_the_download_has_its_name_in_both_languages():
+    js = (Path(flow.__file__).parent / "web" / "setup.js").read_text(encoding="utf-8")
+    for g in flow.GROUPS:
+        assert js.count(f"dl_{g}:") == 2, g  # italiano e inglese

@@ -281,6 +281,16 @@ stanno in `jarvis/setup/` e non dipendono dalla pagina:
   fermo per 404/403/410 e per un file più grande o con un'impronta diversa (mai installato). Gli archivi del motore
   si estraggono rifiutando percorsi che escono dalla cartella e poi si cancellano. `scaricati.json` ricorda cosa è
   già controllato (finché misura e data non cambiano). Lo spazio si controlla prima di cominciare.
+- **Strumenti** (`jarvis/toolbox.py`, pacchetti `tool-*` del catalogo): OpenCode 1.19.3 (il cervello gratuito),
+  Node.js 22.19.0 (il ponte di WhatsApp) e Git per Windows 2.56.1 portatile (la bash che serve a Claude Code, git
+  per l'auto-miglioramento) si scaricano in `engine/tools` solo se il PC non li ha (`missing_tools`: già scaricati,
+  sul PATH, o OpenCode dove lo cerca `find_opencode`), sulla riga "Strumenti" della pagina. Git portatile è un
+  archivio 7-Zip autoestraente (`kind="sfx"`): si apre eseguendolo con `-o` e `-y`, senza finestre, solo dopo il
+  controllo dell'impronta. All'avvio `use_downloaded_tools` mette le cartelle scaricate in fondo al PATH (quelli del
+  PC restano davanti) e, se l'unico Git è quello portatile, indica la sua bash a Claude Code
+  (`CLAUDE_CODE_GIT_BASH_PATH`). Il ponte di WhatsApp non ha i suoi pacchetti nell'installatore: al primo
+  "collega" Jarvis fa `npm ci` da solo (con un Chrome o un Edge sul PC, puppeteer non scarica il suo browser) e
+  poi apre il QR, avvisando a voce. Se sul PC non c'è Chrome, WhatsApp usa Edge.
 
 - **`brains.py`**: Claude Code solo con i comandi ufficiali: `claude auth status --json` (se ne tengono accesso,
   abbonamento e metodo, mai email e organizzazione), `claude auth login --claudeai` (browser su claude.ai) e

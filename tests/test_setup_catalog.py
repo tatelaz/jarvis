@@ -25,14 +25,18 @@ def test_every_file_is_well_formed(f):
     root, _, rest = f.dest.partition("/")
     assert root in catalog.ROOTS and rest and ".." not in rest.split("/")
     if f.unzip_to:
-        assert f.dest.endswith(".zip") and f.check.startswith(f.unzip_to + "/")
+        assert f.check.startswith(f.unzip_to + "/")
+        assert f.dest.endswith(".zip") if f.kind == "zip" else (f.kind == "sfx" and f.dest.endswith(".7z.exe"))
+    else:
+        assert f.kind == "zip"  # un file che non si estrae non deve dire di essere un archivio da eseguire
 
 
 @pytest.mark.parametrize("f", ALL, ids=lambda f: f.dest)
 def test_every_address_is_pinned_to_one_version(f):
     """Mai "main" o "master": un file cambiato alla fonte non deve arrivare a nessuno senza prove."""
     assert "/main/" not in f.url and "/master/" not in f.url
-    pinned = re.search(r"/(resolve/|)[0-9a-f]{40}/", f.url) or "/releases/download/" in f.url
+    pinned = (re.search(r"/(resolve/|)[0-9a-f]{40}/", f.url) or "/releases/download/" in f.url
+              or re.search(r"/dist/v\d+\.\d+\.\d+/", f.url))  # Node: la cartella della versione
     assert pinned, f.url
 
 

@@ -4,7 +4,7 @@ dal ponte Node jarvis/apps/whatsapp_bridge (whatsapp-web.js) a righe JSON su std
 - Tutto in background: leggere, cercare, inviare testi e file, rispondere citando, reagire, inoltrare, modificare e
   cancellare i propri messaggi, archiviare, silenziare, fissare, gruppi, contatti, stato, scaricare gli allegati e
   trascrivere i vocali con le orecchie di Jarvis. Le chiamate restano all'app di WhatsApp (apri_app).
-- Collegamento: la prima volta si apre una finestra di Chrome con il QR ufficiale di WhatsApp Web (cambia ogni ~20
+- Collegamento: la prima volta si apre una finestra di Chrome (o di Edge) con il QR ufficiale di WhatsApp Web (cambia ogni ~20
   secondi, un'immagine fissa non basterebbe); l'utente lo inquadra col telefono e da lì la sessione resta salvata in
   data/whatsapp e il ponte riparte invisibile.
 - Si accende quando serve e si spegne dopo 15 minuti senza usarlo (~300-400 MB di RAM mentre è acceso); con
@@ -36,8 +36,12 @@ log = logging.getLogger("jarvis.whatsapp")
 
 BRIDGE_DIR = Path(__file__).with_name("whatsapp_bridge")
 CREATE_NO_WINDOW = 0x08000000
-CHROME_PATHS = [Path(os.environ.get(v, "")) / "Google" / "Chrome" / "Application" / "chrome.exe"
-                for v in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")]
+# Chrome se c'è, altrimenti Edge (c'è su ogni Windows 11): WhatsApp Web gira in tutti e due
+CHROME_PATHS = [*(Path(os.environ.get(v, "")) / "Google" / "Chrome" / "Application" / "chrome.exe"
+                  for v in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")),
+                *(Path(os.environ.get(v, "")) / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+                  for v in ("PROGRAMFILES(X86)", "PROGRAMFILES"))]
+NPM_TIMEOUT_S = 900.0  # npm ci del ponte: di solito un minuto o due
 MODES = ("su richiesta", "sempre", "spento")
 
 # i tipi di messaggio di WhatsApp Web, detti a voce; None = notifiche di servizio da non leggere
@@ -242,6 +246,36 @@ def bridge_modules() -> Path:
     return local if local.is_dir() else paths.ENGINE_DIR.parent / "jarvis" / "apps" / "whatsapp_bridge" / "node_modules"
 
 
+async def install_bridge(npm: str | None = None, chrome: Path | None = None,
+                         run: Callable[..., Awaitable[Any]] = asyncio.create_subprocess_exec) -> str | None:
+    """I pacchetti Node del ponte (npm ci, una volta sola: nell'installatore non ci sono). None = fatto, altrimenti
+    cosa non va, detto per il cervello. Se c'è già un browser, puppeteer non scarica il suo Chrome da 150 MB."""
+    npm = npm or shutil.which("npm")
+    if npm is None:
+        return "manca Node.js (lo scarica il primo avvio, se non c'è: python -m jarvis --setup)"
+    env = dict(os.environ)
+    if (chrome or find_chrome()) is not None:
+        env["PUPPETEER_SKIP_DOWNLOAD"] = "1"
+    log.info("WhatsApp: preparo il ponte (npm ci)")
+    try:
+        proc = await run(npm, "ci", "--omit=dev", "--no-audit", "--no-fund", cwd=str(BRIDGE_DIR), env=env,
+                         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+                         creationflags=CREATE_NO_WINDOW)
+    except OSError as e:
+        return f"npm non parte ({e})"
+    try:
+        out, _ = await asyncio.wait_for(proc.communicate(), NPM_TIMEOUT_S)
+    except TimeoutError:
+        proc.kill()
+        await proc.wait()
+        return f"npm ci non ha finito in {NPM_TIMEOUT_S / 60:g} minuti"
+    if proc.returncode != 0:
+        log.warning("WhatsApp: npm ci finito con il codice %s: %s", proc.returncode,
+                    " | ".join((out or b"").decode(errors="replace").strip().splitlines()[-4:]))
+        return f"npm ci è finito con il codice {proc.returncode} (rete assente?)"
+    return None
+
+
 def bridge_command(data_dir: Path, node: str | None = None, chrome: Path | None = None
                    ) -> Callable[[bool], tuple[list[str], dict[str, str]]]:
     chrome = chrome or find_chrome()
@@ -269,9 +303,12 @@ class WhatsApp:
     def __init__(self, bridge: Bridge, data_dir: Path, mode: Callable[[], str] = lambda: "su richiesta",
                  alerts: Callable[[], bool] = lambda: False, notify: Callable[[str], Any] | None = None,
                  clock: Callable[[], float] = time.monotonic,
-                 installed: Callable[[], bool] = lambda: bridge_modules().joinpath("whatsapp-web.js").is_dir()) -> None:
+                 installed: Callable[[], bool] = lambda: bridge_modules().joinpath("whatsapp-web.js").is_dir(),
+                 install: Callable[[], Awaitable[str | None]] = install_bridge) -> None:
         self.bridge = bridge
         self.installed = installed  # il ponte ha i suoi pacchetti Node (npm ci)
+        self.install = install
+        self.installing: asyncio.Task | None = None  # npm ci in corso, chiesto dal primo "collega"
         self.data_dir = data_dir
         self.mode = mode
         self.alerts = alerts
@@ -300,7 +337,9 @@ class WhatsApp:
         if self.mode() == "spento":
             return "WhatsApp è spento nelle impostazioni (apps.whatsapp)"
         if not self.installed():
-            return "manca il ponte: in jarvis/apps/whatsapp_bridge va eseguito npm ci"
+            if self.installing is not None and not self.installing.done():
+                return "sto preparando il ponte di WhatsApp (una volta sola, un paio di minuti): poi si apre il QR"
+            return "il ponte non è ancora installato: usa l'azione collega (lo prepara da solo, una volta sola)"
         if self.linking is not None and not self.linking.done():
             return "si sta collegando: l'utente deve inquadrare il QR nella finestra di WhatsApp Web"
         if not self.linked():
@@ -358,6 +397,11 @@ class WhatsApp:
     # ------------------------------------------------------------------ collegamento
 
     async def link(self) -> str:
+        if not self.installed():  # la prima volta: prima i pacchetti del ponte, poi il QR (avvisa quando è pronto)
+            if self.installing is None or self.installing.done():
+                self.installing = asyncio.create_task(self._install_then_link())
+            return ("Preparo WhatsApp: la prima volta servono un paio di minuti per installare il ponte. Poi si apre "
+                    "da sola la finestra con il QR e avviso io.")
         if self.linked() and self.bridge.state == "pronto":
             return f"WhatsApp è già collegato{self._me()}"
         if self.linking is not None and not self.linking.done():
@@ -374,9 +418,25 @@ class WhatsApp:
             await self.bridge.stop()
             raise AppError(f"WhatsApp Web non si apre: {why}")
         self.linking = asyncio.create_task(self._finish_link())
-        return ("Si è aperta una finestra di Chrome con WhatsApp Web e il QR. Sul telefono: WhatsApp, Impostazioni (o i "
+        return ("Si è aperta una finestra del browser con WhatsApp Web e il QR. Sul telefono: WhatsApp, Impostazioni (o i "
                 "tre puntini), Dispositivi collegati, Collega un dispositivo, e inquadra il QR. Avviso io quando è fatto "
                 "e la finestra si chiude da sola.")
+
+    async def _install_then_link(self) -> None:
+        problem = await self.install()
+        if problem is None and not self.installed():
+            problem = "npm ci è finito ma i pacchetti del ponte non ci sono"
+        if problem is not None:
+            log.warning("WhatsApp: ponte non installato: %s", problem)
+            if self.notify:
+                self.notify(f"Il ponte di WhatsApp non si è installato: {problem}. Dillo in una frase.")
+            return
+        try:
+            said = await self.link()
+        except AppError as e:
+            said = f"Il ponte di WhatsApp è pronto, ma WhatsApp Web non si apre: {e}."
+        if self.notify:
+            self.notify(f"{said} Dillo in breve.")
 
     async def _finish_link(self) -> None:
         end = ("pronto", "errore", "spento", "scollegato")

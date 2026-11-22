@@ -168,3 +168,14 @@ def test_gather_on_this_pc(tmp_path):
     f = pc.gather(tmp_path / "non" / "ancora" / "creata")
     assert f.ram_mb > 1000 and f.free_mb > 0
     assert pc.choose(f).key in ("completo", "leggero", "processore")
+
+
+def test_missing_tools_are_downloaded_and_counted_with_the_rest():
+    bare = pc.choose(facts(RTX_4060))
+    tools = pc.choose(facts(RTX_4060), tools=catalog.TOOLS)
+    size = sum(catalog.PACKAGES[k].size for k in catalog.TOOLS)
+    assert tools.download_mb - bare.download_mb == pytest.approx(size / 2**20, abs=1)
+    assert tools.need_mb > bare.need_mb + size // 2**20  # anche gli strumenti si estraggono
+    done = all_dests("engine-cuda13", "voice")
+    p = pc.choose(facts(RTX_4060, online=False), present=done, tools=["tool-git"])
+    assert p.blockers == ["niente_rete"]  # manca solo Git, ma senza rete non arriva

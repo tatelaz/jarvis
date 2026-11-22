@@ -370,3 +370,48 @@ async def test_several_files_one_after_the_other_with_one_bar(server, downloader
     await downloader.run([a, b], lambda done, total, name: seen.append((done, total, name)))
     assert seen[-1][:2] == (len(DATA) + 5000, len(DATA) + 5000)
     assert {n for _, _, n in seen} == {a.dest, b.dest}
+
+
+def sfx(srv: Server, name: str, data: bytes = DATA) -> File:
+    srv.files[name] = Spec(data)
+    return File(srv.base + name, sha(data), len(data), f"engine/tools/{name}", "engine/tools/git",
+                "engine/tools/git/cmd/git.exe", kind="sfx")
+
+
+async def test_self_extracting_archive_is_run_only_after_its_fingerprint(server, downloader, tmp_path):
+    runs = []
+
+    def run(archive, base):
+        runs.append((archive.name, base))
+        (base / "cmd").mkdir(parents=True)
+        (base / "cmd" / "git.exe").write_bytes(b"git")
+        return 0
+
+    downloader.run_sfx = run
+    f = sfx(server, "PortableGit.7z.exe")
+    await downloader.run([f])
+    assert runs == [("PortableGit.7z.exe", tmp_path / "engine" / "tools" / "git")]
+    assert not (tmp_path / "engine" / "tools" / "PortableGit.7z.exe").exists()  # l'archivio si cancella
+    assert await downloader.is_done(f)
+
+
+async def test_a_tampered_self_extracting_archive_never_runs(server, downloader):
+    runs = []
+    downloader.run_sfx = lambda archive, base: runs.append(archive) or 0
+    f = sfx(server, "PortableGit.7z.exe")
+    server.files["PortableGit.7z.exe"].data = bytes(len(DATA))  # stessa misura, contenuto diverso
+    with pytest.raises(dl.DownloadError, match="impronta"):
+        await downloader.run([f])
+    assert runs == []
+
+
+async def test_self_extracting_archive_that_fails_or_misses_its_file(server, downloader):
+    downloader.run_sfx = lambda archive, base: 2
+    f = sfx(server, "PortableGit.7z.exe")
+    with pytest.raises(dl.DownloadError, match="codice 2") as e:
+        await downloader.run([f])
+    assert not e.value.permanent  # si può riprovare
+    downloader.run_sfx = lambda archive, base: 0  # finisce "bene" ma senza git.exe
+    with pytest.raises(dl.DownloadError, match="manca") as e:
+        await downloader.run([f])
+    assert e.value.permanent

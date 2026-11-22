@@ -34,8 +34,11 @@ async def _console(app) -> None:
 
 
 async def main(console: bool, window: bool, setup: bool = False) -> int:
+    from . import toolbox
     from .config import ConfigStore
     from .setup import flow
+
+    toolbox.use_downloaded_tools()  # OpenCode, Node.js e Git scaricati dal primo avvio, se il PC non li aveva
 
     missing = flow.missing_files(ConfigStore().config)
     if setup or missing:  # PC nuovo (o file spariti): prima il primo avvio, poi Jarvis
@@ -47,6 +50,7 @@ async def main(console: bool, window: bool, setup: bool = False) -> int:
 
         if not await run_setup(ConfigStore()):
             return 0  # chiuso prima della fine: la prossima volta si riprende da lì
+        toolbox.use_downloaded_tools()  # quelli appena scaricati
     from .app import Jarvis
 
     app = Jarvis()

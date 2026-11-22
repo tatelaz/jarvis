@@ -15,7 +15,7 @@ from test_setup_audio import FakeSD, find
 from test_setup_flow import RTX, FakeClaude, FakeDownloader, facts, free_port, give_voice
 
 from jarvis.config import ConfigStore
-from jarvis.setup import flow, pc
+from jarvis.setup import catalog, flow, pc
 from jarvis.setup.audio_check import AudioCheck
 from jarvis.setup.download import DownloadError
 from jarvis.setup.server import SetupServer
@@ -52,7 +52,7 @@ class Harness:
         self.setup = flow.Setup(self.store, FakeDownloader(tmp_path), gather=kw.pop("gather", lambda: facts(RTX)),
                                 claude=self.claude, voices_dir=tmp_path / "voices", done_path=tmp_path / "fatto.json",
                                 bundled_voices=kw.pop("bundled", tmp_path / "incluse"),  # senza: si vede l'avviso
-                                audio=AudioCheck(sd=FakeSD(), find=find))
+                                audio=AudioCheck(sd=FakeSD(), find=find), missing_tools=lambda: list(catalog.TOOLS))
         self.server = SetupServer(self.setup, port=free_port())
         self.url = f"http://127.0.0.1:{self.server.port}/"
         self.errors: list[str] = []

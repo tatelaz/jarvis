@@ -84,13 +84,15 @@ class Progress:
 class Downloader:
     def __init__(self, roots: dict[str, Path], state: Path, retries: int = 6, chunk: int = CHUNK,
                  sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
-                 free_bytes: Callable[[Path], int] | None = None) -> None:
+                 free_bytes: Callable[[Path], int] | None = None,
+                 run_sfx: Callable[[Path, Path], int] | None = None) -> None:
         if set(roots) != set(ROOTS):
             raise ValueError(f"servono le cartelle {ROOTS}")
         self.roots = roots
         self.state_path = state
         self.retries, self.chunk, self.sleep = retries, chunk, sleep
         self.free_bytes = free_bytes or (lambda p: shutil.disk_usage(p).free)
+        self.run_sfx = run_sfx or _run_sfx
 
     # --- dove e cosa ---
 
@@ -242,6 +244,20 @@ class Downloader:
         """Estrae un archivio scaricato nella sua cartella, controlla che ci sia il file atteso, cancella l'archivio."""
         archive = self.target(f.dest)
         base = self.target(f.unzip_to)
+        if f.kind == "sfx":  # si arriva qui solo con l'impronta controllata (fetch o on_disk)
+            base.mkdir(parents=True, exist_ok=True)
+            code = self.run_sfx(archive, base)
+            if code != 0:
+                raise DownloadError(f"{f.dest}: l'estrazione è finita con il codice {code}")
+        else:
+            self._unzip(archive, base)
+        if f.check and not self.target(f.check).exists():
+            raise DownloadError(f"{f.dest}: dopo l'estrazione manca {f.check}", permanent=True)
+        self._remember(f, extracted=True)
+        with contextlib.suppress(OSError):
+            archive.unlink()
+
+    def _unzip(self, archive: Path, base: Path) -> None:
         with zipfile.ZipFile(archive) as z:
             members = [(m, safe_member(base, m.filename)) for m in z.infolist()]  # prima tutti i controlli
             for m, out in members:
@@ -251,8 +267,11 @@ class Downloader:
                 out.parent.mkdir(parents=True, exist_ok=True)
                 with z.open(m) as src, open(out, "wb") as dst:
                     shutil.copyfileobj(src, dst, CHUNK)
-        if f.check and not self.target(f.check).exists():
-            raise DownloadError(f"{f.dest}: dopo l'estrazione manca {f.check}", permanent=True)
-        self._remember(f, extracted=True)
-        with contextlib.suppress(OSError):
-            archive.unlink()
+
+
+def _run_sfx(archive: Path, base: Path) -> int:
+    """Un archivio 7-Zip autoestraente (Git portatile) si apre eseguendolo, senza finestre: -o cartella, -y sì a tutto."""
+    import subprocess
+
+    r = subprocess.run([str(archive), f"-o{base}", "-y"], capture_output=True, timeout=900, creationflags=0x08000000)
+    return r.returncode

@@ -40,6 +40,7 @@ from typing import Any
 
 import aiohttp
 
+from .. import paths
 from .base import BrainEvent, BrainUnavailable, Done, TextDelta, ToolCall, ToolResult, ToolStart
 from .mcp_bridge import McpBridge
 from .tools import ToolRegistry
@@ -89,7 +90,8 @@ def find_opencode(explicit: str | None = None) -> str:
     appdata = Path(os.environ.get("APPDATA", home / "AppData" / "Roaming"))
     candidates = [Path(explicit)] if explicit else []
     candidates += [appdata / "npm" / "node_modules" / "opencode-ai" / "bin" / "opencode.exe",
-                   home / ".opencode" / "bin" / "opencode.exe"]
+                   home / ".opencode" / "bin" / "opencode.exe",
+                   paths.ENGINE_DIR / "tools" / "opencode" / "opencode.exe"]  # scaricato dal primo avvio
     on_path = shutil.which("opencode")
     if on_path:
         p = Path(on_path)

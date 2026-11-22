@@ -267,13 +267,140 @@ async def test_not_linked_only_link_and_status_work(wa):
     assert wa.fb.starts == []
 
 
-async def test_without_the_node_packages_it_says_how_to_install_them(wa):
+async def test_without_the_node_packages_it_says_to_link_and_installs_nothing_by_itself(wa):
     linked(wa)
     wa.installed[0] = False
     assert await wa.apps.use("whatsapp", "chat") == (
-        "Errore: WhatsApp (nascosto, in background) non è pronta: manca il ponte: in jarvis/apps/whatsapp_bridge va "
-        "eseguito npm ci")
+        "Errore: WhatsApp (nascosto, in background) non è pronta: il ponte non è ancora installato: usa l'azione "
+        "collega (lo prepara da solo, una volta sola)")
+    assert wa.fb.starts == [] and wa.wa.installing is None  # leggere le chat non scarica niente
+
+
+def fake_install(wa, problem=None, works=True):
+    """npm ci finto: aspetta il via del test, poi installa (o no)."""
+    gate, runs = asyncio.Event(), []
+
+    async def install():
+        runs.append(1)
+        await gate.wait()
+        if problem is None and works:
+            wa.installed[0] = True
+        return problem
+
+    wa.wa.install = install
+    return gate, runs
+
+
+async def test_the_first_link_prepares_the_bridge_then_opens_the_qr(wa):
+    wa.installed[0] = False
+    gate, runs = fake_install(wa)
+    wa.fb.next_start = "da collegare"
+    out = await wa.apps.use("whatsapp", "collega")
+    assert out.startswith("Preparo WhatsApp: la prima volta servono un paio di minuti")
+    assert "sto preparando il ponte" in await wa.apps.use("whatsapp", "chat")
+    assert (await wa.apps.use("whatsapp", "collega")).startswith("Preparo WhatsApp")
+    await asyncio.sleep(0.01)
+    assert runs == [1] and wa.fb.starts == []  # un secondo "collega" non fa partire un secondo npm ci
+    gate.set()
+    await wa.wa.installing
+    assert wa.fb.starts == [True]  # poi da solo la finestra col QR
+    assert wa.notes[-1].startswith("Si è aperta una finestra del browser con WhatsApp Web e il QR")
+    assert wa.notes[-1].endswith("Dillo in breve.")
+
+
+@pytest.mark.parametrize(("problem", "works", "said"), [
+    ("manca Node.js", True, "manca Node.js"),
+    (None, False, "npm ci è finito ma i pacchetti del ponte non ci sono"),
+])
+async def test_a_bridge_that_does_not_install_is_said_and_can_be_retried(wa, problem, works, said):
+    wa.installed[0] = False
+    gate, runs = fake_install(wa, problem, works)
+    gate.set()
+    await wa.apps.use("whatsapp", "collega")
+    await wa.wa.installing
     assert wa.fb.starts == []
+    assert wa.notes[-1] == f"Il ponte di WhatsApp non si è installato: {said}. Dillo in una frase."
+    await wa.apps.use("whatsapp", "collega")  # si può riprovare
+    await wa.wa.installing
+    assert runs == [1, 1]
+
+
+async def test_a_bridge_that_installs_but_whatsapp_web_does_not_open(wa):
+    wa.installed[0] = False
+    gate, _runs = fake_install(wa)
+    gate.set()
+    wa.fb.next_start = "errore"
+    await wa.apps.use("whatsapp", "collega")
+    await wa.wa.installing
+    assert wa.notes[-1] == ("Il ponte di WhatsApp è pronto, ma WhatsApp Web non si apre: WhatsApp Web non si apre: "
+                            "Chrome non trovato. Dillo in breve.")
+
+
+class FakeNpm:
+    def __init__(self, code=0, out=b"added 120 packages", hang=False):
+        self.code, self.out, self.hang = code, out, hang
+        self.args, self.kw, self.killed = None, None, False
+        self.returncode = None
+
+    async def __call__(self, *args, **kw):
+        self.args, self.kw = args, kw
+        return self
+
+    async def communicate(self):
+        if self.hang:
+            await asyncio.sleep(3600)
+        self.returncode = self.code
+        return self.out, None
+
+    def kill(self):
+        self.killed = True
+
+    async def wait(self):
+        return -9
+
+
+async def test_install_bridge_runs_npm_ci_in_the_bridge_folder(tmp_path):
+    npm = FakeNpm()
+    assert await W.install_bridge("C:/node/npm.cmd", chrome=tmp_path / "chrome.exe", run=npm) is None
+    assert npm.args == ("C:/node/npm.cmd", "ci", "--omit=dev", "--no-audit", "--no-fund")
+    assert npm.kw["cwd"] == str(W.BRIDGE_DIR) and npm.kw["creationflags"] == W.CREATE_NO_WINDOW
+    assert npm.kw["env"]["PUPPETEER_SKIP_DOWNLOAD"] == "1"  # c'è un browser: niente Chrome in più
+
+
+async def test_install_bridge_without_a_browser_lets_puppeteer_bring_its_own(monkeypatch):
+    monkeypatch.setattr(W, "find_chrome", lambda: None)
+    npm = FakeNpm()
+    assert await W.install_bridge("npm.cmd", run=npm) is None
+    assert "PUPPETEER_SKIP_DOWNLOAD" not in npm.kw["env"]
+
+
+async def test_install_bridge_problems(monkeypatch):
+    monkeypatch.setattr(W.shutil, "which", lambda name: None)
+    assert (await W.install_bridge(run=FakeNpm())).startswith("manca Node.js")
+    assert await W.install_bridge("npm.cmd", run=FakeNpm(code=1, out=b"npm ERR! network")) == (
+        "npm ci è finito con il codice 1 (rete assente?)")
+
+    async def broken(*args, **kw):
+        raise FileNotFoundError("npm.cmd")
+
+    assert (await W.install_bridge("npm.cmd", run=broken)).startswith("npm non parte")
+    monkeypatch.setattr(W, "NPM_TIMEOUT_S", 0.05)
+    stuck = FakeNpm(hang=True)
+    assert await W.install_bridge("npm.cmd", run=stuck) == "npm ci non ha finito in 0.000833333 minuti"
+    assert stuck.killed
+
+
+def test_edge_is_the_browser_when_chrome_is_missing(tmp_path, monkeypatch):
+    edge = tmp_path / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+    monkeypatch.setattr(W, "CHROME_PATHS", [tmp_path / "Google" / "Chrome" / "Application" / "chrome.exe", edge])
+    assert W.find_chrome() is None
+    edge.parent.mkdir(parents=True)
+    edge.write_bytes(b"MZ")
+    (edge.parent / "142.0.3595.53").mkdir()
+    assert W.find_chrome() == edge
+    assert "Chrome/142.0.0.0" in W.user_agent(edge)
+    assert any(p.name == "msedge.exe" for p in W.CHROME_PATHS[-2:])  # quelli veri: Edge dopo Chrome
+    assert W.CHROME_PATHS[0].name == "chrome.exe"
 
 
 def test_a_separate_copy_uses_the_main_folder_node_packages(tmp_path, monkeypatch):
@@ -291,7 +418,7 @@ def test_a_separate_copy_uses_the_main_folder_node_packages(tmp_path, monkeypatc
 async def test_linking_opens_a_window_then_works_invisible(wa):
     wa.fb.next_start = "da collegare"
     out = await wa.apps.use("whatsapp", "collega")
-    assert out.startswith("Si è aperta una finestra di Chrome con WhatsApp Web e il QR") and wa.fb.starts == [True]
+    assert out.startswith("Si è aperta una finestra del browser con WhatsApp Web e il QR") and wa.fb.starts == [True]
     wa.fb.next_start = "pronto"
     assert "si sta collegando" in await wa.apps.use("whatsapp", "chat")
     wa.fb.scan()

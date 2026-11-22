@@ -42,7 +42,9 @@ di LibriVox, le cui registrazioni sono di dominio pubblico. Il file e il punto e
 |---|---|---|---|
 | audio.cpp | motore di orecchie, voce e modello dei suoni | Apache-2.0 | [0xShug0/audio.cpp](https://github.com/0xShug0/audio.cpp) |
 | Claude Code e Claude Agent SDK | il cervello con Claude | Claude Code: termini di Anthropic; SDK Python: MIT | [anthropics/claude-agent-sdk-python](https://github.com/anthropics/claude-agent-sdk-python) |
-| OpenCode | modelli gratuiti quando Claude non c'è | MIT | [anomalyco/opencode](https://github.com/anomalyco/opencode) |
+| OpenCode | modelli gratuiti quando Claude non c'è (il primo avvio lo scarica se manca) | MIT | [anomalyco/opencode](https://github.com/anomalyco/opencode) |
+| Node.js | il ponte di WhatsApp (il primo avvio lo scarica se manca) | MIT | [nodejs.org](https://nodejs.org/) |
+| Git per Windows (portatile) | la bash di Claude Code e git per l'auto-miglioramento (il primo avvio lo scarica se manca, dalla release ufficiale; non è incluso in Jarvis) | GPL-2.0 | [git-for-windows/git](https://github.com/git-for-windows/git) |
 | whatsapp-web.js | WhatsApp in background (non ufficiale) | Apache-2.0 | [pedroslopez/whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) |
 | Playwright MCP | browser usa e getta dei sotto-agenti | Apache-2.0 | [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) |
 | Windows-MCP | mouse e tastiera sulle app di Windows | MIT | [CursorTouch/Windows-MCP](https://github.com/CursorTouch/Windows-MCP) |

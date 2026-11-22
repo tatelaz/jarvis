@@ -20,6 +20,11 @@ SMART_TURN = "https://huggingface.co/pipecat-ai/smart-turn-v3/resolve/f766f81d3c
 SILERO = "https://raw.githubusercontent.com/snakers4/silero-vad/bfdc0193023f121ea5b3cc7b176dbed570a68a59/"
 GEMMA = "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/daa72c51243991dfcaf9f9137d2c573d8f7790c0/"
 MIRROR = "https://github.com/tatelaz/jarvis/releases/download/modelli-1/"  # le conversioni fatte da noi
+# strumenti: le stesse versioni con cui Jarvis è provato (OpenCode come quello installato il 22/11)
+OPENCODE = "https://github.com/anomalyco/opencode/releases/download/v1.19.3/"
+NODE_VERSION = "22.19.0"
+NODE = f"https://nodejs.org/dist/v{NODE_VERSION}/"
+GIT = "https://github.com/git-for-windows/git/releases/download/v2.56.1.windows.1/"
 
 ROOTS = ("engine", "models")  # dest comincia sempre con una di queste: la cartella vera la decide paths
 
@@ -32,6 +37,9 @@ class File:
     dest: str  # "engine/..." o "models/...", con le barre in avanti
     unzip_to: str = ""  # archivi: la cartella in cui si estraggono (poi l'archivio si cancella)
     check: str = ""  # archivi: un file che dopo l'estrazione deve esserci
+    # "zip", oppure "sfx": un archivio 7-Zip autoestraente (Git portatile), che si apre eseguendolo con -o e -y,
+    # solo dopo averne controllato l'impronta
+    kind: str = "zip"
 
 
 @dataclass(frozen=True)
@@ -102,9 +110,25 @@ PACKAGES = {p.key: p for p in (
             ("onnx/model_q4.onnx", "f9eeba97acddf139b8ee2ddf04bc30dceafa88de93fadf74d7644e0d61a477a9", 490742),
             ("onnx/model_q4.onnx_data", "c3975f2d1ab7a1878ae31a7d7a9b7804a827aff3800b60dfceafce21cac3df49",
              174028800)))),
+    # strumenti, scaricati solo se il PC non li ha già (jarvis/setup/flow.py, missing_tools)
+    Package("tool-opencode", "OpenCode: il cervello gratuito, senza account", "MIT", (
+        File(OPENCODE + "opencode-windows-x64.zip",
+             "e4ce9117f55fc068414513789f8c7d1049f855d7518bb4e350b9170a3a20d8c3", 62204138,
+             "engine/tools/opencode-windows-x64.zip", "engine/tools/opencode", "engine/tools/opencode/opencode.exe"),)),
+    Package("tool-node", "Node.js: il ponte di WhatsApp", "MIT", (
+        File(NODE + f"node-v{NODE_VERSION}-win-x64.zip",
+             "ea3fad0e67a991d8477d8c01344b56e69c676ccb733f065b22436994b1253f86", 35424607,
+             f"engine/tools/node-v{NODE_VERSION}-win-x64.zip", "engine/tools/node",
+             f"engine/tools/node/node-v{NODE_VERSION}-win-x64/node.exe"),)),
+    Package("tool-git", "Git per Windows portatile, con bash: Claude Code e l'auto-miglioramento", "GPL-2.0", (
+        File(GIT + "PortableGit-2.56.1-64-bit.7z.exe",
+             "9dd04a608ceb5f6ab32a73709e0ecb159d211da71b697c45ff81f6dd0c6b49c7", 60125512,
+             "engine/tools/PortableGit-2.56.1-64-bit.7z.exe", "engine/tools/git", "engine/tools/git/cmd/git.exe",
+             kind="sfx"),)),
 )}
 
 ENGINES = ("engine-cuda13", "engine-cuda12", "engine-cpu")
+TOOLS = ("tool-opencode", "tool-node", "tool-git")
 VOICES = ("voice", "voice-small")
 ALWAYS = ("ears", "voice-fallback", "turns", "speakers", "memory")
 

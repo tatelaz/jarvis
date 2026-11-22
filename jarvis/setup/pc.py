@@ -94,8 +94,9 @@ def driver_number(driver: str) -> float:
         return 0.0
 
 
-def choose(facts: Facts, present: Iterable[str] = ()) -> Profile:
-    """Il profilo per questo PC. present: i `dest` del catalogo già scaricati e controllati."""
+def choose(facts: Facts, present: Iterable[str] = (), tools: Iterable[str] = ()) -> Profile:
+    """Il profilo per questo PC. present: i `dest` del catalogo già scaricati e controllati; tools: i pacchetti
+    strumento che mancano al PC (OpenCode, Node.js, Git: si scaricano con il resto)."""
     notes: list[str] = []
     nvidia = sorted((g for g in facts.gpus if g.vendor == "nvidia"), key=lambda g: g.vram_mb, reverse=True)
     gpu = nvidia[0] if nvidia else None
@@ -124,7 +125,8 @@ def choose(facts: Facts, present: Iterable[str] = ()) -> Profile:
         notes.append("niente_casse")
 
     have = set(present)
-    todo = [f for p in catalog.plan(engine, voice) for f in p.files if f.dest not in have]
+    packages = [*catalog.plan(engine, voice), *(catalog.PACKAGES[k] for k in tools)]
+    todo = [f for p in packages for f in p.files if f.dest not in have]
     download = sum(f.size for f in todo)
     unzip = sum(f.size for f in todo if f.unzip_to)
     download_mb = -(-download // 2**20)

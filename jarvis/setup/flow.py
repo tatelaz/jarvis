@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .. import paths
+from .. import paths, toolbox
 from ..config import Config, ConfigStore
 from ..lang import follow_language
 from ..speech.engine import BUNDLED_VOICES, voice_dir
@@ -31,10 +31,10 @@ log = logging.getLogger("jarvis.setup")
 
 LANGUAGES = ("it", "en")
 PROVIDERS = ("claude", "opencode")  # quelli che funzionano su un PC nuovo senza altro da installare a mano
-GROUPS = ("engine", "ears", "voice", "speakers", "memory", "turns")  # le righe della pagina, in quest'ordine
+GROUPS = ("engine", "ears", "voice", "speakers", "memory", "turns", "tools")  # le righe della pagina, in ordine
 GROUP_OF = {"engine-cuda13": "engine", "engine-cuda12": "engine", "engine-cpu": "engine", "ears": "ears",
             "voice": "voice", "voice-small": "voice", "voice-fallback": "voice", "turns": "turns",
-            "speakers": "speakers", "memory": "memory"}
+            "speakers": "speakers", "memory": "memory", **dict.fromkeys(catalog.TOOLS, "tools")}
 TTS_FOR = {"voice": "qwen3-1.7b", "voice-small": "qwen3-0.6b"}
 MAX_NAME = 40
 SPEED_WINDOW_S = 6.0  # la velocità mostrata è la media degli ultimi secondi
@@ -70,8 +70,10 @@ class Setup:
                  gather: Callable[[], pc.Facts] = lambda: pc.gather(paths.MODELS_DIR),
                  claude: ClaudeCode | None = None, voices_dir: Path | None = None, done_path: Path | None = None,
                  clock: Callable[[], float] = time.monotonic, bundled_voices: Path = BUNDLED_VOICES,
-                 audio: Any = None) -> None:
+                 audio: Any = None, missing_tools: Callable[[], list[str]] = toolbox.missing_tools) -> None:
         self.store, self.downloader, self.gather = store, downloader, gather
+        self.missing_tools = missing_tools
+        self.tools: list[str] = []  # i pacchetti strumento che mancano al PC (dal controllo del PC)
         self.claude = claude or ClaudeCode()
         self.voices_dir = voices_dir or paths.DATA_DIR / "voices"
         self.bundled_voices = bundled_voices
@@ -106,13 +108,14 @@ class Setup:
 
     async def check_pc(self) -> dict:
         facts = await asyncio.to_thread(self.gather)
+        self.tools = [k for k in await asyncio.to_thread(self.missing_tools) if k in catalog.TOOLS]
         present = []
         for p in catalog.PACKAGES.values():
             for f in p.files:  # solo una stima: misura giusta = c'è (l'impronta la controlla il download)
                 with contextlib.suppress(OSError, ValueError):
                     if self.downloader.target(f.dest).stat().st_size == f.size:
                         present.append(f.dest)
-        self.profile = pc.choose(facts, present)
+        self.profile = pc.choose(facts, present, self.tools)
         best = max(facts.gpus, key=lambda g: (g.vendor == "nvidia", g.vram_mb), default=None)
         return {"facts": {"gpu": best and {"name": best.name, "vram_mb": best.vram_mb}, "ram_mb": facts.ram_mb,
                           "free_mb": facts.free_mb, "mics": facts.mics, "speakers": facts.speakers,
@@ -144,7 +147,8 @@ class Setup:
             raise SetupError("controllo_pc")
         if not self.profile.ok:
             raise SetupError(self.profile.blockers[0])
-        return [f for p in catalog.plan(self.profile.engine, self.profile.voice) for f in p.files]
+        tools = [catalog.PACKAGES[k] for k in self.tools]
+        return [f for p in [*catalog.plan(self.profile.engine, self.profile.voice), *tools] for f in p.files]
 
     async def start_download(self) -> dict:
         files = self.plan()
