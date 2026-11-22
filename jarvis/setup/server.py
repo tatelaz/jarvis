@@ -60,7 +60,9 @@ class SetupServer:
         r.add_post("/api/lang", self._json(lambda body: s.set_language(str(body.get("lang", "")))))
         r.add_get("/api/pc", self._json(lambda body: s.check_pc()))
         r.add_get("/api/brain", self._json(lambda body: s.brain_status()))
-        r.add_post("/api/brain", self._json(lambda body: s.set_brain(str(body.get("provider", "")))))
+        r.add_post("/api/brain", self._json(lambda body: s.set_brain(str(body.get("provider", "")),
+                                                                     str(body.get("access") or "abbonamento"))))
+        r.add_post("/api/brain/key", self._json(lambda body: s.set_claude_key(str(body.get("key", "")))))
         r.add_post("/api/brain/login", self._json(lambda body: s.claude_login()))
         r.add_post("/api/brain/install", self._json(lambda body: s.claude_install()))
         r.add_get("/api/download", self._json(lambda body: s.download_status()))

@@ -18,6 +18,7 @@ from .audio.loopback import SystemOutputTap
 from .audio.pipeline import AudioPipeline
 from .audio.turn import SmartTurn
 from .audio.vad import SileroVad
+from .brain import claude_cli
 from .brain.base import BrainUnavailable, Done
 from .brain.claude import ClaudeBrain
 from .brain.claude_cli import find_cli
@@ -71,6 +72,8 @@ class Jarvis:
     def __init__(self, backend=None, memory: Memory | None = None) -> None:
         self.store = ConfigStore()
         self.cfg = self.store.config
+        # abbonamento o chiave API: vale per ogni sessione nuova di Claude Code (voce, custode, sotto-agenti)
+        claude_cli.ACCOUNT = claude_cli.Account(lambda: self.cfg.brain.claude_access, claude_cli.claude_keys())
         self.bus = Bus(journal=paths.logs_dir() / "eventi.jsonl")
         # le prove (dispositivo simulato) non scrivono mai nella memoria vera: il 5/10 ci erano finite ~150
         # frasi di prova ("quanto fa 17 per 23?") mescolate alle conversazioni dell'utente

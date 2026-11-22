@@ -14,17 +14,19 @@ import json
 import logging
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from .. import paths, toolbox
+from ..brain.claude_cli import ACCESS, claude_keys
+from ..brain.keys import ApiKeyStore
 from ..config import Config, ConfigStore
 from ..lang import follow_language
 from ..speech.engine import BUNDLED_VOICES, voice_dir
 from . import catalog, pc
-from .brains import ClaudeCode
+from .brains import KEY_SHAPE, ClaudeCode, check_anthropic_key
 from .download import Downloader, DownloadError
 
 log = logging.getLogger("jarvis.setup")
@@ -70,8 +72,12 @@ class Setup:
                  gather: Callable[[], pc.Facts] = lambda: pc.gather(paths.MODELS_DIR),
                  claude: ClaudeCode | None = None, voices_dir: Path | None = None, done_path: Path | None = None,
                  clock: Callable[[], float] = time.monotonic, bundled_voices: Path = BUNDLED_VOICES,
-                 audio: Any = None, missing_tools: Callable[[], list[str]] = toolbox.missing_tools) -> None:
+                 audio: Any = None, missing_tools: Callable[[], list[str]] = toolbox.missing_tools,
+                 keys: ApiKeyStore | None = None,
+                 check_key: Callable[[str], Awaitable[str]] = check_anthropic_key) -> None:
         self.store, self.downloader, self.gather = store, downloader, gather
+        self.keys = keys or claude_keys()  # la chiave API di Anthropic, se si sceglie di pagare a consumo
+        self.check_key = check_key
         self.missing_tools = missing_tools
         self.tools: list[str] = []  # i pacchetti strumento che mancano al PC (dal controllo del PC)
         self.claude = claude or ClaudeCode()
@@ -96,7 +102,8 @@ class Setup:
         c = self.store.config
         name = c.persona.user_name if c.persona.user_name != Config().persona.user_name else ""
         return {"lang": c.persona.language, "name": name, "autostart": c.system.autostart,
-                "provider": c.brain.provider if c.brain.provider in PROVIDERS else "claude"}
+                "provider": c.brain.provider if c.brain.provider in PROVIDERS else "claude",
+                "access": c.brain.claude_access}
 
     def set_language(self, lang: str) -> None:
         if lang not in LANGUAGES:
@@ -126,12 +133,34 @@ class Setup:
 
     async def brain_status(self) -> dict:
         claude = await asyncio.to_thread(self.claude.status)
-        return {"claude": claude.public(), "provider": self.start_info()["provider"]}
+        info = self.start_info()
+        return {"claude": claude.public(), "provider": info["provider"], "access": info["access"],
+                "key": self.keys.stored()}
 
-    def set_brain(self, provider: str) -> None:
+    def set_brain(self, provider: str, access: str = "abbonamento") -> None:
         if provider not in PROVIDERS:
             raise SetupError("cervello_sconosciuto")
+        if access not in ACCESS:
+            raise SetupError("accesso_sconosciuto")
+        if provider == "claude" and access == "chiave" and not self.keys.get():
+            raise SetupError("chiave_mancante")
         self.store.set("brain.provider", provider)
+        if provider == "claude":
+            self.store.set("brain.claude_access", access)
+
+    async def set_claude_key(self, key: str) -> None:
+        """Una chiave API scritta nella pagina: se Anthropic la accetta si salva cifrata e Claude la usa."""
+        key = str(key).strip()
+        if not KEY_SHAPE.fullmatch(key):
+            raise SetupError("chiave_non_valida")
+        verdict = await self.check_key(key)
+        if verdict == "rifiutata":
+            raise SetupError("chiave_rifiutata")
+        if verdict != "ok":
+            raise SetupError("chiave_rete")
+        await asyncio.to_thread(self.keys.save, key)
+        self.store.set("brain.provider", "claude")
+        self.store.set("brain.claude_access", "chiave")
 
     async def claude_login(self) -> None:
         if not await asyncio.to_thread(self.claude.login):

@@ -22,7 +22,7 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from ..brain.claude_cli import ISOLATED_ENV, find_cli
+from ..brain.claude_cli import find_cli, session_env
 from ..brain.tools import ToolRegistry, schema
 from . import hands
 from .hands import DesktopLease, Hands, needs_desktop
@@ -136,7 +136,7 @@ class ClaudeWorker:
             disallowed_tools=list(self.hands.disallowed), extra_args=dict(self.hands.extra_args),
             mcp_servers={"jarvis_worker": server, **self.hands.mcp_servers, **self.extra_mcp}, strict_mcp_config=True,
             setting_sources=[], permission_mode="default", can_use_tool=self._can_use_tool,
-            cwd=str(self.task.cwd), env={**ISOLATED_ENV, **self.env_extra}, max_turns=self.max_turns,
+            cwd=str(self.task.cwd), env=session_env(**self.env_extra), max_turns=self.max_turns,
             max_buffer_size=64 * 1024 * 1024,  # un'istantanea del desktop (albero + immagine) supera 1 MB
             stderr=lambda line: log.debug("worker cli: %s", line.rstrip()),
         )

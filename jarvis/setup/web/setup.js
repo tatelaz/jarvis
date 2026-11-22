@@ -39,6 +39,14 @@ const T = {
     b_best: "Consigliato", b_claude: "Claude, con il tuo abbonamento",
     b_claude_s: "Pro o Max. Accedi su claude.ai dal browser: la password non passa da qui.",
     b_free: "OpenCode, gratis", b_free_s: "Nessun account. Modelli gratuiti, meno precisi di Claude.",
+    b_key: "Claude, con una chiave API",
+    b_key_s: "A consumo, con una chiave della console di Anthropic. Resta cifrata su questo PC.",
+    key_ph: "sk-ant-…", key_saved: "chiave già salvata: lasciala vuota per tenerla",
+    h_key_install: "Serve anche Claude Code: installalo con il pulsante qui sopra (l'accesso non serve).",
+    e_chiave_non_valida: "Questa non sembra una chiave di Anthropic: comincia con sk-ant-.",
+    e_chiave_rifiutata: "Anthropic non accetta questa chiave: controllala nella console.",
+    e_chiave_rete: "Non riesco a controllare la chiave: controlla la connessione e riprova.",
+    e_chiave_mancante: "Scrivi la chiave API.",
     c_checking: "Controllo l'accesso…",
     c_install: "Installa Claude Code", c_installing: "Installazione nella finestra aperta…",
     c_login: "Accedi con Claude", c_wait: "Completa l'accesso nel browser…", c_ok: "Collegato",
@@ -94,6 +102,14 @@ const T = {
     b_best: "Recommended", b_claude: "Claude, with your subscription",
     b_claude_s: "Pro or Max. Sign in on claude.ai in your browser: your password never passes through here.",
     b_free: "OpenCode, free", b_free_s: "No account. Free models, less accurate than Claude.",
+    b_key: "Claude, with an API key",
+    b_key_s: "Pay as you go, with a key from the Anthropic console. It stays encrypted on this PC.",
+    key_ph: "sk-ant-…", key_saved: "key already saved: leave it empty to keep it",
+    h_key_install: "Claude Code is needed too: install it with the button above (no sign-in needed).",
+    e_chiave_non_valida: "This doesn't look like an Anthropic key: it starts with sk-ant-.",
+    e_chiave_rifiutata: "Anthropic doesn't accept this key: check it in the console.",
+    e_chiave_rete: "I can't check the key: check your connection and try again.",
+    e_chiave_mancante: "Type the API key.",
     c_checking: "Checking your sign-in…",
     c_install: "Install Claude Code", c_installing: "Installing in the window that opened…",
     c_login: "Sign in with Claude", c_wait: "Finish signing in in your browser…", c_ok: "Connected",
@@ -294,7 +310,10 @@ function renderBrain() {
   btn.textContent = label;
   btn.dataset.state = state;
   btn.disabled = state !== "" || !brainData;
-  $("#brain-hint").textContent = choice === "opencode" ? t("h_free") : c && !c.logged_in ? t("h_claude_later") : "";
+  $("#claude-key").placeholder = t(brainData?.key ? "key_saved" : "key_ph");
+  $("#brain-hint").textContent = choice === "opencode" ? t("h_free")
+    : choice === "key" ? (c && !c.installed ? t("h_key_install") : "")
+    : c && !c.logged_in ? t("h_claude_later") : "";
 }
 
 async function claudeAction(ev) {
@@ -314,12 +333,16 @@ async function claudeAction(ev) {
 }
 
 async function brainNext() {
+  const input = $("#claude-key");
   try {
-    await api("/api/brain", { provider: choice });
-  } catch {
-    $("#brain-hint").textContent = t("e_net");
+    if (choice === "key" && input.value.trim()) await api("/api/brain/key", { key: input.value.trim() });
+    else if (choice === "key") await api("/api/brain", { provider: "claude", access: "chiave" });
+    else await api("/api/brain", { provider: choice, access: "abbonamento" });
+  } catch (e) {
+    $("#brain-hint").textContent = t(`e_${e.code}` in T[lang] ? "e_" + e.code : "e_net");
     return;
   }
+  input.value = "";  // la chiave non resta nella pagina
   go(current + 1);
 }
 
@@ -514,7 +537,7 @@ async function main() {
   try { start = await api("/api/start"); } catch { /* si parte coi valori di base */ }
   const windows = (navigator.language || "it").toLowerCase();
   lang = start.lang === "en" ? "en" : windows.startsWith("it") ? "it" : "en";
-  choice = start.provider;
+  choice = start.provider === "claude" && start.access === "chiave" ? "key" : start.provider;
   $("#name").value = start.name || "";
   api("/api/lang", { lang }).catch(() => {});
   applyLanguage();
@@ -551,6 +574,11 @@ async function main() {
     el.onkeydown = (ev) => { if (ev.key === " " || ev.key === "Enter") { ev.preventDefault(); pick(); } };
   });
   $("#claude-action").onclick = claudeAction;
+  $("#claude-key").onkeydown = (ev) => {
+    ev.stopPropagation();  // dentro il campo Invio e spazio non sono la scelta della riga
+    if (ev.key === "Enter") brainNext();
+  };
+  $("#claude-key").oninput = () => { if (choice !== "key") { choice = "key"; renderBrain(); } };
   $("#autostart").onclick = (ev) => {
     const el = ev.currentTarget;
     el.setAttribute("aria-checked", String(el.getAttribute("aria-checked") !== "true"));

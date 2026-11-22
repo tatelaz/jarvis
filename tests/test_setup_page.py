@@ -12,7 +12,17 @@ import threading
 import numpy as np
 import pytest
 from test_setup_audio import FakeSD, find
-from test_setup_flow import RTX, FakeClaude, FakeDownloader, facts, free_port, give_voice
+from test_setup_flow import (
+    KEY,
+    RTX,
+    FakeAnthropic,
+    FakeClaude,
+    FakeDownloader,
+    facts,
+    fake_keys,
+    free_port,
+    give_voice,
+)
 
 from jarvis.config import ConfigStore
 from jarvis.setup import catalog, flow, pc
@@ -52,7 +62,8 @@ class Harness:
         self.setup = flow.Setup(self.store, FakeDownloader(tmp_path), gather=kw.pop("gather", lambda: facts(RTX)),
                                 claude=self.claude, voices_dir=tmp_path / "voices", done_path=tmp_path / "fatto.json",
                                 bundled_voices=kw.pop("bundled", tmp_path / "incluse"),  # senza: si vede l'avviso
-                                audio=AudioCheck(sd=FakeSD(), find=find), missing_tools=lambda: list(catalog.TOOLS))
+                                audio=AudioCheck(sd=FakeSD(), find=find), missing_tools=lambda: list(catalog.TOOLS),
+                                keys=fake_keys(tmp_path / "claude"), check_key=FakeAnthropic())
         self.server = SetupServer(self.setup, port=free_port())
         self.url = f"http://127.0.0.1:{self.server.port}/"
         self.errors: list[str] = []
@@ -386,3 +397,39 @@ async def test_a_busy_microphone_is_explained(tmp_path):
         await page.click('[data-step="test"] [data-next]')  # si può andare avanti lo stesso
         await on(page, "done")
         assert h.errors == []
+
+
+@pytest.mark.parametrize("size", SIZES)
+async def test_claude_with_an_api_key(tmp_path, size):
+    async with opened(tmp_path, size=size) as (h, page):
+        await page.click('[data-step="hello"] [data-next]')
+        await on(page, "pc")
+        await page.wait_for_function("!document.querySelector('[data-step=\"pc\"] [data-next]').disabled")
+        await page.click('[data-step="pc"] [data-next]')
+        await on(page, "brain")
+        await page.click('[data-choice="key"]')
+        assert await page.get_attribute('[data-choice="key"]', "aria-checked") == "true"
+        assert await page.evaluate(FITS) == [], f"a {size}"
+        assert await page.get_attribute("#claude-key", "type") == "password"
+        await page.click('[data-step="brain"] [data-next]')  # vuota, e nessuna chiave salvata
+        await page.wait_for_function("document.querySelector('#brain-hint').textContent.includes('Scrivi la chiave')")
+        await page.fill("#claude-key", "una password qualsiasi")
+        await page.press("#claude-key", "Enter")  # Invio nel campo vale come Avanti
+        await page.wait_for_function("document.querySelector('#brain-hint').textContent.includes('sk-ant-')")
+        h.setup.check_key.verdict = "rifiutata"
+        await page.fill("#claude-key", KEY)
+        await page.click('[data-step="brain"] [data-next]')
+        await page.wait_for_function("document.querySelector('#brain-hint').textContent.includes('non accetta')")
+        assert await page.locator('[data-step="brain"].on').count() == 1 and not h.setup.keys.stored()
+        h.setup.check_key.verdict = "ok"
+        await page.click('[data-step="brain"] [data-next]')
+        await on(page, "dl")
+        assert h.setup.keys.get() == KEY and h.store.config.brain.claude_access == "chiave"
+        assert await page.input_value("#claude-key") == ""  # la chiave non resta nella pagina
+        assert KEY not in await page.content()
+        await page.click('[data-step="dl"] [data-prev]')
+        await on(page, "brain")
+        assert await page.get_attribute("#claude-key", "placeholder") == "chiave già salvata: lasciala vuota per tenerla"
+        await page.click('[data-step="brain"] [data-next]')  # vuota: si tiene quella salvata
+        await on(page, "dl")
+        assert [e for e in h.errors if "409 (Conflict)" not in e] == []  # i rifiuti attesi, nient'altro

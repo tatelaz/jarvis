@@ -21,7 +21,7 @@ from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
 from claude_agent_sdk.types import AssistantMessage, ResultMessage, StreamEvent, SystemMessage, UserMessage
 
 from .base import BrainEvent, BrainUnavailable, Done, Notice, TextDelta, ToolCall, ToolResult, ToolStart
-from .claude_cli import ISOLATED_ENV, find_cli
+from .claude_cli import find_cli, session_env
 from .tools import ToolRegistry
 
 log = logging.getLogger("jarvis.brain.claude")
@@ -35,6 +35,11 @@ NO_THINKING_MODELS = ("claude-haiku-4-5",)
 _ACCOUNT_LIMIT = ("session limit", "usage limit", "weekly limit", "rate limit", "hit your limit", "credit balance",
                   "out of extra usage")
 _TRANSIENT = ("overloaded", "529", "503", "timeout", "timed out", "connection")
+# senza accesso (login mancante o scaduto, chiave API sbagliata o revocata): Claude è fuori per un po' e si passa
+# al cervello dopo, invece di rispondere con l'errore; "Invalid API key · Please run /login" è anche il login che manca
+_NO_ACCESS = ("invalid api key", "invalid x-api-key", "please run /login", "not logged in", "authentication_error",
+              "oauth token has expired")
+NO_ACCESS_PAUSE_S = 300.0
 # "You've hit your session limit", "... your 5-hour limit", "... your weekly limit": Claude Code cambia la parola in
 # mezzo (il 20/11 "5-hour" non era riconosciuto e Jarvis restava su Claude con una risposta vuota)
 _HIT_LIMIT = re.compile(r"hit your [\w -]*limit")
@@ -76,6 +81,8 @@ def preview(content) -> str:
 def classify_error(err: str, rejected_until: float | None = None) -> BrainUnavailable | None:
     """Errore del risultato -> BrainUnavailable (con portata e ora di ripristino) oppure None se è un errore normale."""
     low = err.lower()
+    if any(k in low for k in _NO_ACCESS):
+        return BrainUnavailable(err, retry_at=time.time() + NO_ACCESS_PAUSE_S, scope="provider")
     if rejected_until is not None or any(k in low for k in _ACCOUNT_LIMIT) or _HIT_LIMIT.search(low):
         return BrainUnavailable(err, retry_at=rejected_until or resets_at(err), scope="provider")
     if any(k in low for k in _TRANSIENT):
@@ -112,7 +119,7 @@ class ClaudeBrain:
             include_partial_messages=True, tools=list(self.builtin_tools),
             allowed_tools=allowed + list(self.builtin_tools), mcp_servers={"jarvis": server},
             strict_mcp_config=True, setting_sources=[], permission_mode="bypassPermissions",
-            max_turns=self.max_turns, env={**ISOLATED_ENV, "MAX_MCP_OUTPUT_TOKENS": str(MCP_OUTPUT_TOKENS)},
+            max_turns=self.max_turns, env=session_env(MAX_MCP_OUTPUT_TOKENS=str(MCP_OUTPUT_TOKENS)),
             stderr=lambda line: log.debug("cli: %s", line.rstrip()),
         )
         if self.cwd:

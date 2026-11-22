@@ -30,6 +30,7 @@ CHOICES: dict[str, set[str]] = {
     "audio.aec_mode": {"auto", "on", "off"},
     "audio.echo_reference": {"system", "jarvis"},
     "brain.provider": {"claude", "opencode", "ollama-cloud", "local"},
+    "brain.claude_access": {"abbonamento", "chiave"},
     "brain.opencode_privacy": {"tutti", "senza addestramento"},
     "brain.claude_effort": {"low", "medium", "high", "xhigh", "max"},
     "brain.worker_claude_effort": {"low", "medium", "high", "xhigh", "max"},
@@ -90,6 +91,9 @@ class SpeechConfig:
 @dataclass
 class BrainConfig:
     provider: str = "claude"  # chi parla per primo: "claude", "opencode", "ollama-cloud" o "local" (gli altri ripieghi)
+    # come si paga Claude: "abbonamento" (login di claude.ai) o "chiave" (chiave API di Anthropic, a consumo). La
+    # chiave non sta mai qui: la salva cifrata il primo avvio (data/claude), o data/claude/chiave.txt, o ANTHROPIC_API_KEY
+    claude_access: str = "abbonamento"
     # cervello frontale: misurato, Opus 5.5 a sforzo basso è il più rapido alla prima parola (~0,8 s) e il più "Jarvis"
     claude_model: str = "claude-opus-5-5"
     claude_effort: str = "low"  # quanto ragiona il cervello frontale: più alto = più lento a rispondere

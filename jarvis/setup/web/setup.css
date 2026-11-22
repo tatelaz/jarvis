@@ -106,6 +106,11 @@ body[data-current="dl"] .halo .arc { opacity: 0; }
 .choice[aria-checked="true"]::before { border-color: var(--voice); background: var(--voice); box-shadow: inset 0 0 0 3px #000; }
 .choice b { display: block; font-weight: 500; margin-bottom: 4px; }
 .choice span { color: var(--ink-2); font-size: 12.5px; line-height: 1.45; }
+.choice.wide { grid-column: 1 / -1; }
+.choice input { display: block; width: 100%; margin-top: 10px; font: 400 13px/1.2 var(--text); color: var(--ink);
+                background: none; border: 0; border-bottom: 1px solid var(--hair); padding: 6px 0; outline: none;
+                user-select: text; transition: border-color .3s; }
+.choice input:focus { border-color: var(--voice); }
 .choice .tag { position: absolute; right: 16px; top: -7px; padding: 0 8px; background: #000; font: 500 9.5px/14px var(--cond);
                letter-spacing: .22em; text-transform: uppercase; color: var(--voice); }
 .link { margin-top: 12px; font: 500 10.5px/1 var(--cond); letter-spacing: .22em; text-transform: uppercase; color: var(--ink);
@@ -195,6 +200,12 @@ body[data-current="bye"] .steps { opacity: 0; transition: opacity .6s; }
   .choices { margin-top: 12px; gap: 8px; }
   .choice { padding: 12px 14px 12px 40px; }
   .choice::before { left: 15px; top: 15px; }
+  /* tre scelte una sotto l'altra: la spiegazione e il campo della chiave solo per quella scelta */
+  .choice:not([aria-checked="true"]) > span:not(.tag), .choice:not([aria-checked="true"]) input { display: none; }
+  .choice b { margin-bottom: 0; }
+  .choice[aria-checked="true"] b { margin-bottom: 4px; }
+  .choice input { margin-top: 6px; padding: 4px 0; }
+  [data-step="brain"] .s { display: none; }  /* "puoi cambiarlo quando vuoi": qui il posto serve alle scelte */
   .dl { padding: 2px 0; }
   .dl .n { font-size: 12px; }
   .name { margin-top: 12px; }

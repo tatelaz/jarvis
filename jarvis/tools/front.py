@@ -66,6 +66,7 @@ SETTABLE = {
     "risposta_senza_nome": ("ui.wake_word", lambda v: not _bool(v)),
     "interrompibile": ("audio.barge_in", lambda v: _bool(v)),
     "cervello": ("brain.provider", lambda v: _provider(v)),
+    "accesso_claude": ("brain.claude_access", lambda v: _access(v)),
     "grafica": ("ui.theme", lambda v: _theme(v)),
     "colore": ("ui.accent", lambda v: look.color(v)),
     "grandezza_testo": ("ui.text_scale", lambda v: _scale(v)),
@@ -94,10 +95,29 @@ _PROVIDERS = {"claude": "claude", "opus": "claude", "anthropic": "claude",
               "cloud": "ollama-cloud", "ollama": "ollama-cloud", "ollama-cloud": "ollama-cloud", "gpt-oss": "ollama-cloud",
               "locale": "local", "local": "local", "bonsai": "local", "offline": "local"}
 
+_ACCESS = {"abbonamento": "abbonamento", "abbonamento claude": "abbonamento", "l'abbonamento": "abbonamento",
+           "pro": "abbonamento", "max": "abbonamento", "login": "abbonamento", "account": "abbonamento",
+           "subscription": "abbonamento",
+           "chiave": "chiave", "chiave api": "chiave", "la chiave": "chiave", "api": "chiave", "api key": "chiave",
+           "a consumo": "chiave", "consumo": "chiave", "key": "chiave"}
+
 _PRIVACY = {"tutti": "tutti", "tutte": "tutti", "qualsiasi": "tutti", "nessun limite": "tutti", "tutti i modelli": "tutti",
             "senza addestramento": "senza addestramento", "no addestramento": "senza addestramento",
             "niente addestramento": "senza addestramento", "privati": "senza addestramento",
             "solo privati": "senza addestramento", "riservati": "senza addestramento", "privacy": "senza addestramento"}
+
+
+def _access(v: Any) -> str:
+    """Abbonamento o chiave API. La chiave non si detta a voce: si passa a "chiave" solo se c'è già."""
+    from ..brain.claude_cli import claude_keys
+
+    key = " ".join(str(v).strip().lower().split())
+    if key not in _ACCESS:
+        raise ValueError(f"accesso a Claude sconosciuto '{v}' (abbonamento o chiave)")
+    if _ACCESS[key] == "chiave" and not claude_keys().get():
+        raise ValueError("non c'è una chiave API di Claude: si mette dal primo avvio (python -m jarvis --setup) o "
+                         "scrivendola in data/claude/chiave.txt (mai a voce)")
+    return _ACCESS[key]
 
 
 def _privacy(v: Any) -> str:
@@ -248,7 +268,7 @@ def _voice(v: Any) -> str:
     return name
 
 NORMALIZE = {"ui.accent": look.color, "ui.theme": _theme, "ui.effects": _effects, "ui.text_scale": _scale,
-             "brain.provider": _provider, "audio.echo_reference": _reference, "system.proposals": _proposals,
+             "brain.provider": _provider, "brain.claude_access": _access, "audio.echo_reference": _reference, "system.proposals": _proposals,
              "apps.whatsapp": _whatsapp, "media.omni": _omni, "media.frames": _frames,
              "media.frame_px": _ranged("lato dei fotogrammi", 256, 1568),
              "media.max_minutes": _ranged("minuti", 1, 240, float),

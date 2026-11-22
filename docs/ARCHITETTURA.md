@@ -295,6 +295,12 @@ stanno in `jarvis/setup/` e non dipendono dalla pagina:
 - **`brains.py`**: Claude Code solo con i comandi ufficiali: `claude auth status --json` (se ne tengono accesso,
   abbonamento e metodo, mai email e organizzazione), `claude auth login --claudeai` (browser su claude.ai) e
   l'installatore di Anthropic (`irm https://claude.ai/install.ps1 | iex`), entrambi in una finestra visibile.
+  In alternativa una **chiave API** di Anthropic (terza scelta della pagina, campo nascosto): deve avere la forma
+  `sk-ant-…`, si controlla con `GET /v1/models` (gratis) e, se Anthropic la accetta, si salva cifrata con DPAPI
+  (`jarvis/brain/keys.py`, `data/claude/chiave.bin`); la pagina la dimentica subito. Come paga Claude lo decide
+  `brain.claude_access` a ogni sessione nuova (`claude_cli.session_env`): con "chiave" la chiave va in
+  `ANTHROPIC_API_KEY`, con "abbonamento" la variabile arriva vuota, così una chiave rimasta nel PC non fa pagare
+  a consumo senza volerlo.
 - **`flow.py`** (`Setup`): la procedura senza HTTP. `missing_files` dice cosa manca a Jarvis per partire;
   lingua e cervello si salvano subito (solo `claude` e `opencode`: gli altri non funzionano su un PC nuovo senza
   altro lavoro), poi controllo del PC, download con avanzamento per gruppo e velocità sugli ultimi 6 s, fine:

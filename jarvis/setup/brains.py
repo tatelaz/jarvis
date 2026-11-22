@@ -1,4 +1,4 @@
-"""Il cervello al primo avvio: Claude Code con l'abbonamento di chi installa, oppure OpenCode gratis.
+"""Il cervello al primo avvio: Claude Code con l'abbonamento o con una chiave API di Anthropic, oppure OpenCode gratis.
 
 Per Claude si usano solo i comandi ufficiali: l'installatore di Anthropic (`irm https://claude.ai/install.ps1 |
 iex`), `claude auth login --claudeai` (apre claude.ai nel browser: password e codici restano lì) e
@@ -6,6 +6,9 @@ iex`), `claude auth login --claudeai` (apre claude.ai nel browser: password e co
 parte, visibile: chi installa vede cosa succede e la pagina del primo avvio aspetta, chiedendo lo stato ogni tanto.
 Dello stato si tengono solo tre cose (accesso fatto, tipo di abbonamento, metodo): email e organizzazione non
 escono da qui.
+
+Una chiave API si controlla chiedendo ad Anthropic l'elenco dei modelli (gratis, nessun token consumato) e poi si
+salva cifrata (`jarvis/brain/keys.py`): non passa mai dai registri né dalle impostazioni.
 """
 
 from __future__ import annotations
@@ -13,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -24,6 +28,23 @@ log = logging.getLogger("jarvis.setup")
 INSTALL_COMMAND = "irm https://claude.ai/install.ps1 | iex"  # installatore ufficiale di Claude Code per Windows
 NEW_CONSOLE = 0x00000010  # CREATE_NEW_CONSOLE: una finestra a parte, che chi installa vede
 NO_WINDOW = 0x08000000
+ANTHROPIC_MODELS = "https://api.anthropic.com/v1/models"
+KEY_SHAPE = re.compile(r"sk-ant-[A-Za-z0-9_-]{20,300}")  # come cominciano e di cosa sono fatte le chiavi di Anthropic
+
+
+async def check_anthropic_key(key: str, url: str = ANTHROPIC_MODELS, timeout_s: float = 15.0) -> str:
+    """La chiave funziona? "ok", "rifiutata" (Anthropic non la accetta) o "rete" (non si è potuto sapere)."""
+    import aiohttp
+
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout_s)) as session, \
+                session.get(url, headers={"x-api-key": key, "anthropic-version": "2023-06-01"}) as r:
+            if r.status == 200:
+                return "ok"
+            return "rifiutata" if r.status in (401, 403) else "rete"
+    except (aiohttp.ClientError, TimeoutError, OSError) as e:
+        log.info("primo avvio: chiave di Claude non controllabile (%s)", type(e).__name__)
+        return "rete"
 
 
 @dataclass(frozen=True)

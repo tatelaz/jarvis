@@ -10,6 +10,7 @@ import aiohttp
 import pytest
 
 from jarvis import paths
+from jarvis.brain.keys import ApiKeyStore
 from jarvis.config import ConfigStore
 from jarvis.setup import brains, catalog, flow, pc
 from jarvis.setup.download import DownloadError
@@ -53,6 +54,26 @@ class FakeDownloader:
             report(done, total, f.dest)
 
 
+KEY = "sk-ant-api03-inventata-0123456789abcdef"
+
+
+def fake_keys(folder: Path) -> ApiKeyStore:
+    """La cassaforte della chiave in una cartella di prova, con una cifratura finta (mai data/claude vera)."""
+    return ApiKeyStore(folder, {}, lambda b: b"S" + b[::-1], lambda b: b[1:][::-1], env_var="ANTHROPIC_API_KEY",
+                       what="Claude")
+
+
+class FakeAnthropic:
+    """Il controllo della chiave senza rete: cosa risponderebbe Anthropic, e quali chiavi ha visto."""
+
+    def __init__(self, verdict="ok") -> None:
+        self.verdict, self.seen = verdict, []
+
+    async def __call__(self, key):
+        self.seen.append(key)
+        return self.verdict
+
+
 class FakeClaude(brains.ClaudeCode):
     def __init__(self, installed=True, logged_in=False) -> None:
         self.installed, self.logged_in = installed, logged_in
@@ -80,7 +101,8 @@ def setup(tmp_path):
     s = flow.Setup(store, FakeDownloader(tmp_path), gather=lambda: facts(RTX), claude=FakeClaude(),
                    voices_dir=tmp_path / "voices", done_path=tmp_path / "setup" / "fatto.json",
                    bundled_voices=tmp_path / "incluse",  # di base senza voci: si prova anche la voce mancante
-                   missing_tools=lambda: list(catalog.TOOLS))  # un PC senza OpenCode, Node e Git
+                   missing_tools=lambda: list(catalog.TOOLS),  # un PC senza OpenCode, Node e Git
+                   keys=fake_keys(tmp_path / "claude"), check_key=FakeAnthropic())
     return s
 
 
@@ -132,7 +154,8 @@ def test_names_are_cleaned():
 
 
 def test_start_info_has_no_placeholder_name(setup):
-    assert setup.start_info() == {"lang": "it", "name": "", "autostart": False, "provider": "claude"}
+    assert setup.start_info() == {"lang": "it", "name": "", "autostart": False, "provider": "claude",
+                                  "access": "abbonamento"}
     setup.store.set("persona.user_name", "Andrea")
     setup.store.set("brain.provider", "local")  # non offerto al primo avvio: si propone Claude
     assert setup.start_info()["name"] == "Andrea" and setup.start_info()["provider"] == "claude"
@@ -460,7 +483,7 @@ async def test_run_without_window_ends_when_closed(tmp_path, monkeypatch):
     def fake_setup(st):
         made["s"] = flow.Setup(st, FakeDownloader(tmp_path), gather=lambda: facts(RTX), claude=FakeClaude(),
                                voices_dir=tmp_path / "voices", done_path=tmp_path / "fatto.json",
-                               missing_tools=lambda: [])
+                               missing_tools=lambda: [], keys=fake_keys(tmp_path / "claude"))
         return made["s"]
 
     monkeypatch.setattr(run_mod, "make_setup", fake_setup)
@@ -591,3 +614,74 @@ def test_every_row_of_the_download_has_its_name_in_both_languages():
     js = (Path(flow.__file__).parent / "web" / "setup.js").read_text(encoding="utf-8")
     for g in flow.GROUPS:
         assert js.count(f"dl_{g}:") == 2, g  # italiano e inglese
+
+
+# --- Claude con una chiave API ---
+
+
+async def test_a_key_accepted_by_anthropic_is_sealed_and_used(setup):
+    await setup.set_claude_key(f"  {KEY}  ")
+    assert setup.check_key.seen == [KEY]
+    c = setup.store.config
+    assert c.brain.provider == "claude" and c.brain.claude_access == "chiave"
+    assert setup.keys.get() == KEY and KEY.encode() not in setup.keys.sealed.read_bytes()
+    assert KEY not in (setup.store.path.read_text(encoding="utf-8"))  # mai nelle impostazioni
+    status = await setup.brain_status()
+    assert status["access"] == "chiave" and status["key"] is True and KEY not in json.dumps(status)
+    assert setup.start_info()["access"] == "chiave"
+
+
+@pytest.mark.parametrize(("key", "verdict", "code"), [
+    ("chiave a caso", "ok", "chiave_non_valida"),
+    ("sk-ant-corta", "ok", "chiave_non_valida"),
+    (KEY + "\nsk-ant-altra", "ok", "chiave_non_valida"),
+    (KEY, "rifiutata", "chiave_rifiutata"),
+    (KEY, "rete", "chiave_rete"),
+])
+async def test_a_key_that_is_not_right_is_not_saved(setup, key, verdict, code):
+    setup.check_key.verdict = verdict
+    with pytest.raises(flow.SetupError, match=code):
+        await setup.set_claude_key(key)
+    assert not setup.keys.stored() and setup.store.config.brain.claude_access == "abbonamento"
+    if code == "chiave_non_valida":
+        assert setup.check_key.seen == []  # una chiave storta non parte nemmeno verso Anthropic
+
+
+async def test_choosing_the_key_needs_one_and_the_subscription_puts_it_aside(setup):
+    with pytest.raises(flow.SetupError, match="chiave_mancante"):
+        setup.set_brain("claude", "chiave")
+    with pytest.raises(flow.SetupError, match="accesso_sconosciuto"):
+        setup.set_brain("claude", "gratis")
+    await setup.set_claude_key(KEY)
+    setup.set_brain("claude", "abbonamento")
+    assert setup.store.config.brain.claude_access == "abbonamento" and setup.keys.get() == KEY  # tenuta, non usata
+    setup.set_brain("claude", "chiave")  # la chiave salvata prima basta
+    assert setup.store.config.brain.claude_access == "chiave"
+    setup.set_brain("opencode")  # OpenCode non tocca come si paga Claude
+    assert setup.store.config.brain.provider == "opencode" and setup.store.config.brain.claude_access == "chiave"
+
+
+async def test_the_key_check_asks_anthropic_for_the_models_only(tmp_path):
+    from aiohttp import web
+
+    seen = []
+
+    async def models(req):
+        seen.append((req.path, req.headers.get("x-api-key"), req.headers.get("anthropic-version")))
+        return web.json_response({"data": []}, status=200 if req.headers.get("x-api-key") == KEY else 401)
+
+    app = web.Application()
+    app.router.add_get("/v1/models", models)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = free_port()
+    await web.TCPSite(runner, "127.0.0.1", port).start()
+    try:
+        url = f"http://127.0.0.1:{port}/v1/models"
+        assert await brains.check_anthropic_key(KEY, url) == "ok"
+        assert await brains.check_anthropic_key("sk-ant-api03-sbagliata-000000000000", url) == "rifiutata"
+        assert await brains.check_anthropic_key(KEY, f"http://127.0.0.1:{port}/altro") == "rete"  # 404
+    finally:
+        await runner.cleanup()
+    assert seen[0] == ("/v1/models", KEY, "2023-06-01")
+    assert await brains.check_anthropic_key(KEY, f"http://127.0.0.1:{free_port()}/v1/models", 2) == "rete"

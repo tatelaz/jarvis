@@ -42,6 +42,7 @@ import aiohttp
 
 from .. import paths
 from .base import BrainEvent, BrainUnavailable, Done, TextDelta, ToolCall, ToolResult, ToolStart
+from .keys import ApiKeyStore  # la chiave facoltativa di OpenCode Zen (OPENCODE_API_KEY)
 from .mcp_bridge import McpBridge
 from .tools import ToolRegistry
 
@@ -101,56 +102,6 @@ def find_opencode(explicit: str | None = None) -> str:
         if c.is_file():
             return str(c)
     raise FileNotFoundError("OpenCode non è installato (npm i -g opencode-ai)")
-
-
-# ---------------------------------------------------------------------- la chiave dell'utente (facoltativa)
-
-
-def _protect(data: bytes) -> bytes:
-    import win32crypt
-
-    return win32crypt.CryptProtectData(data, "jarvis-opencode", None, None, None, 0x1)
-
-
-def _unprotect(blob: bytes) -> bytes:
-    import win32crypt
-
-    return win32crypt.CryptUnprotectData(blob, None, None, None, 0x1)[1]
-
-
-class ApiKeyStore:
-    """La chiave API di OpenCode Zen: dalla variabile d'ambiente OPENCODE_API_KEY oppure dal file
-    `data/opencode/chiave.txt`, che al primo avvio viene cifrato con DPAPI (`chiave.bin`, leggibile solo dal suo
-    utente di Windows) e cancellato. Mai nei registri né nelle impostazioni. Senza chiave tutto funziona lo stesso
-    con i soli modelli gratis."""
-
-    def __init__(self, folder: Path, environ: Mapping[str, str] | None = None,
-                 protect: Callable[[bytes], bytes] = _protect, unprotect: Callable[[bytes], bytes] = _unprotect) -> None:
-        self.folder = folder
-        self.environ = os.environ if environ is None else environ
-        self.protect, self.unprotect = protect, unprotect
-        self.plain, self.sealed = folder / "chiave.txt", folder / "chiave.bin"
-
-    def get(self) -> str | None:
-        key = (self.environ.get("OPENCODE_API_KEY") or "").strip()
-        if key:
-            return key
-        if self.plain.is_file():
-            key = self.plain.read_text(encoding="utf-8-sig").strip()
-            if key:
-                try:
-                    self.sealed.write_bytes(self.protect(key.encode()))
-                    self.plain.unlink()
-                    log.info("chiave di OpenCode cifrata (chiave.bin) e tolta dal file in chiaro")
-                except Exception as e:  # meglio una chiave in chiaro che nessuna: lo si dice nel registro
-                    log.warning("non sono riuscito a cifrare la chiave di OpenCode: %s", type(e).__name__)
-                return key
-        if self.sealed.is_file():
-            try:
-                return self.unprotect(self.sealed.read_bytes()).decode().strip() or None
-            except Exception as e:
-                log.warning("chiave di OpenCode illeggibile (%s): proseguo con i soli modelli gratis", type(e).__name__)
-        return None
 
 
 # ---------------------------------------------------------------------- il processo
