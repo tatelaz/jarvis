@@ -16,7 +16,8 @@ log = logging.getLogger("jarvis.certs")
 
 
 def trust_windows() -> bool:
-    """Da qui in poi ogni contesto SSL di Python (aiohttp, urllib, requests, imaplib, smtplib) verifica con Windows."""
+    """Da qui in poi ogni contesto SSL nuovo di Python (urllib, requests, imaplib, smtplib) verifica con Windows.
+    aiohttp si prepara il suo quando lo si importa: va chiamata prima (jarvis/__main__.py lo fa per prima cosa)."""
     try:
         import truststore
     except ImportError:  # senza truststore resta la verifica di base: va bene dove le radici ci sono già

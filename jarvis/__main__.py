@@ -34,11 +34,15 @@ async def _console(app) -> None:
 
 
 async def main(console: bool, window: bool, setup: bool = False) -> int:
-    from . import certs, toolbox
+    from . import certs
+
+    # prima di ogni download e PRIMA di importare aiohttp, che prepara la sua verifica dei certificati una volta sola,
+    # quando lo si importa (provato in Windows Sandbox: chiamato dopo, i download fallivano lo stesso)
+    certs.trust_windows()
+    from . import toolbox
     from .config import ConfigStore
     from .setup import flow
 
-    certs.trust_windows()  # prima di ogni download: su un Windows nuovo i certificati di base non bastano
     toolbox.use_downloaded_tools()  # OpenCode, Node.js e Git scaricati dal primo avvio, se il PC non li aveva
 
     missing = flow.missing_files(ConfigStore().config)

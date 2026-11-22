@@ -1058,12 +1058,15 @@ MUTATIONS = [
     ('jarvis/apps/gmail_imap.py', '            if typ == "OK" and data and data[-1]:\n                caps |= set(',
      '            if False:\n                caps |= set(', 'tests/test_gmail_imap.py',
      'gmail veloce: le capacità si rileggono dopo il login (UTF-8 di Gmail)'),
-    ('jarvis/__main__.py', '    certs.trust_windows()  # prima di ogni download',
-     '    pass  # prima di ogni download', 'tests/test_certs.py',
+    ('jarvis/__main__.py', '    certs.trust_windows()\n    from . import toolbox',
+     '    from . import toolbox', 'tests/test_certs.py',
      'certificati: Jarvis li fa verificare a Windows prima di ogni download'),
     ('jarvis/certs.py', '    truststore.inject_into_ssl()\n',
      '', 'tests/test_certs.py',
      'certificati: truststore vale per ogni contesto SSL'),
+    ('jarvis/__main__.py', '    certs.trust_windows()\n    from . import toolbox\n    from .config import ConfigStore\n    from .setup import flow\n',
+     '    from . import toolbox\n    from .config import ConfigStore\n    from .setup import flow\n    certs.trust_windows()\n', 'tests/test_certs.py',
+     'certificati: truststore prima di importare aiohttp (o i download non lo usano)'),
 ]
 
 
