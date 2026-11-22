@@ -25,10 +25,10 @@ const EN = {
   "parola d'ordine impostata": "passphrase set", "parola d'ordine non impostata": "passphrase not set",
   "parola d'ordine salvata": "passphrase saved", "non salvata": "not saved", "voce di": "voice of", "memoria": "memory",
   "scheda": "card", "tu": "you", "sistema": "system", "errore": "error", "ospite": "guest", "Chiudi": "Close",
-  "incolla qui la password per le app creata su myaccount.google.com/apppasswords":
-    "paste here the app password created at myaccount.google.com/apppasswords",
+  "incolla qui la password per le app (16 lettere) creata su myaccount.google.com/apppasswords":
+    "paste here the app password (16 letters) created at myaccount.google.com/apppasswords",
   "indirizzo Gmail": "Gmail address", "Indirizzo Gmail": "Gmail address",
-  "password per le app (16 lettere)": "app password (16 letters)", "Password per le app": "App password",
+  "password per le app": "app password", "Password per le app": "App password",
   "collega": "connect", "provo il collegamento…": "trying to connect…", "Gmail collegata": "Gmail connected",
   "non collegata": "not connected",
 };
