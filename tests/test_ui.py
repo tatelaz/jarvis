@@ -257,6 +257,32 @@ async def test_voice_and_security_section():
         assert errors == []
 
 
+async def test_gmail_app_password_field():
+    """"Collega Gmail" apre da solo il campo: la password parte una volta, il campo si svuota, niente va alla chat."""
+    async with window("mark3") as (page, v, errors):
+        assert await page.evaluate("document.getElementById('drawer').hidden")
+        await cmd(page, cmd="vetrina", gmail=True)
+        await page.wait_for_function("!document.getElementById('drawer').hidden && "
+                                     "document.getElementById('gmail-box').open")
+        assert await page.evaluate("document.activeElement.id") == "gmail-email"
+        await page.keyboard.type("nome@gmail.com")
+        await page.locator("#gmail-pass").click()
+        await page.keyboard.type("zzzz zzzz zzzz zzzz")
+        assert not await page.evaluate("document.getElementById('composer').classList.contains('on')")
+        await page.keyboard.press("Enter")
+        await page.wait_for_function("document.getElementById('gmail-msg').textContent.includes('non accetta')")
+        assert await page.locator("#gmail-pass").input_value() == ""
+        await page.locator("#gmail-pass").click()
+        await page.keyboard.type("abcd efgh ijkl mnop")
+        await page.locator("#gmail-form button").click()
+        await page.wait_for_function("document.getElementById('gmail-msg').textContent === 'Gmail collegata'")
+        sent = [c for c in v.commands if c.get("cmd") == "gmail_app_password"]
+        assert sent == [{"cmd": "gmail_app_password", "email": "nome@gmail.com", "value": "zzzz zzzz zzzz zzzz"},
+                        {"cmd": "gmail_app_password", "email": "nome@gmail.com", "value": "abcd efgh ijkl mnop"}]
+        assert not any(c.get("cmd") == "text" for c in v.commands)  # la password non è finita nella chat
+        assert errors == []
+
+
 ITALIAN = ("parla", "riposo", "registro", "ferma", "scrivi", "attesa", "ascolto", "ragiono", "decisione", "compit",
            "microfono", "approva", "nega", "procedi", "riaccend", "collegamento", "conversazione", "scheda video")
 

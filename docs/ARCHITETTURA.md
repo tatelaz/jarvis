@@ -208,6 +208,22 @@ conversazione (thread o asincrone).
   "App desktop" nel browser (client copiato dai Download, permesso cifrato con DPAPI in `data/gmail`), mail citate
   col numero dell'ultimo elenco, destinatari cercati per nome nelle mail scambiate; permesso revocato → si
   dimentica e si chiede di ricollegare.
+- `gmail_imap.py` (dal 22/11): il modo veloce, di base per chi non ha già il progetto Google. "Collega Gmail" apre
+  myaccount.google.com/apppasswords e il campo Gmail della finestra (evento `gmail_form`); indirizzo e password per
+  le app (16 lettere) arrivano col comando `gmail_app_password`, si provano con un login IMAP e solo allora si
+  salvano cifrati (`{"mode": "imap", ...}` nello stesso `permesso.bin`); la password non va mai in registri, eventi
+  o messaggi. `ImapSession` risponde alle stesse chiamate dell'API (stesso `request`, stesse risposte), così le
+  azioni di `gmail.py` sono una sola volta: id = X-GM-MSGID e X-GM-THRID in esadecimale (come l'API), ricerche con
+  X-GM-RAW in «Tutti i messaggi» (nel cestino o nello spam se la ricerca li nomina), cartelle riconosciute dai segni
+  SPECIAL-USE e non dai nomi (cambiano con la lingua dell'account), letta e stella con \Seen e \Flagged, etichette
+  con X-GM-LABELS, cestino e spam con MOVE (mai \Deleted né EXPUNGE), lettura con BODY.PEEK (non segna letta), invio
+  con SMTP (mittente, data e Message-ID aggiunti; un invio fallito non si ritenta mai, potrebbe partire due volte),
+  bozze con APPEND in \Drafts. Le capacità si rileggono dopo il login (Gmail annuncia UTF8=ACCEPT e MOVE solo
+  allora); senza UTF-8 i nomi delle cartelle vanno in UTF-7 modificato e le ricerche con accenti come literal. Una
+  connessione caduta si riapre una volta; "password non accettata" fa ricollegare, un server occupato no. Filtri e
+  risposta automatica con IMAP non ci sono: lo si dice e si indica il modo completo (`collega` con `modo: completo`).
+  Provato con un server IMAP finto che si comporta come Gmail (cartelle in italiano, uid diversi per cartella, in
+  UTF-8 e in UTF-7) e un SMTP finto; il login a Gmail vero non ancora (serve una password per le app).
 
 ## Video e audio
 

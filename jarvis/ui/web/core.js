@@ -25,6 +25,12 @@ const EN = {
   "parola d'ordine impostata": "passphrase set", "parola d'ordine non impostata": "passphrase not set",
   "parola d'ordine salvata": "passphrase saved", "non salvata": "not saved", "voce di": "voice of", "memoria": "memory",
   "scheda": "card", "tu": "you", "sistema": "system", "errore": "error", "ospite": "guest", "Chiudi": "Close",
+  "incolla qui la password per le app creata su myaccount.google.com/apppasswords":
+    "paste here the app password created at myaccount.google.com/apppasswords",
+  "indirizzo Gmail": "Gmail address", "Indirizzo Gmail": "Gmail address",
+  "password per le app (16 lettere)": "app password (16 letters)", "Password per le app": "App password",
+  "collega": "connect", "provo il collegamento…": "trying to connect…", "Gmail collegata": "Gmail connected",
+  "non collegata": "not connected",
 };
 /* Il motore della finestra di Jarvis.
    - Collegamento con Jarvis (WebSocket): fotografia iniziale, eventi in tempo reale, comandi.
@@ -192,7 +198,14 @@ function handle(ev) {
     case "task": J.tasks.set(ev.id, ev); break;
     case "show": showCard(ev.title, ev.markdown, ev.replay); break;
     case "muted": J.muted = !!ev.muted; break;
+    case "gmail_form":  // "collega Gmail": si apre il campo per la password per le app
+      if (!ev.replay) { toggleLog(true); $("gmail-box").open = true; $("gmail-email").focus(); }
+      break;
     case "notice":
+      if (ev.kind === "gmail" && !ev.replay) {
+        const info = ev.info || {};
+        $("gmail-msg").textContent = info.ok ? U.t("Gmail collegata") : `${U.t("non collegata")}: ${info.message || ""}`;
+      }
       if (ev.kind === "passphrase" && !ev.replay) {
         $("sec-msg").textContent = ev.info && ev.info.ok ? U.t("parola d'ordine salvata")
           : `${U.t("non salvata")}: ${(ev.info || {}).message || ""}`;
@@ -305,6 +318,14 @@ function wire() {
     const field = $("pass-input"), value = field.value;
     field.value = "";  // non resta nel campo né nella pagina
     if (value.trim()) send({ cmd: "passphrase", value });
+  });
+  $("gmail-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const field = $("gmail-pass"), value = field.value, email = $("gmail-email").value.trim();
+    field.value = "";  // la password parte e sparisce dalla pagina
+    if (!value.trim()) return;
+    $("gmail-msg").textContent = U.t("provo il collegamento…");
+    send({ cmd: "gmail_app_password", email, value });
   });
   addEventListener("keydown", (e) => {
     if (e.key === "Escape") {

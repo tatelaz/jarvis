@@ -170,8 +170,10 @@ def gm(tmp_path):
 
     downloads = tmp_path / "Downloads"
     downloads.mkdir()
+    opened = []
     g = G.Gmail(tmp_path / "gmail", downloads, notify=notes.append, consent_flow=consent,
-                session_factory=lambda info: api, protect_fn=lock, unprotect_fn=unlock)
+                session_factory=lambda info: api, protect_fn=lock, unprotect_fn=unlock,
+                open_url=opened.append)  # mai il browser vero
     turns = {"n": 0, "text": ""}
     apps = Apps([G.build(g, now=lambda: NOW)], turns=lambda: turns["n"], last_text=lambda: turns["text"])
 
@@ -180,6 +182,7 @@ def gm(tmp_path):
 
     c = Ctx()
     c.api, c.g, c.apps, c.notes, c.consents, c.downloads, c.tmp = api, g, apps, notes, consents, downloads, tmp_path
+    c.opened = opened
 
     def say(text):
         turns["n"] += 1
@@ -208,11 +211,15 @@ async def confirmed(c, action, params):
 # ------------------------------------------------------------------ collegamento
 
 
-async def test_without_the_google_project_it_shows_the_guide(gm):
+async def test_without_the_google_project_it_takes_the_quick_way(gm):
     out = await gm.apps.use("gmail", "collega")
+    assert out.startswith("Ho aperto la pagina di Google delle password per le app") and gm.opened == [
+        "https://myaccount.google.com/apppasswords"]
+    out = await gm.apps.use("gmail", "collega", {"modo": "completo"})
     assert out.startswith("Errore: manca il progetto Google dell'utente") and "azione guida" in out
     guide = await gm.apps.use("gmail", "guida")
     assert "Pubblica app" in guide and "7 giorni" in guide and "App desktop" in guide
+    gm.g.waiting_password = False
     assert await gm.apps.use("gmail", "leggi", {"mail": "1"}) == (
         "Errore: Gmail non è pronta: non è collegata: usa l'azione collega (una volta sola)")
 
@@ -232,7 +239,8 @@ async def test_a_web_client_is_refused_a_desktop_one_is_found_in_downloads(gm):
     assert b"rt-segreto" not in raw and json.loads(unlock(raw))["refresh_token"] == "rt-segreto"  # mai in chiaro
     assert gm.notes == [f"Gmail è collegata ({ME}). Dillo in una frase."]
     assert await gm.apps.use("gmail", "stato") == f"Gmail collegata: {ME}, 1234 mail in tutto"
-    assert await gm.apps.use("gmail", "collega") == "Gmail è già collegata"
+    assert await gm.apps.use("gmail", "collega") == "Gmail è già collegata (modo completo)"
+    assert gm.opened == []  # con il progetto Google il modo veloce non si apre
 
 
 @pytest.mark.parametrize("result", [RuntimeError("consenso negato"), {"token": "solo-accesso"}])

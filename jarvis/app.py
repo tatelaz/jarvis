@@ -371,7 +371,8 @@ class Jarvis:
             notify=lambda text: self.conv and self.conv.notify(text))
         wa = whatsapp.build(self.whatsapp, transcribe=lambda path: whatsapp.transcribe_with(self.stt, path))
         self.gmail = gmail.Gmail(paths.data_path("gmail"), Path.home() / "Downloads",
-                                 notify=lambda text: self.conv and self.conv.notify(text))
+                                 notify=lambda text: self.conv and self.conv.notify(text),
+                                 show_form=lambda: self.bus.emit("gmail_form"))
         return Apps([wa, gmail.build(self.gmail), games.build(games.Library(games.steam_path()))], may=may,
                     turns=lambda: self.conv.user_turns if self.conv else 0,
                     last_text=lambda: self.conv.last_user_text if self.conv else "",
@@ -489,6 +490,14 @@ class Jarvis:
         log.info("parola d'ordine impostata")
         self.bus.emit("identity", **self.identity_state())
         return "ok"
+
+    async def gmail_app_password(self, address: str, password: str) -> str:
+        """Dal campo Gmail della finestra (chi la usa è davanti al PC). La password non va mai in registri o eventi."""
+        if self.gmail is None:
+            return "Gmail non è disponibile in questo Jarvis"
+        result = await self.gmail.link_app_password(address, password)
+        log.info("Gmail con la password per le app: %s", "collegata" if result == "ok" else "non collegata")
+        return result
 
     def _emit_level(self, mic: float, out: float) -> None:
         """Livelli audio per la finestra, con quanta parte della risposta è già stata detta (sottotitoli)."""

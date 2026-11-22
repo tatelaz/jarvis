@@ -189,6 +189,8 @@ class Vetrina:
                 await self.hold(cmd["scena"])
             if "utente" in cmd:  # una frase detta da qualcuno (es. un ospite), come la manda il Jarvis vero
                 await self.broadcast({"type": "user", **cmd["utente"]})
+            if cmd.get("gmail"):  # come il Jarvis vero dopo "collega Gmail": si apre il campo della password per le app
+                await self.broadcast({"type": "gmail_form"})
             if "audio" in cmd:  # come il Jarvis vero quando le cuffie spariscono o tornano
                 ok = bool(cmd["audio"])
                 self.audio = {"type": "audio", "ok": ok, "reason": "audio tornato" if ok else "il dispositivo ha smesso di rispondere",
@@ -197,6 +199,10 @@ class Vetrina:
                 await self.broadcast(self.audio)
         elif kind == "passphrase":  # come il Jarvis vero: salvata, e il testo non torna indietro
             await self.broadcast({"type": "notice", "kind": "passphrase", "info": {"ok": True, "message": "ok"}})
+        elif kind == "gmail_app_password":  # come il Jarvis vero: risponde ok o il motivo, mai la password
+            ok = cmd.get("value", "").replace(" ", "") == "abcdefghijklmnop"
+            await self.broadcast({"type": "notice", "kind": "gmail", "info": {
+                "ok": ok, "message": "ok" if ok else "Google non accetta indirizzo e password per le app"}})
         elif kind == "text":
             await self.broadcast({"type": "user", "text": cmd.get("text", "")})
             self.spawn(self.say("Certamente, signore. Questa è una risposta di prova della vetrina."))

@@ -140,6 +140,9 @@ class UiServer:
         elif kind == "passphrase":  # dalla finestra: il testo non si scrive mai da nessuna parte
             result = self.app.set_passphrase(str(cmd.get("value", "")))
             self.app.bus.emit("notice", kind="passphrase", info={"ok": result == "ok", "message": result})
+        elif kind == "gmail_app_password":  # dalla finestra: la password non si scrive mai da nessuna parte
+            result = await self.app.gmail_app_password(str(cmd.get("email", "")), str(cmd.get("value", "")))
+            self.app.bus.emit("notice", kind="gmail", info={"ok": result == "ok", "message": result})
         elif kind == "mute":
             self.app.pipeline.listener.enabled = not bool(cmd.get("muted"))
             self.app.bus.emit("muted", sticky=True, muted=bool(cmd.get("muted")))

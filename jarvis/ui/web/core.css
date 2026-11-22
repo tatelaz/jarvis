@@ -56,12 +56,12 @@ canvas.scene { position: absolute; inset: 0; width: 100%; height: 100%; }
 .entry.sys .txt { color: var(--need, #ffb547); font-size: .92em; }
 .entry.err .txt { color: var(--bad, #ff6b6b); font-size: .92em; }
 .entry.guest .who { color: var(--need, #ffb547); }
-#security { margin: 0 20px 18px; padding-top: 12px; border-top: 1px solid var(--hair); font: 12px/1.5 var(--mono); color: var(--dim); }
-#security summary { cursor: pointer; font: 500 10px/1 var(--cond); letter-spacing: .3em; text-transform: uppercase; color: var(--faint); }
-#security p { margin: 10px 0; }
-#pass-form { display: flex; gap: 8px; }
-#pass-form input { flex: 1; min-width: 0; background: transparent; border: 1px solid var(--hair); color: var(--ink); padding: 7px 9px; font: inherit; }
-#pass-form button { background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer; padding: 0 12px; font: inherit; }
+#security, #gmail-box { margin: 0 20px 18px; padding-top: 12px; border-top: 1px solid var(--hair); font: 12px/1.5 var(--mono); color: var(--dim); }
+#security summary, #gmail-box summary { cursor: pointer; font: 500 10px/1 var(--cond); letter-spacing: .3em; text-transform: uppercase; color: var(--faint); }
+#security p, #gmail-box p { margin: 10px 0; }
+#pass-form, #gmail-form { display: flex; flex-wrap: wrap; gap: 8px; }
+#pass-form input, #gmail-form input { flex: 1 1 140px; min-width: 0; background: transparent; border: 1px solid var(--hair); color: var(--ink); padding: 7px 9px; font: inherit; }
+#pass-form button, #gmail-form button { background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer; padding: 0 12px; font: inherit; }
 
 /* schede "mostra": codice, link, elenchi */
 #cards { position: fixed; right: 22px; top: 64px; width: min(400px, 44vw); z-index: 7; display: flex; flex-direction: column; gap: 12px;

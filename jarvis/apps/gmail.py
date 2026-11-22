@@ -1,13 +1,16 @@
-"""Gmail con l'API ufficiale di Google: tutto in background, nessun browser tranne il consenso, una volta sola.
+"""Gmail in due modi: veloce con una password per le app (IMAP e SMTP), completo con l'API ufficiale di Google.
 
-- Preparazione (una volta, la fa l'utente col suo account): progetto gratuito su Google Cloud, API Gmail attivata, app
+- Veloce (di base): "Jarvis, collega Gmail" apre la pagina di Google delle password per le app (serve la verifica in
+  due passaggi) e il campo Gmail nella finestra di Jarvis, dove l'utente incolla indirizzo e password (mai a voce).
+  Jarvis prova il collegamento e lo salva cifrato. Le chiamate passano da jarvis/apps/gmail_imap.py, che risponde come
+  l'API: le azioni sotto sono le stesse. Filtri e risposta automatica no (IMAP non li ha).
+- Completo (se c'è già il progetto Google o lo si chiede): progetto gratuito su Google Cloud, API Gmail attivata, app
   "Jarvis" pubblicata (in prova il permesso scadrebbe dopo 7 giorni), client OAuth "App desktop" scaricato. Jarvis
-  trova da solo il file client_secret_*.json nei Download e lo copia in data/gmail/client.json.
-- "Jarvis, collega Gmail": si apre il browser, Google chiede il consenso, l'utente preme Consenti (e la prima volta
-  "Avanzate, vai a Jarvis", perché l'app non è verificata: è sua). Il permesso è cifrato con DPAPI di Windows: lo legge
-  solo il suo utente su questo PC.
-- Permessi chiesti: gmail.modify (leggere, scrivere, inviare, etichette, cestino; MAI cancellazioni definitive) e
-  gmail.settings.basic (risposta automatica, filtri).
+  trova da solo il file client_secret_*.json nei Download e lo copia in data/gmail/client.json. "Jarvis, collega
+  Gmail": si apre il browser, Google chiede il consenso, l'utente preme Consenti (e la prima volta "Avanzate, vai a
+  Jarvis", perché l'app non è verificata: è sua). Permessi chiesti: gmail.modify (leggere, scrivere, inviare,
+  etichette, cestino; MAI cancellazioni definitive) e gmail.settings.basic (risposta automatica, filtri).
+- In tutti e due i modi il permesso è cifrato con DPAPI di Windows: lo legge solo il suo utente su questo PC.
 - Ogni cosa che parte verso altri, cancella o resta come regola chiede conferma (jarvis/apps/base.py); la posta è
   solo dell'utente.
 """
@@ -21,6 +24,7 @@ import mimetypes
 import re
 import shutil
 import time
+import webbrowser
 from collections.abc import Callable
 from datetime import date, datetime
 from email.message import EmailMessage
@@ -30,6 +34,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
+from . import gmail_imap
 from .base import App, AppError, norm, pick_by_name
 
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/gmail.settings.basic"]
@@ -40,8 +45,17 @@ SYSTEM_LABELS = {"INBOX": "posta in arrivo", "UNREAD": "da leggere", "STARRED": 
                  "CATEGORY_PROMOTIONS": "promozioni", "CATEGORY_SOCIAL": "social", "CATEGORY_UPDATES": "aggiornamenti",
                  "CATEGORY_FORUMS": "forum", "CATEGORY_PERSONAL": "principale"}
 
-GUIDE = """Preparare Gmail per Jarvis (una volta sola, ~10 minuti, gratis)
+GUIDE = """Collegare Gmail a Jarvis
 
+Il modo veloce (un minuto, gratis): una password per le app di Google.
+1. Serve la verifica in due passaggi attiva sull'account Google (https://myaccount.google.com/signinoptions/twosv).
+2. Di' «Jarvis, collega Gmail»: si apre https://myaccount.google.com/apppasswords. Come nome scrivi «Jarvis» e
+   premi Crea: Google mostra una password di 16 lettere.
+3. Nella finestra di Jarvis, nel campo Gmail, scrivi il tuo indirizzo e incolla la password, poi Collega. Mai a voce.
+Così Jarvis legge, cerca, scrive, risponde, inoltra, mette etichette e sposta nel cestino. Filtri e risposta
+automatica no: servono il modo completo, qui sotto.
+
+Il modo completo (una volta sola, ~10 minuti, gratis): un progetto Google tuo.
 1. Apri https://console.cloud.google.com e accedi con il tuo account Gmail. In alto: Seleziona un progetto, poi
    Nuovo progetto, nome «Jarvis», Crea (se chiede di accettare i termini di Google Cloud: è gratis, niente carta).
 2. Con il progetto Jarvis selezionato apri https://console.cloud.google.com/apis/library/gmail.googleapis.com e premi
@@ -52,11 +66,11 @@ GUIDE = """Preparare Gmail per Jarvis (una volta sola, ~10 minuti, gratis)
    7 giorni. La verifica di Google non serve: l'app la usi solo tu.
 5. Nel menu Client: Crea client, tipo «App desktop», nome «Jarvis», Crea, poi Scarica JSON (finisce nei Download
    come client_secret_....json: Jarvis lo trova da solo).
-6. Di' «Jarvis, collega Gmail»: si apre il browser, scegli il tuo account; Google avvisa che l'app non è verificata
-   (è la tua): Avanzate, Vai a Jarvis, spunta i permessi e Continua.
+6. Di' «Jarvis, collega Gmail completo»: si apre il browser, scegli il tuo account; Google avvisa che l'app non è
+   verificata (è la tua): Avanzate, Vai a Jarvis, spunta i permessi e Continua.
 
-Jarvis potrà leggere, cercare, scrivere, rispondere, inoltrare, mettere etichette e spostare nel cestino; mai
-cancellare per sempre. Si revoca quando vuoi: «Jarvis, scollega Gmail» o da myaccount.google.com/permissions."""
+In tutti e due i modi Jarvis non cancella mai per sempre. Si scollega quando vuoi: «Jarvis, scollega Gmail»; da
+Google si revoca su myaccount.google.com/apppasswords (modo veloce) o myaccount.google.com/permissions (completo)."""
 
 
 # ---------------------------------------------------------------------- il permesso, cifrato
@@ -86,6 +100,8 @@ def consent(client: Path, scopes: list[str]) -> dict:
 
 
 def google_session(info: dict) -> Any:
+    if info.get("mode") == "imap":  # il modo veloce: stesse chiamate, fatte con IMAP e SMTP
+        return gmail_imap.ImapSession(info["email"], info["password"])
     from google.auth.transport.requests import AuthorizedSession
     from google.oauth2.credentials import Credentials
 
@@ -93,8 +109,8 @@ def google_session(info: dict) -> Any:
 
 
 def _revoked(e: Exception) -> bool:
-    """Google ha tolto il permesso (revocato dall'account, password cambiata...)."""
-    return type(e).__name__ == "RefreshError"
+    """Google ha tolto il permesso (revocato dall'account, password cambiata, password per le app cancellata...)."""
+    return isinstance(e, gmail_imap.AuthFailed) or type(e).__name__ == "RefreshError"
 
 
 # ---------------------------------------------------------------------- testo delle mail
@@ -218,6 +234,8 @@ class Gmail:
                  consent_flow: Callable[[Path, list[str]], dict] = consent,
                  session_factory: Callable[[dict], Any] = google_session,
                  protect_fn: Callable[[bytes], bytes] = protect, unprotect_fn: Callable[[bytes], bytes] = unprotect,
+                 check_login: Callable[[str, str], None] = gmail_imap.check,
+                 open_url: Callable[[str], Any] = webbrowser.open, show_form: Callable[[], Any] | None = None,
                  ) -> None:
         self.dir = data_dir
         self.downloads = downloads
@@ -225,6 +243,10 @@ class Gmail:
         self.consent_flow = consent_flow
         self.session_factory = session_factory
         self.protect, self.unprotect = protect_fn, unprotect_fn
+        self.check_login = check_login  # il modo veloce: prova indirizzo e password per le app prima di salvarli
+        self.open_url = open_url
+        self.show_form = show_form  # apre il campo Gmail nella finestra di Jarvis
+        self.waiting_password = False
         self.linking: asyncio.Task | None = None
         self.last: list[str] = []  # gli id dell'ultimo elenco, nell'ordine detto
         self.last_drafts: list[str] = []
@@ -247,6 +269,9 @@ class Gmail:
     def ready(self) -> str | None:
         if self.linking is not None and not self.linking.done():
             return "si sta collegando: l'utente deve premere Consenti nel browser"
+        if not self.linked() and self.waiting_password:
+            return ("si sta collegando: l'utente deve incollare la password per le app nel campo Gmail della finestra "
+                    "(se non lo trova: azione collega)")
         if not self.linked():
             return "non è collegata: usa l'azione collega (una volta sola)"
         return None
@@ -270,13 +295,17 @@ class Gmail:
                            "con quel tipo")
         return None
 
-    async def link(self) -> str:
+    async def link(self, mode: str = "") -> str:
+        """Modo "veloce" (password per le app), "completo" (progetto Google) o, senza dirlo, completo solo se il
+        progetto c'è già."""
         if self.linking is not None and not self.linking.done():
             return "il browser con il consenso di Google è già aperto: aspetto che l'utente prema Consenti"
-        client = self.find_client()
-        if client is None:
+        client = None if mode == "veloce" else self.find_client()
+        if client is None and mode == "completo":
             raise AppError("manca il progetto Google dell'utente (si prepara una volta, ~10 minuti): prendi i passaggi "
                            "con l'azione guida e mostrali a schermo con mostra")
+        if client is None:
+            return self.ask_app_password()
         self.linking = asyncio.create_task(self._finish_link(client))
         return ("Si è aperto il browser con la pagina di Google: l'utente sceglie il suo account e preme Consenti (se "
                 "Google avvisa che l'app non è verificata: Avanzate, poi Vai a Jarvis; l'app è la sua). Avviso io quando "
@@ -298,15 +327,67 @@ class Gmail:
         if self.notify:
             self.notify(text)
 
+    def ask_app_password(self) -> str:
+        """Il modo veloce: la pagina di Google per creare la password e il campo nella finestra per incollarla."""
+        self.waiting_password = True
+        try:
+            self.open_url(gmail_imap.APP_PASSWORDS)
+        except Exception:  # senza browser l'indirizzo lo dice Jarvis
+            pass
+        if self.show_form:
+            self.show_form()
+        return ("Ho aperto la pagina di Google delle password per le app (" + gmail_imap.APP_PASSWORDS + ") e il campo "
+                "Gmail nella finestra di Jarvis. L'utente scrive «Jarvis» come nome, preme Crea e incolla la password di "
+                "16 lettere, con il suo indirizzo, nel campo della finestra: mai a voce. Serve la verifica in due "
+                "passaggi (se Google dice che la pagina non è disponibile, va attivata prima). Avviso io quando è fatto.")
+
+    async def link_app_password(self, address: str, password: str) -> str:
+        """Dal campo della finestra: prova indirizzo e password con Google e solo allora li salva. "ok" o il motivo.
+        La password non va mai in registri, eventi o messaggi."""
+        address = str(address or "").strip()
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", address):
+            return "manca l'indirizzo Gmail (per esempio nome@gmail.com)"
+        try:
+            pw = gmail_imap.clean_app_password(password)
+        except ValueError as e:
+            return str(e)
+        try:
+            await asyncio.to_thread(self.check_login, address, pw)
+        except gmail_imap.AuthFailed as e:
+            return f"{e}: controlla indirizzo e password per le app"
+        except Exception as e:  # rete, Google che non risponde, account senza IMAP
+            return f"Gmail non risponde ({str(e)[:120] or type(e).__name__}): riprova tra poco"
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.token.write_bytes(self.protect(json.dumps({"mode": "imap", "email": address, "password": pw}).encode()))
+        self._session, self.me, self.waiting_password = None, address, False
+        if self.notify:
+            self.notify(f"Gmail è collegata ({address}) con la password per le app. Dillo in una frase.")
+        return "ok"
+
+    def mode(self) -> str:
+        """"veloce" (password per le app), "completo" (progetto Google) o "" se non è collegata."""
+        if not self.linked():
+            return ""
+        try:
+            return "veloce" if json.loads(self.unprotect(self.token.read_bytes())).get("mode") == "imap" else "completo"
+        except Exception:
+            return "completo"
+
     def unlink(self) -> str:
-        if self.linked():
+        quick = self.mode() == "veloce"
+        if self.linked() and not quick:
             try:
                 info = json.loads(self.unprotect(self.token.read_bytes()))
                 self.session().request("POST", REVOKE, params={"token": info.get("refresh_token")}, timeout=15)
             except Exception:  # anche se Google non risponde, da questo PC il permesso sparisce comunque
                 pass
+        if self._session is not None and hasattr(self._session, "close"):
+            self._session.close()
         self.token.unlink(missing_ok=True)
         self._session = None
+        if quick:
+            return ("Gmail scollegata: la password è cancellata da questo PC (per toglierla anche da Google: "
+                    f"{gmail_imap.APP_PASSWORDS})")
         return "Gmail scollegata: permesso revocato e cancellato da questo PC"
 
     # ------------------------------------------------------------------ chiamate
@@ -477,23 +558,29 @@ def build(g: Gmail, now: Callable[[], float] = time.time) -> App:
 
     # ---------------------------------------------------------- collegamento
 
-    @app.action("collega", "collega Gmail con il consenso di Google nel browser (una volta sola)", needs_ready=False)
-    async def collega(_a):
-        if g.linked():
-            return "Gmail è già collegata"
-        return await g.link()
+    @app.action("collega", "collega Gmail (una volta sola): di base con una password per le app, un minuto",
+                {"modo": "? veloce (password per le app, di base) o completo (progetto Google: anche filtri e risposta "
+                         "automatica)"}, needs_ready=False)
+    async def collega(a):
+        mode = norm(str(a.get("modo") or ""))
+        if mode and mode not in ("veloce", "completo"):
+            raise AppError("modo sconosciuto: veloce o completo")
+        if g.linked() and not (mode and mode != g.mode()):
+            return f"Gmail è già collegata (modo {g.mode()})"
+        return await g.link(mode)
 
-    @app.action("guida", "i passaggi per preparare Gmail la prima volta (da mostrare a schermo)", needs_ready=False)
+    @app.action("guida", "i passaggi per collegare Gmail, veloce e completo (da mostrare a schermo)", needs_ready=False)
     def guida(_a):
         return GUIDE
 
-    @app.action("stato", "se Gmail è collegata e con quale indirizzo", needs_ready=False)
+    @app.action("stato", "se Gmail è collegata, con quale indirizzo e in che modo", needs_ready=False)
     def stato(_a):
         if not g.linked():
             return "Gmail non è collegata (azione collega)"
         p = g.get("/profile")
         g.me = p.get("emailAddress", "")
-        return f"Gmail collegata: {g.me}, {p.get('messagesTotal', '?')} mail in tutto"
+        how = ", con la password per le app (senza filtri e risposta automatica)" if g.mode() == "veloce" else ""
+        return f"Gmail collegata: {g.me}, {p.get('messagesTotal', '?')} mail in tutto{how}"
 
     @app.action("scollega", "revoca il permesso di Jarvis e lo cancella dal PC", needs_ready=False,
                 confirm=lambda a: "scollegare Gmail da Jarvis (per riusarla andrà ridato il consenso)")
