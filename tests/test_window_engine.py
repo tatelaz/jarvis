@@ -79,5 +79,14 @@ def test_a_registered_runtime_changes_nothing(started, monkeypatch):
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="il registro c'è solo su Windows")
-def test_on_this_pc_webview2_is_registered():
-    assert W.runtime_registered()  # il PC di sviluppo ha WebView2 normale: la finestra resta com'era
+def test_on_this_pc_the_answer_matches_the_registry():
+    """Quello che dice reg.exe, letto per conto suo: sul PC di sviluppo WebView2 è registrato (la finestra resta
+    com'era), in Windows Sandbox no. Non si pretende che lo sia: la prova girerebbe rossa sui PC così."""
+    import re
+    import subprocess
+
+    keys = (rf"HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{W.RUNTIME_KEY}",
+            rf"HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{W.RUNTIME_KEY}")
+    found = any(re.search(r"\bpv\s+REG_SZ\s+[1-9]", subprocess.run(["reg", "query", k, "/v", "pv"], capture_output=True,
+                                                                     text=True).stdout) for k in keys)
+    assert W.runtime_registered() == found

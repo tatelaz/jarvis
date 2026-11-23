@@ -5,9 +5,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from jarvis import paths
 from jarvis.audio import features, turn, vad
 
 FIX = Path(__file__).parent / "fixtures" / "whisper_features_ref.npz"
+# i modelli li scarica il primo avvio: dove non ci sono (Windows Sandbox, un PC senza NVIDIA) le prove si saltano, invece
+# di risultare rosse e fermare l'auto-miglioramento e gli aggiornamenti con unione
+needs_smart_turn = pytest.mark.skipif(not paths.SMART_TURN.exists(), reason="Smart Turn non scaricato su questo PC")
+needs_vad = pytest.mark.skipif(not paths.SILERO_VAD.exists(), reason="Silero VAD non scaricato su questo PC")
 
 
 @pytest.fixture(scope="module")
@@ -27,6 +32,7 @@ def test_log_mel_matches_transformers_numpy_path(ref, name):
     assert np.max(np.abs(ours - theirs)) < 5e-5
 
 
+@needs_smart_turn
 @pytest.mark.parametrize("name", ["sweep", "noise"])
 def test_smart_turn_probability_matches_reference(ref, name):
     model = turn.SmartTurn()
@@ -50,6 +56,7 @@ def test_turn_prepare_pads_left_and_truncates():
     assert turn.prepare(long).shape == (1, 80, 800)
 
 
+@needs_vad
 def test_vad_silence_is_not_speech():
     v = vad.SileroVad()
     probs = v.feed(np.zeros(16000, dtype=np.float32))
@@ -57,12 +64,14 @@ def test_vad_silence_is_not_speech():
     assert max(probs) < 0.1
 
 
+@needs_vad
 def test_vad_buffers_partial_windows():
     v = vad.SileroVad()
     assert v.feed(np.zeros(300, dtype=np.float32)) == []
     assert len(v.feed(np.zeros(300, dtype=np.float32))) == 1
 
 
+@needs_vad
 def test_vad_rejects_wrong_window():
     v = vad.SileroVad()
     with pytest.raises(ValueError):

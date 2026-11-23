@@ -50,5 +50,7 @@ di LibriVox, le cui registrazioni sono di dominio pubblico. Il file e il punto e
 | Windows-MCP | mouse e tastiera sulle app di Windows | MIT | [CursorTouch/Windows-MCP](https://github.com/CursorTouch/Windows-MCP) |
 | yt-dlp | scaricare i video da guardare | Unlicense | [yt-dlp/yt-dlp](https://github.com/yt-dlp/yt-dlp) |
 | PyAV (con FFmpeg) | fotogrammi e audio dei video | BSD-3-Clause (FFmpeg: LGPL) | [PyAV-Org/PyAV](https://github.com/PyAV-Org/PyAV) |
+| uv (Astral) | prepara Python e le librerie; incluso nell'installatore (`tools\uv.exe`) | MIT o Apache-2.0 | [astral-sh/uv](https://github.com/astral-sh/uv) |
+| Runtime di Visual C++ (Microsoft) | le librerie che chiedono onnxruntime e soxr, per i PC che non le hanno; incluso nell'installatore (`tools\vcrt`), si usa solo se quello di sistema manca o è più vecchio | file ridistribuibili del Visual C++ Redistributable, licenza di Microsoft | [Microsoft Learn](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) |
 
 Le librerie Python e le loro versioni esatte sono in `pyproject.toml` e `uv.lock`.

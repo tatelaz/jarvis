@@ -387,8 +387,15 @@ la frase senza errori.
 ## Installatore (dal 21/11)
 
 `installer/jarvis.iss` (Inno Setup 6) e `scripts/build_installer.py`, che mette insieme il codice dell'ultimo commit
-(`git archive`: niente dati, modelli o cartelle private; senza `design/`), `uv` e le immagini della procedura in stile
-Monolite (disegnate da Chrome dall'icona), poi compila `build/Jarvis-Setup-<versione>.exe` (17 MB). L'installatore va
+(`git archive`: niente dati, modelli o cartelle private; dal 23/11 anche `design/`, perché la copia installata deve
+coincidere con il commit), `uv`, il runtime di Visual C++ e le immagini della procedura in stile Monolite (disegnate
+da Chrome dall'icona), poi compila `build/Jarvis-Setup-<versione>.exe` (20 MB). Il runtime di Visual C++
+(`msvcp140.dll` e famiglia, in `tools\vcrt`) lo chiedono onnxruntime e soxr: Windows di suo non l'ha, arriva con il
+Visual C++ Redistributable, che quasi sempre qualche altro programma ha già installato ma non sempre (in Windows
+Sandbox mancava e Jarvis non sentiva niente, 23/11). `build_installer.py` lo copia dalla cartella di sistema di chi
+costruisce (o da `JARVIS_VCRT`), mai più vecchio della 14.40 (con quelli onnxruntime si pianta); `jarvis/vcrt.py`,
+chiamato da `jarvis/__init__.py` prima di ogni altro import, lo carica col percorso completo solo se quello di sistema
+manca o è più vecchio (quello di sistema lo aggiorna Windows Update). Così niente amministratore. L'installatore va
 per utente in `%LOCALAPPDATA%\Programs\Jarvis` senza permessi di amministratore, in italiano o in inglese, grafica
 scura; a fine copia prepara Python e le librerie con `uv sync --frozen --no-dev --no-cache`, senza finestre e con
 Python dentro `tools\python` (si disinstalla con Jarvis); crea i collegamenti (menu Start, Desktop facoltativo) e apre
@@ -489,6 +496,12 @@ sono marcati `data-i18n*`. Cambiando lingua la grafica si rimonta, così anche i
   fallisce, rollback automatico al commit precedente. Dal 23/11 anche nelle copie installate (diventate repository,
   `jarvis/localrepo.py`; pytest e ruff si scaricano la prima volta), e le migliorie sopravvivono agli aggiornamenti:
   la versione nuova si unisce (`UpdateMergeWorker`).
+- Prove rosse per com'è fatto il PC: dal 23/11 una prova rossa nella copia si riprova, da sola, nel codice di prima
+  (la cartella principale, ancora com'era); se è rossa anche lì la fa fallire il PC (modelli non scaricati, Claude
+  Code che non c'è), non la modifica, e non ferma niente. Ogni prova rossa nuova, un lint rosso o un tempo scaduto
+  fermano tutto come prima; Jarvis lo dice ("1 prova è rossa anche senza"). Trovato in Windows Sandbox: 8 prove di
+  questo tipo avrebbero fermato per sempre migliorie e aggiornamenti con unione su quel PC. Le prove che dipendono
+  dal PC si saltano quando manca quello che serve, ma su un altro PC ce ne può essere una che nessuno ha previsto.
 
 ## Audio che non fa cadere Jarvis
 

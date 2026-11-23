@@ -2,7 +2,9 @@
 
 1. Copia separata del codice (git worktree, ramo miglioria/N): la cartella principale non si tocca.
 2. Un sotto-agente fa la modifica lì, con i test, e la salva nel ramo.
-3. Jarvis non si fida sulla parola: rifà i controlli da sé (lint + test rapidi) nella copia.
+3. Jarvis non si fida sulla parola: rifà i controlli da sé (lint + test rapidi) nella copia. Una prova rossa che è
+   rossa anche nel codice di prima non conta: è questo PC (modelli non scaricati, Claude Code che non c'è), non la
+   modifica. Si riprovano lì solo quelle; ogni prova rossa nuova ferma tutto come prima.
 4. Chiede all'utente. Solo con un sì unisce il ramo al codice principale e rifà i controlli; se falliscono
    torna esattamente al commit di prima (sicuro: prima di unire la cartella principale deve essere pulita).
 5. Il codice nuovo entra in funzione al riavvio; se continua a cadere, il guardiano torna all'ultima
@@ -22,6 +24,7 @@ import shutil
 import subprocess
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +45,7 @@ Come lavorare:
 - Aggiungi o aggiorna i test in tests/ che dimostrano che funziona.
 - Se la novità ha un'impostazione, mettila in jarvis/config.py con un commento: Jarvis la deve poter cambiare a voce.
 - Controllo obbligatorio, finché è tutto verde: bash scripts/check.sh (lint + test rapidi; usa già il Python giusto).
+  Una prova che fallisce anche senza la tua modifica dipende da questo PC: lasciala stare e dillo alla fine.
 - Salva nel ramo: git add -A e git commit -m "messaggio chiaro in italiano". Niente merge, push o altri rami.
 - Alla fine rispondi con 2-3 frasi: cosa hai cambiato e come si nota.
 """
@@ -93,16 +97,53 @@ def git_bash() -> str:
     raise FileNotFoundError("non trovo il bash di Git per Windows")
 
 
-def run_check(where: Path, root: Path, command: list[str] | None = None, timeout: float = 900) -> tuple[bool, str]:
-    """Lint + test rapidi in una cartella. -> (verde?, ultime righe dell'esito)"""
-    cmd = command or [git_bash(), "scripts/check.sh"]
+# il riassunto di pytest: "FAILED tests/x.py::prova - motivo" o "ERROR tests/x.py" (anche un modulo che non si importa)
+RED_LINE = re.compile(r"^(?:FAILED|ERROR) (tests[/\\].+?)(?: - .*)?\s*$", re.M)
+
+
+@dataclass(frozen=True)
+class Check:
+    ok: bool
+    tail: str  # le ultime righe dell'esito, per dire cosa non va
+    red: frozenset[str] = frozenset()  # le prove rosse; vuoto se il rosso è d'altro (lint, tempo scaduto)
+
+
+def red_tests(output: str) -> frozenset[str]:
+    return frozenset(m.strip() for m in RED_LINE.findall(output))
+
+
+def run_check(where: Path, root: Path, command: list[str] | None = None, timeout: float = 900,
+              only: list[str] | None = None) -> Check:
+    """Lint + test rapidi in una cartella (con only, solo quelle prove)."""
+    cmd = [*(command or [git_bash(), "scripts/check.sh"]), *(only or [])]
     try:
         r = subprocess.run(cmd, cwd=where, capture_output=True, text=True, timeout=timeout,
                            env={**os.environ, **check_env(root)})
     except subprocess.TimeoutExpired:
-        return False, "controlli scaduti"
-    tail = "\n".join((r.stdout + r.stderr).strip().splitlines()[-6:])
-    return r.returncode == 0, tail
+        return Check(False, "controlli scaduti")
+    out = r.stdout + r.stderr
+    tail = "\n".join(out.strip().splitlines()[-6:])
+    return Check(r.returncode == 0, tail, frozenset() if r.returncode == 0 else red_tests(out))
+
+
+def already_red(check: Check, before: Path, root: Path, command: list[str] | None = None) -> frozenset[str]:
+    """Le prove rosse di check che sono rosse anche nel codice di prima (la cartella before): le fa fallire questo PC,
+    non la modifica. Si riprovano lì solo quelle, così costa poco."""
+    if check.ok or not check.red:
+        return frozenset()
+    return check.red & run_check(before, root, command, only=sorted(check.red)).red
+
+
+def passes(check: Check, known: frozenset[str]) -> bool:
+    """Verde, o rosso solo per prove già rosse prima."""
+    return check.ok or (bool(check.red) and check.red <= known)
+
+
+def red_note(known: frozenset[str]) -> str:
+    if not known:
+        return ""
+    n = len(known)
+    return f" ({n} {'prova è rossa' if n == 1 else 'prove sono rosse'} anche senza, per com'è fatto questo PC)"
 
 
 class SelfImproveWorker:
@@ -120,6 +161,7 @@ class SelfImproveWorker:
         self.branch = f"miglioria/{time.strftime('%Y%m%d-%H%M%S')}-{task.id}"
         self.worktree = root / "data" / "migliorie" / self.branch.replace("/", "_")
         self.inner: Worker | None = None
+        self.known_red: frozenset[str] = frozenset()  # rosse anche nel codice di prima: non contano
 
     def _prepare(self) -> None:
         self.worktree.parent.mkdir(parents=True, exist_ok=True)
@@ -148,9 +190,10 @@ class SelfImproveWorker:
             self.inner = self.inner_factory(task, self.worktree, check_env(self.root))
             summary = await self.inner.run(task, hooks)
             hooks.progress("ricontrollo la modifica da solo")
-            ok, tail = await asyncio.to_thread(run_check, self.worktree, self.root, self.check_command)
-            if not ok:
-                return (f"Modifica NON applicata: i miei controlli non passano. Ultime righe: {tail}. "
+            check = await asyncio.to_thread(run_check, self.worktree, self.root, self.check_command)
+            self.known_red = await asyncio.to_thread(already_red, check, self.root, self.root, self.check_command)
+            if not passes(check, self.known_red):
+                return (f"Modifica NON applicata: i miei controlli non passano. Ultime righe: {check.tail}. "
                         f"Il lavoro resta nel ramo {self.branch}.")
             commits = git(self.root, "log", "--oneline", f"HEAD..{self.branch}")
             if not commits:
@@ -161,20 +204,20 @@ class SelfImproveWorker:
                         f"unisco per non mescolarli. Resta nel ramo {self.branch}.")
             n = len(commits.splitlines())
             if not await hooks.confirm(f"Applico al mio codice la modifica «{task.title}» ({n} commit, controlli "
-                                       f"verdi)? {short(summary)}"):
+                                       f"verdi{red_note(self.known_red)})? {short(summary)}"):
                 keep = False
                 return "Modifica scartata, come richiesto."
             before = git(self.root, "rev-parse", "HEAD")
             await asyncio.to_thread(git, self.root, "merge", "--no-edit", self.branch)
-            ok, tail = await asyncio.to_thread(run_check, self.root, self.root, self.check_command)
-            if not ok:  # sicuro: la cartella principale era pulita prima dell'unione
+            check = await asyncio.to_thread(run_check, self.root, self.root, self.check_command)
+            if not passes(check, self.known_red):  # sicuro: la cartella principale era pulita prima dell'unione
                 await asyncio.to_thread(git, self.root, "reset", "--hard", before)
                 return (f"Ho unito la modifica ma i controlli sul codice principale non passavano: sono tornato "
-                        f"com'ero. Ultime righe: {tail}. Il lavoro resta nel ramo {self.branch}.")
+                        f"com'ero. Ultime righe: {check.tail}. Il lavoro resta nel ramo {self.branch}.")
             merged, keep = True, False
             log.info("miglioria unita: %s", self.branch)
-            return (f"Modifica applicata al mio codice: {summary} Entra in funzione al prossimo riavvio: chiedi a "
-                    f"{self.user} se riavviarti ora.")
+            return (f"Modifica applicata al mio codice{red_note(self.known_red)}: {summary} Entra in funzione al "
+                    f"prossimo riavvio: chiedi a {self.user} se riavviarti ora.")
         finally:
             # il ramo resta solo se contiene lavoro non applicato da guardare (controlli rossi, cartella sporca...)
             await asyncio.to_thread(self._cleanup, keep and not merged)
@@ -203,6 +246,7 @@ Come lavorare:
 insieme, vince la versione nuova e lo dici.
 - Nessun segno di conflitto deve restare (<<<<<<< ======= >>>>>>>).
 - Controllo obbligatorio, finché è tutto verde: bash scripts/check.sh (lint + test rapidi; usa già il Python giusto).
+  Una prova che fallisce anche nella versione che gira dipende da questo PC: lasciala stare e dillo alla fine.
 - Chiudi l'unione con git add -A e git commit (messaggio chiaro in italiano). Niente push né altri rami.
 - Alla fine rispondi con 2-3 frasi: cosa hai unito e se hai dovuto rinunciare a qualcosa.
 """
@@ -235,6 +279,7 @@ class UpdateMergeWorker:
         self.branch = f"aggiornamento/{self.version}-{time.strftime('%Y%m%d-%H%M%S')}-{task.id}"
         self.worktree = root / "data" / "aggiornamenti" / self.branch.replace("/", "_")
         self.inner: Worker | None = None
+        self.known_red: frozenset[str] = frozenset()  # rosse anche nella versione che gira: non contano
 
     def _prepare(self) -> None:
         self.worktree.parent.mkdir(parents=True, exist_ok=True)
@@ -242,6 +287,13 @@ class UpdateMergeWorker:
 
     def _conflicts(self) -> str:
         return git(self.worktree, "diff", "--name-only", "--diff-filter=U", check=False)
+
+    def _check(self) -> tuple[bool, str]:
+        """Le prove nella copia con l'unione; quelle rosse si riprovano nella versione che gira (la cartella
+        principale, ancora com'era): se sono rosse anche lì è questo PC, non l'unione."""
+        check = run_check(self.worktree, self.root, self.check_command)
+        self.known_red = already_red(check, self.root, self.root, self.check_command)
+        return passes(check, self.known_red), check.tail
 
     def _cleanup(self, keep_branch: bool) -> None:
         git(self.worktree, "merge", "--abort", check=False)
@@ -269,8 +321,7 @@ class UpdateMergeWorker:
             msg = f"Aggiornamento alla versione {self.version}, unito alle modifiche locali"
             await asyncio.to_thread(git, self.worktree, "merge", "--no-edit", "-m", msg, self.commit, check=False)
             conflicts = await asyncio.to_thread(self._conflicts)
-            ok, tail = (False, "") if conflicts else await asyncio.to_thread(
-                run_check, self.worktree, self.root, self.check_command)
+            ok, tail = (False, "") if conflicts else await asyncio.to_thread(self._check)
             summary, helped = "", False
             if conflicts or not ok:  # serve qualcuno che capisca il codice: un sotto-agente, nella copia
                 helped = True
@@ -285,7 +336,7 @@ class UpdateMergeWorker:
                 if unfinished or await asyncio.to_thread(self._conflicts):
                     return self._give_up("i conflitti non sono stati risolti del tutto.")
                 hooks.progress("ricontrollo l'unione da solo")
-                ok, tail = await asyncio.to_thread(run_check, self.worktree, self.root, self.check_command)
+                ok, tail = await asyncio.to_thread(self._check)
             if not ok:
                 return self._give_up(f"le prove non passano. Ultime righe: {tail}")
             branch_head = await asyncio.to_thread(git, self.root, "rev-parse", self.branch)
@@ -301,14 +352,15 @@ class UpdateMergeWorker:
                 return "Aggiornamento con unione scartato, come richiesto: resta la versione di prima."
             before = await asyncio.to_thread(git, self.root, "rev-parse", "HEAD")
             await asyncio.to_thread(git, self.root, "merge", "--ff-only", self.branch)
-            ok, tail = await asyncio.to_thread(run_check, self.root, self.root, self.check_command)
-            if not ok:  # sicuro: la cartella principale era pulita prima di andare avanti
+            check = await asyncio.to_thread(run_check, self.root, self.root, self.check_command)
+            if not passes(check, self.known_red):  # sicuro: la cartella principale era pulita prima di andare avanti
                 await asyncio.to_thread(git, self.root, "reset", "--hard", before)
-                return self._give_up(f"le prove sul codice principale non passavano. Ultime righe: {tail}")
+                return self._give_up(f"le prove sul codice principale non passavano. Ultime righe: {check.tail}")
             merged, keep = True, False
             log.info("aggiornamento %s unito alle modifiche locali", self.version)
             return (f"Versione {self.version} unita alle modifiche fatte su richiesta di {self.user}"
-                    f"{': ' + short(summary) if summary else ', senza conflitti'}. Entra in funzione al riavvio.")
+                    f"{': ' + short(summary) if summary else ', senza conflitti'}{red_note(self.known_red)}. Entra in "
+                    f"funzione al riavvio.")
         finally:
             await asyncio.to_thread(self._cleanup, keep and not merged)
 

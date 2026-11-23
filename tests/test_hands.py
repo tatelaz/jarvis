@@ -21,6 +21,10 @@ def installed(tmp_path, monkeypatch):
     monkeypatch.setattr(hands, "WINDOWS_MCP", win)
     monkeypatch.setattr(hands, "PLAYWRIGHT_MCP", pw)
     monkeypatch.setattr(hands.shutil, "which", lambda name: "C:/node/node.exe" if name == "node" else None)
+    from jarvis.tasks import claude_worker
+
+    # niente Claude Code vero: chi usa solo OpenCode non ce l'ha (prova rossa vista in Windows Sandbox il 23/11)
+    monkeypatch.setattr(claude_worker, "find_cli", lambda given=None: "C:/claude/claude.exe")
     return win, pw
 
 

@@ -151,7 +151,9 @@ nuova installazione li ritrova.
 
 ## Sviluppo
 
-Serve [uv](https://docs.astral.sh/uv/).
+Serve [uv](https://docs.astral.sh/uv/). Su un Windows senza il
+[Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) (di solito c'è già)
+va installato, o onnxruntime non si carica: l'installatore invece lo porta con sé.
 
 ```
 uv sync

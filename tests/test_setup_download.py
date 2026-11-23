@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import io
 import json
+import os
 import zipfile
 from dataclasses import dataclass, field
 
@@ -253,7 +254,10 @@ async def test_changed_file_on_disk_is_checked_again(server, downloader, tmp_pat
     f = make(server, "voce.gguf")
     await downloader.run([f])
     out = tmp_path / "models" / "cartella" / "voce.gguf"
+    st = out.stat()
     out.write_bytes(bytes(len(DATA)))  # stessa misura, rovinato
+    # più tardi, come succede davvero: in Windows Sandbox la scrittura cadeva nello stesso istante del download
+    os.utime(out, ns=(st.st_atime_ns, st.st_mtime_ns + 2_000_000_000))
     assert not await downloader.is_done(f)
     await downloader.run([f])
     assert out.read_bytes() == DATA

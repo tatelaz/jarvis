@@ -9,13 +9,22 @@ import pytest
 from jarvis.tasks.manager import Task, WorkerHooks
 from jarvis.tasks.self_improve import SelfImproveWorker
 
-# il "controllo" del progetto finto: verde se i file .txt dicono tutti "ok" e se uno.txt e due.txt non convivono
-CHECK = """import pathlib, sys
+# il "controllo" del progetto finto: verde se i file .txt dicono tutti "ok" e se uno.txt e due.txt non convivono.
+# Scrive le prove rosse come pytest; con PROVA_PC_SENZA_MODELLI una prova è rossa sempre, qualunque sia il codice (come
+# i modelli non scaricati su un PC); con dei nomi di prova dopo il comando guarda solo quelle (come scripts/check.sh)
+CHECK = """import os, pathlib, sys
+only = sys.argv[1:]
 files = list(pathlib.Path('.').glob('*.txt'))
 bad = [f.name for f in files if f.read_text().strip() != 'ok']
 both = all(pathlib.Path(n).exists() for n in ('uno.txt', 'due.txt'))
 print('rossi:', bad, 'insieme:', both)
-sys.exit(1 if bad or both else 0)
+red = ['tests/test_testi.py::test_tutti_ok'] if bad or both else []
+if os.environ.get('PROVA_PC_SENZA_MODELLI'):
+    red.append('tests/test_modelli.py::test_modello[voce lenta]')
+red = [t for t in red if not only or t in only]
+for t in red:
+    print('FAILED', t, '- motivo')
+sys.exit(1 if red else 0)
 """
 
 
@@ -318,3 +327,86 @@ def test_self_improve_needs_git_and_gets_its_test_tools(repo, tmp_path):
     no_git.mkdir()
     w3 = SelfImproveWorker(Task(4, "z", "fai z", no_git), lambda *a: None, "Andrea", root=no_git)
     assert "serve Git" in asyncio.run(w3.run(w3.task, hooks))
+
+
+# ---------------------------------------------------------------------- prove rosse per com'è fatto il PC
+
+
+def test_red_tests_are_read_from_the_pytest_summary():
+    from jarvis.tasks.self_improve import red_tests
+
+    out = """tests/test_a.py ..F
+=========================== short test summary info ===========================
+FAILED tests/test_audio_models.py::test_vad_silence_is_not_speech - onnxrunti...
+FAILED tests/test_hands.py::test_worker_prompt_lists_hands_and_injection_rule
+FAILED tests/test_audio_models.py::test_smart_turn[sweep lenta] - NoSuchFile
+ERROR tests/test_loopback.py - ImportError: DLL load failed while importing soxr_ext
+ERROR tests/test_localrepo.py::test_x - FileNotFoundError: [WinError 2]
+il test FAILED tests/finto.py non è una riga del riassunto
+1 failed, 3 passed in 1.2s"""
+    assert red_tests(out) == {
+        "tests/test_audio_models.py::test_vad_silence_is_not_speech",
+        "tests/test_hands.py::test_worker_prompt_lists_hands_and_injection_rule",
+        "tests/test_audio_models.py::test_smart_turn[sweep lenta]",
+        "tests/test_loopback.py", "tests/test_localrepo.py::test_x"}
+    assert red_tests("ruff: E501 line too long\nFound 1 error.") == frozenset()  # il lint rosso non è una prova
+
+
+def test_only_old_red_tests_pass_and_a_red_lint_never_does():
+    from jarvis.tasks.self_improve import Check, passes
+
+    pc = frozenset({"tests/test_modelli.py::test_modello"})
+    assert passes(Check(True, ""), frozenset())
+    assert passes(Check(False, "", pc), pc)
+    assert not passes(Check(False, "", pc | {"tests/test_testi.py::test_nuova"}), pc)
+    assert not passes(Check(False, "Found 1 error."), pc)  # rosso senza prove (lint, tempo scaduto)
+
+
+def test_a_test_red_only_because_of_this_pc_does_not_stop_a_good_change(repo, monkeypatch):
+    """Visto in Windows Sandbox il 23/11: senza modelli scaricati né Claude Code, 8 prove rosse fermavano tutto."""
+    monkeypatch.setenv("PROVA_PC_SENZA_MODELLI", "1")
+    result, asked, branches, _ = run(repo, files={"uno.txt": "ok"})
+    assert "applicata" in result and "1 prova è rossa anche senza" in result
+    assert len(asked) == 1 and "1 prova è rossa anche senza" in asked[0]  # lo si dice anche nella domanda
+    assert (repo / "uno.txt").read_text() == "ok" and branches == ""  # e il controllo dopo l'unione non torna indietro
+
+
+def test_on_such_a_pc_a_new_red_test_still_stops_the_change(repo, monkeypatch):
+    monkeypatch.setenv("PROVA_PC_SENZA_MODELLI", "1")
+    result, asked, _, _ = run(repo, files={"uno.txt": "rotto"})
+    assert "NON applicata" in result and asked == [] and not (repo / "uno.txt").exists()
+
+
+def test_a_clean_update_on_such_a_pc_merges_by_itself(repo, monkeypatch):
+    monkeypatch.setenv("PROVA_PC_SENZA_MODELLI", "1")
+    commit = release_and_local(repo, {"versione.txt": "ok"}, {"locale.txt": "ok"})
+    result, asked, agents, failed, _ = merge(repo, commit)
+    assert "unita alle modifiche" in result and "1 prova è rossa anche senza" in result
+    assert asked == [] and agents == [] and failed == []  # nessun sotto-agente per una prova che non dipende dall'unione
+    assert (repo / "versione.txt").exists() and (repo / "locale.txt").exists()
+
+
+def test_on_such_a_pc_a_merge_that_breaks_a_test_is_never_applied(repo, monkeypatch):
+    monkeypatch.setenv("PROVA_PC_SENZA_MODELLI", "1")
+    commit = release_and_local(repo, {"due.txt": "ok"}, {"uno.txt": "ok"})  # da soli verdi, insieme rossi
+    mine = git(repo, "rev-parse", "HEAD")
+    result, _asked, agents, failed, _ = merge(repo, commit, close=False)
+    assert len(agents) == 1 and "test_tutti_ok" in agents[0].seen
+    assert "NON applicato" in result and git(repo, "rev-parse", "HEAD") == mine and failed == ["0.2.0"]
+
+
+def test_the_code_of_before_reruns_only_the_red_tests(tmp_path):
+    from jarvis.tasks.self_improve import Check, already_red
+
+    rec = tmp_path / "rec.py"
+    rec.write_text("import pathlib, sys\n"
+                   "pathlib.Path('argv.txt').write_text('|'.join(sys.argv[1:]))\n"
+                   "print('FAILED tests/test_b.py::test_y - rossa anche prima')\n"
+                   "sys.exit(1)\n")
+    red = frozenset({"tests/test_b.py::test_y", "tests/test_a.py::test_x"})
+    got = already_red(Check(False, "", red), tmp_path, tmp_path, [sys.executable, str(rec)])
+    assert got == {"tests/test_b.py::test_y"}  # test_x era verde prima: è colpa della modifica
+    assert (tmp_path / "argv.txt").read_text() == "tests/test_a.py::test_x|tests/test_b.py::test_y"  # solo quelle
+    (tmp_path / "argv.txt").unlink()
+    assert already_red(Check(True, ""), tmp_path, tmp_path, [sys.executable, str(rec)]) == frozenset()
+    assert not (tmp_path / "argv.txt").exists()  # verde: niente da riprovare
