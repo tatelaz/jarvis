@@ -47,7 +47,7 @@ Alcune cose che fa da solo:
 |---|---|---|
 | Sistema | Windows 11, 64 bit | Windows 10 non ancora provato |
 | Scheda video | NVIDIA con 8 GB (RTX 4060) | per ora serve una NVIDIA: voce e orecchie insieme usano circa 5,6 GB |
-| Memoria | 32 GB | |
+| Memoria | 16 GB | |
 | Disco | circa 10 GB | più 5 GB se vuoi il modello di musica e suoni |
 | Cervello | abbonamento Claude Pro o Max, oppure una chiave API | oppure OpenCode, gratis e senza account |
 | Altro | microfono e casse o cuffie | per WhatsApp serve Chrome o Edge |

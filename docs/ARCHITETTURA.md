@@ -295,7 +295,7 @@ stanno in `jarvis/setup/` e non dipendono dalla pagina:
 - **`download.py`**: un file alla volta in `.part`, ripresa con `Range` dopo un'interruzione (anche a PC spento),
   da capo se il server non sa riprendere o riprende dal punto sbagliato, ritentativi con attese crescenti, subito
   fermo per 404/403/410 e per un file più grande o con un'impronta diversa (mai installato). Gli archivi del motore
-  si estraggono rifiutando percorsi che escono dalla cartella e poi si cancellano. `scaricati.json` ricorda cosa è
+  si estraggono rifiutando percorsi che escono dalla cartella e poi si cancellano. Oltre al registro nei dati, nella cartella estratta resta `.jarvis-estratti.json` (le impronte degli archivi estratti lì): con dati nuovi e motore già al suo posto l'archivio non si riscarica e non si riestrae sopra (il 22/11 un primo avvio di prova con i dati vuoti e il motore di tutti i giorni l'aveva riscritto, per fortuna con la stessa versione). `scaricati.json` ricorda cosa è
   già controllato (finché misura e data non cambiano). Lo spazio si controlla prima di cominciare.
 - **Strumenti** (`jarvis/toolbox.py`, pacchetti `tool-*` del catalogo): OpenCode 1.19.3 (il cervello gratuito),
   Node.js 22.19.0 (il ponte di WhatsApp) e Git per Windows 2.56.1 portatile (la bash che serve a Claude Code, git
@@ -336,7 +336,7 @@ stanno in `jarvis/setup/` e non dipendono dalla pagina:
   (programmi che partono per la prima volta, antivirus), a caldo meno di 1 s. Nelle finestre piccole (la minima è
   420x560) l'anello in alto sparisce e tutto si stringe.
 - **`run.py`** e `python -m jarvis`: il primo avvio parte da solo se manca un file indispensabile, oppure con
-  `--setup`; chiuso prima della fine, Jarvis non parte e la volta dopo si riprende da lì. Senza finestra
+  `--setup`; chiuso prima della fine, Jarvis non parte e la volta dopo si riprende da lì. Per prima cosa, prima di importare aiohttp, `jarvis/certs.py` fa verificare i certificati HTTPS a Windows (truststore): su un Windows appena installato l'archivio delle radici è quasi vuoto e Python, che lo legge senza chiedere niente, falliva ogni download (provato in Windows Sandbox il 22/11). Senza finestra
   (`--no-window`) non si fa: esce con codice 2 e lo scrive nel registro.
 
 Il motore della voce oggi parte solo su NVIDIA (`backend: cuda` fisso): il profilo "processore" è un blocco
@@ -357,7 +357,7 @@ con il suo testo esatto, da cui Qwen3-TTS copia il timbro. Sono lettori di Libri
 pubblico: si distribuiscono con il codice. `base-it` è Riccardo Fasol (*Il fu Mattia Pascal*), `base-en` Simon Evers
 (*Huntingtower*); la fonte esatta (file e secondi) sta in ogni `voice.json`. Scelte a orecchio tra 11 lettori
 misurati (timbro e pulizia); clonate, le orecchie di Jarvis le capiscono senza errori (0 % su sei frasi).
-`engine.voice_dir` cerca prima in `data/voices` (le tue, per esempio quella del film) e poi tra le incluse; un
+All'avvio, se la voce scelta non c'è (dati nuovi con i modelli già al loro posto, una cartella cancellata) Jarvis parte con quella inclusa della lingua (`engine.usable_voice`) e lo dice; la scelta resta salvata. Prima cadeva e il guardiano lo riavviava all'infinito (provato dal vero il 22/11). `engine.voice_dir` cerca prima in `data/voices` (le tue, per esempio quella del film) e poi tra le incluse; un
 nome non diventa mai un percorso. A voce: `voce_di_jarvis` ("inglese", "di base", "quella del film"), rifiutata se
 la voce non esiste. La lingua della sintesi segue `persona.language`.
 
@@ -473,7 +473,9 @@ la finestra mostra "audio non disponibile" e, dopo un'assenza lunga, Jarvis dice
 
 ## Finestra
 
-Una pagina web in pywebview (`jarvis/ui/web/`), collegata al core da un websocket (`jarvis/ui/server.py`):
+Una pagina web in pywebview (`jarvis/ui/web/`), collegata al core da un websocket (`jarvis/ui/server.py`). Il motore è sempre WebView2: pywebview lo cerca solo nella voce di Edge Update del registro e senza passerebbe di nascosto a Internet Explorer (pagina bianca, visto in Windows Sandbox il 22/11); `jarvis/ui/window.py` allora gli dà la cartella della versione più nuova (`WEBVIEW2_RUNTIME_PATH`), e se WebView2 non c'è proprio apre la pagina nel browser e resta acceso al posto della finestra.
+
+Il core e la pagina:
 il core manda eventi (stato, livelli di microfono e voce, testo in arrivo, compiti, conferme), la pagina manda
 comandi (testo scritto, approva/nega, riposo, stop, parla). Due grafiche, scelte e cambiate a voce:
 
@@ -520,7 +522,9 @@ PC mai visto, senza toccare la copia di tutti i giorni né duplicare i modelli:
 `scripts/avvia_prova.py` fa girare la copia con `JARVIS_ENGINE_DIR` e `JARVIS_MODELS_DIR` della principale e
 `JARVIS_DATA_DIR` suo (di base la sua cartella `data`, vuota: è come un PC nuovo). Si rifiuta di partire se i dati
 sarebbero quelli della principale o se un altro Jarvis è acceso: le porte sono le stesse e la scheda video non basta
-per due voci.
+per due voci. Il primo avvio grafico (`--setup`) va provato con `JARVIS_ENGINE_DIR` e `JARVIS_MODELS_DIR` su cartelle
+vuote, non su quelle della copia principale: il 22/11 un primo avvio così ha riestratto il motore sopra quello di
+tutti i giorni (stessa versione; ora gli archivi già estratti si riconoscono dal segno nella loro cartella).
 
 Le note personali di chi usa la copia (la storia del suo PC, le sue richieste, le sue regole per chi lo aiuta) stanno
 in `privato/`, ignorata da git: `CLAUDE.md` dice di leggerla se c'è, `tests/test_privacy.py` controlla che le parole
