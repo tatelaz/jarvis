@@ -192,7 +192,13 @@ class Jarvis:
                     log.info("avvio automatico: %s", fixed)
 
         # motori vocali (in parallelo) e voce di Jarvis
-        voice_meta = engine.load_voice(cfg.speech.tts_voice)
+        voice_name = engine.usable_voice(cfg.speech.tts_voice, cfg.persona.language)
+        if voice_name != cfg.speech.tts_voice:  # la scelta resta salvata: se la cartella torna, si riusa
+            problems.append(f"la voce «{cfg.speech.tts_voice}» non c'è su questo PC: parlo con quella di base "
+                            f"({voice_name})")
+            log.warning("autodiagnosi: %s", problems[-1])
+            self.bus.emit("notice", kind="preflight", info={"problem": problems[-1]})
+        voice_meta = engine.load_voice(voice_name)
         free = await asyncio.to_thread(health.free_vram_mb)
         self.ears_device = health.ears_device_for(cfg.speech.ears_device, free)
         if self.ears_device != cfg.speech.ears_device:

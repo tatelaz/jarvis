@@ -67,6 +67,22 @@ def test_load_voice_falls_back_to_the_included_ones(tmp_path, monkeypatch):
         engine.load_voice("jarvis")  # su un PC nuovo la voce del film non c'è: l'errore dice quali ci sono
 
 
+def test_a_missing_voice_falls_back_to_the_included_one_of_the_language(tmp_path):
+    """Dati nuovi e modelli già al loro posto: la voce del film non c'è e Jarvis cadeva all'avvio (22/11)."""
+    mine, included = tmp_path / "data", tmp_path / "incluse"
+    make_voice(included, "base-it")
+    make_voice(included, "base-en")
+    make_voice(mine, "nonna")
+    assert engine.usable_voice("nonna", "it", mine, included) == "nonna"  # quella scelta, se c'è
+    assert engine.usable_voice("jarvis", "it", mine, included) == "base-it"
+    assert engine.usable_voice("jarvis", "en", mine, included) == "base-en"
+    assert engine.usable_voice("../fuori", "en", mine, included) == "base-en"
+    only_en = tmp_path / "solo_en"
+    make_voice(only_en, "base-en")
+    assert engine.usable_voice("jarvis", "it", mine, only_en) == "base-en"  # l'altra inclusa piuttosto che niente
+    assert engine.usable_voice("jarvis", "it", tmp_path / "vuota", tmp_path / "vuota") == "jarvis"  # lo dirà load
+
+
 @pytest.fixture
 def tools(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "DATA_DIR", tmp_path)

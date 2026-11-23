@@ -105,6 +105,18 @@ def available_voices(data_voices: Path | None = None, bundled: Path = BUNDLED_VO
     return sorted(names)
 
 
+def usable_voice(name: str, language: str, data_voices: Path | None = None, bundled: Path = BUNDLED_VOICES) -> str:
+    """La voce con cui partire: quella scelta se c'è, altrimenti quella inclusa della lingua (poi l'altra inclusa).
+    Senza, Jarvis cadeva all'avvio e il guardiano lo riavviava all'infinito: per esempio con i modelli già al loro
+    posto ma senza la voce scelta (provato il 22/11: dati nuovi, "voce 'jarvis' non trovata")."""
+    if voice_dir(name, data_voices, bundled) is not None:
+        return name
+    for base in (f"base-{language}", "base-it", "base-en"):
+        if voice_dir(base, data_voices, bundled) is not None:
+            return base
+    return name  # nessuna: load_voice lo dice
+
+
 def load_voice(name: str) -> dict:
     d = voice_dir(name)
     if d is None:
