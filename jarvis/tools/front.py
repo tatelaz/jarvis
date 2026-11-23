@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import json
 from collections.abc import Callable
@@ -39,6 +40,8 @@ class Services:
     welcome: Any = None  # Welcome: la presentazione a voce dopo il primo avvio (jarvis/setup/welcome.py)
     updates: Any = None  # Updater: le versioni nuove dalle release di GitHub (jarvis/updates.py)
     voice_maker: Any = None  # VoiceMaker: una voce nuova da un file audio o video (jarvis/speech/voice_maker.py)
+    # guarda_schermo: (dove, lato massimo) -> Shot; None = lo screenshot vero (jarvis/media/screen.py)
+    screenshot: Callable[[str, int], Any] | None = None
     # effetti sul PC di certe impostazioni (es. avvio automatico): ricevono il valore, dicono cosa hanno fatto
     appliers: dict[str, Callable[[Any], str]] = field(default_factory=dict)
 
@@ -49,6 +52,7 @@ TOOL_GROUPS = {
     "apri": "pc", "appunti": "pc", "finestra_attiva": "pc", "blocca_schermo": "pc",
     "usa_app": "pc",  # in più ogni app chiede il suo permesso: messaggi e posta solo l'utente (jarvis/apps/base.py)
     "guarda_video": "pc",  # i video di WhatsApp chiedono in più il permesso dei messaggi (jarvis/media/service.py)
+    "guarda_schermo": "schermo",  # solo l'utente: lo schermo può mostrare chat e posta (jarvis/media/screen.py)
     "ricorda": "memoria", "cerca_memoria": "memoria", "dimentica": "memoria",
     "impostazioni": "sistema", "impostazione": "sistema", "riavvia": "sistema", "riposo": "sistema",
     "spegniti": "sistema", "migliora_jarvis": "sistema", "proposte": "sistema", "rispondi_proposta": "sistema",
@@ -81,6 +85,8 @@ SETTABLE = {
     "whatsapp": ("apps.whatsapp", lambda v: _whatsapp(v)),
     "avvisi_whatsapp": ("apps.whatsapp_avvisi", lambda v: _bool(v)),
     "fotogrammi_video": ("media.frames", lambda v: _frames(v)),
+    "vedere_schermo": ("media.screen", lambda v: _bool(v)),
+    "risoluzione_schermo": ("media.screen_px", lambda v: _ranged("lato dello screenshot", 512, 2560)(v)),
     "modello_suoni": ("media.omni", lambda v: _omni(v)),
     "opencode": ("brain.opencode", lambda v: _bool(v)),
     "modello_gratis": ("brain.opencode_model", lambda v: _model(v)),
@@ -290,6 +296,7 @@ NORMALIZE = {"ui.accent": look.color, "ui.theme": _theme, "ui.effects": _effects
              "media.frame_px": _ranged("lato dei fotogrammi", 256, 1568),
              "media.max_minutes": _ranged("minuti", 1, 240, float),
              "media.transcript_chars": _ranged("caratteri", 2000, 200_000),
+             "media.screen_px": _ranged("lato dello screenshot", 512, 2560),
              "brain.opencode_privacy": _privacy, "brain.opencode_model": _model,
              "brain.opencode_worker_model": _model,
              "schedule.catch_up_minutes": _ranged("minuti di recupero", 0, 1440, float),
@@ -375,6 +382,28 @@ def build_front_tools(s: Services) -> ToolRegistry:
     @reg.register("blocca_schermo", "Blocca la sessione di Windows.")
     def blocca(_args):
         return system.lock_screen()
+
+    @reg.register("guarda_schermo", "Fa uno screenshot di ciò che l'utente vede adesso e te lo mostra (immagine). Usalo "
+                  "quando ti chiede di guardare qualcosa sullo schermo: «cosa vedi?», «leggimi questo errore», «guarda "
+                  "questa pagina», «come compilo questo modulo?». dove: schermo (di base: quello con la finestra in "
+                  "primo piano), finestra (solo la finestra in primo piano), tutti (tutti gli schermi). Lo screenshot "
+                  "non si salva da nessuna parte: se serve rileggere, rifallo.",
+                  schema({"dove": {"type": "string", "enum": ["schermo", "finestra", "tutti"],
+                                   "description": "cosa catturare (di base schermo)"}}), read_only=True)
+    async def guarda_schermo(args):
+        from ..brain.tools import Image, ToolOutput
+        from ..media import screen
+
+        m = s.config.config.media
+        if not m.screen:
+            return ("Errore: guardare lo schermo è spento (impostazione vedere_schermo): si riaccende a voce, se "
+                    "l'utente vuole")
+        take = s.screenshot or screen.capture
+        try:
+            shot = await asyncio.to_thread(take, str(args.get("dove") or "schermo"), m.screen_px)
+        except Exception as e:  # nessuno schermo (sessione remota chiusa, Windows bloccato): lo si dice
+            return f"Errore: non riesco a fare lo screenshot ({type(e).__name__}: {e})"
+        return ToolOutput([screen.describe(shot), Image(shot.jpeg, "image/jpeg")], blind=screen.BLIND)
 
     if s.apps is not None:
         apps = s.apps

@@ -28,13 +28,14 @@ log = logging.getLogger("jarvis.identity")
 
 BASE = "base"
 GRANTABLE = {"pc", "compiti"}  # si possono concedere a una persona conosciuta
-# solo l'utente: i suoi dati, le impostazioni, le voci, i suoi messaggi e la sua posta (WhatsApp, Gmail)
-OWNER_ONLY = {"memoria", "sistema", "voci", "messaggi"}
+# solo l'utente: i suoi dati, le impostazioni, le voci, i suoi messaggi e la sua posta (WhatsApp, Gmail), e lo schermo
+# (uno screenshot può mostrare chat e posta aperte)
+OWNER_ONLY = {"memoria", "sistema", "voci", "messaggi", "schermo"}
 ALL_GROUPS = {BASE} | GRANTABLE | OWNER_ONLY
 GROUP_NAMES = {"pc": "usare il PC (aprire app e siti, appunti, schermo, giochi)",
                "compiti": "affidare compiti ai sotto-agenti", "memoria": "la memoria personale",
                "sistema": "le impostazioni e lo stato di Jarvis", "voci": "le voci e i permessi",
-               "messaggi": "i messaggi e la posta", BASE: "le cose di base"}
+               "messaggi": "i messaggi e la posta", "schermo": "guardare lo schermo", BASE: "le cose di base"}
 
 
 @dataclass

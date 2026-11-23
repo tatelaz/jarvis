@@ -19,6 +19,8 @@ Qualche esempio, detto come lo diresti a una persona:
 - "Jarvis, che mail mi sono arrivate oggi?" e poi "rispondi che ci sono anche io".
 - "Leggimi gli ultimi messaggi del gruppo del calcetto."
 - "Guarda questo video di YouTube e dimmi di cosa parla."
+- "Guarda lo schermo: che errore è questo?" (fa uno screenshot di ciò che vedi, solo quando glielo chiedi, e non lo
+  salva; con OpenCode vede solo il titolo della finestra).
 - "Ricordami domani alle nove di chiamare il dentista."
 - "Ogni mattina alle otto fammi il riassunto delle notizie."
 - "Apri la cartella dei download", "alza il volume", "metti in pausa la musica".

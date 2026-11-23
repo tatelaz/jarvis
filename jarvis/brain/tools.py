@@ -39,6 +39,7 @@ class Image:
 class ToolOutput:
     """Risultato ricco: testi e immagini nell'ordine in cui il modello li deve leggere."""
     parts: list[str | Image] = field(default_factory=list)
+    blind: str = ""  # cosa dire a un cervello che non vede le immagini, se diverso dalla nota per i video
 
     @property
     def images(self) -> list[Image]:
@@ -53,6 +54,8 @@ class ToolOutput:
         n = len(self.images)
         if not n:
             return self.text
+        if self.blind:
+            return f"{self.text}\n[{self.blind}]"
         return (self.text + f"\n[{n} immagini non mostrate: questo cervello legge solo testo. Di' all'utente che hai "
                 "solo il parlato e le scritte, non le immagini.]")
 

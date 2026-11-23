@@ -203,7 +203,10 @@ conversazione (thread o asincrone).
 - `whatsapp.py` + `whatsapp_bridge/bridge.js`: ponte Node (whatsapp-web.js, Chrome senza finestra, sessione in
   `data/whatsapp`) a righe JSON su stdin/stdout, legato a Jarvis da un Job Object; `WhatsApp` accende il ponte quando
   serve e lo spegne dopo 15 minuti (`apps.whatsapp`), lo collega col QR in una finestra vera, tiene la rubrica in
-  cache e avvisa dei messaggi nuovi senza mai leggerne il testo ad alta voce (`apps.whatsapp_avvisi`).
+  cache e avvisa dei messaggi nuovi senza mai leggerne il testo ad alta voce (`apps.whatsapp_avvisi`). Una voce
+  per persona (`person_key`): le chat a due hanno un LID (`@lid`) e la rubrica i numeri (`@c.us`), quindi il ponte
+  chiede a WhatsApp il numero dietro ogni LID (una volta per persona) e toglie i contatti doppi; per un id `@c.us`
+  vale il numero dell'id (il campo `number` a volte è il LID).
 - `gmail.py`: API REST di Gmail con `google-auth` (sessione che rinnova da sola il permesso), consenso OAuth
   "App desktop" nel browser (client copiato dai Download, permesso cifrato con DPAPI in `data/gmail`), mail citate
   col numero dell'ultimo elenco, destinatari cercati per nome nelle mail scambiate; permesso revocato → si
@@ -228,6 +231,11 @@ conversazione (thread o asincrone).
 ## Video e audio
 
 `jarvis/media/`: Jarvis "guarda" un video senza un modello video, perché Claude vede le immagini e legge il testo.
+Lo stesso vale per lo schermo: `guarda_schermo(dove)` (`screen.py`) cattura con Pillow lo schermo della finestra in
+primo piano (o solo la finestra, o tutti gli schermi), con le coordinate lette in DPI per monitor (pixel veri anche
+con lo zoom di Windows; la finestra dai bordi di DWM, senza l'ombra), lo riduce a `media.screen_px` e lo manda come
+JPEG in un `ToolOutput`, mai su disco. Il gruppo di permessi `schermo` è solo dell'utente: uno screenshot può mostrare
+chat e posta. `ToolOutput.blind` dice ai cervelli che non vedono immagini cosa riferire.
 Un solo strumento, `guarda_video(sorgente | chat, inizio, fine, solo_audio, suoni, domanda)`.
 
 - `fetch.py`: da dove arriva. Percorso o nome detto a voce (cercato nelle cartelle solite con `pick_by_name`,

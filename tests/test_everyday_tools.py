@@ -425,7 +425,8 @@ TESTED_ELSEWHERE = {"impostazioni", "impostazione", "riavvia", "spegniti", "mode
                     "programma", "programmi", "togli_programma",  # tests/test_scheduler.py
                     "presentazione",  # tests/test_welcome.py
                     "aggiornamenti",  # tests/test_updates.py
-                    "crea_voce"}  # tests/test_voice_maker.py
+                    "crea_voce",  # tests/test_voice_maker.py
+                    "guarda_schermo"}  # tests/test_screen.py
 
 
 def test_every_tool_is_tested(tools):

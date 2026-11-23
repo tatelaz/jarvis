@@ -216,6 +216,9 @@ class MediaConfig:
     # modello locale per musica, suoni e azioni, caricato solo quando serve al posto della voce (la scheda video non
     # basta per tutti e due): "spento" finché non lo scegli (audio-flamingo-next ha vinto la gara di misura)
     omni: str = "spento"
+    # guarda_schermo: Jarvis può fare uno screenshot di ciò che vedi, quando glielo chiedi (solo per te, mai salvato)
+    screen: bool = True
+    screen_px: int = 1568  # lato lungo dello screenshot: più grande = scritte piccole leggibili ma più token
 
 
 @dataclass

@@ -632,7 +632,7 @@ def test_media_settings_are_documented_for_jarvis(tmp_path):
     rows = {r["chiave"]: r for r in settings_catalog(ConfigStore(tmp_path / "c.yaml").config)
             if r["chiave"].startswith("media.")}
     assert set(rows) == {"media.frames", "media.frame_px", "media.max_minutes", "media.transcript_chars",
-                         "media.web", "media.omni"}
+                         "media.web", "media.omni", "media.screen", "media.screen_px"}  # gli ultimi due: guarda_schermo
     assert all(r["descrizione"] and r["subito"] for r in rows.values())
     assert rows["media.omni"]["scelte"] == ["audio-flamingo-next", "lfm3-omni-2b", "qwen2.5-omni-7b", "spento"]
 
