@@ -143,6 +143,16 @@ def test_persona_speaks_english_with_english_examples():
     assert "parli SEMPRE in inglese" in guest and '"sir"' not in guest  # di un ospite non si sa
 
 
+def test_an_event_is_not_answered_with_right_away():
+    """Provato il 22/11: la presentazione cominciava con "Certamente, signore." senza che nessuno avesse chiesto
+    niente. La frase breve d'apertura vale per le richieste, non per gli [EVENTO]."""
+    cfg = Config()
+    for code, short in (("it", '"Subito." o "Certamente, signore."'), ("en", '"Right away." o "Certainly, sir."')):
+        cfg.persona.language = code
+        rule = next(line for line in system_prompt(cfg).splitlines() if "La prima frase di ogni risposta" in line)
+        assert f"a un [EVENTO] nessuno ti ha chiesto niente: niente {short}" in rule
+
+
 @pytest.fixture
 def tools(tmp_path):
     store = ConfigStore(tmp_path / "config.yaml")

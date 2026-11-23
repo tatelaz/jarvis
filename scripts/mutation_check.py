@@ -1088,6 +1088,18 @@ MUTATIONS = [
     ('jarvis/setup/web/setup.js', '${t(facts.speakers === 1 ? "out1" : "outN", { s: facts.speakers })}',
      '${t("outN", { s: facts.speakers })}', 'tests/test_setup_page.py',
      'primo avvio: «1 uscita», non «1 uscite»'),
+    ('jarvis/setup/download.py', 'return (bool(known.get("extracted")) or self._marked(f)) and self.target(f.check).exists()',
+     'return bool(known.get("extracted")) and self.target(f.check).exists()', 'tests/test_setup_download.py',
+     'download: un motore già estratto si riconosce anche con dati nuovi'),
+    ('jarvis/setup/download.py', '        self._remember(f, extracted=True)\n        self._mark(f)\n',
+     '        self._remember(f, extracted=True)\n', 'tests/test_setup_download.py',
+     "download: il segno dell'estrazione sta accanto ai file"),
+    ('jarvis/brain/persona.py', ' Ma a un [EVENTO] nessuno ti ha chiesto niente: niente {short}, vai dritto al punto.',
+     '', 'tests/test_lang.py',
+     "persona: a un evento niente «Certamente» d'apertura"),
+    ('jarvis/speech/engine.py', '    for base in (f"base-{language}", "base-it", "base-en"):\n        if voice_dir(base, data_voices, bundled) is not None:\n            return base\n',
+     '', 'tests/test_voices_base.py',
+     'voce: senza la voce scelta si parte con quella di base (non si cade)'),
 ]
 
 
