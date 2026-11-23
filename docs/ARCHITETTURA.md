@@ -417,10 +417,30 @@ siano chiusi, lancia l'installatore con `/VERYSILENT /SUPPRESSMSGBOXES /NORESTAR
 collegamento. Alla ripartenza Jarvis dice com'è andata (versione nuova o "non è riuscito"), una volta sola.
 Finché il repository è privato GitHub risponde 404: nessun aggiornamento e nessun errore.
 
+Dal 23/11 la copia installata è anche un repository git (`jarvis/localrepo.py`): l'installatore porta tutti i file
+del commit (anche `design/`, o la copia risulterebbe sempre modificata) e `jarvis.bundle`, la storia fino a quella
+versione (~3,5 MB). Al primo avvio con Git disponibile `ensure_repo` crea il repository al commit della release
+(`core.autocrlf false`, autore "Jarvis", indice dal commit: i file ci sono già) e cancella il bundle; reinstallando
+sopra una copia con modifiche sue le mette in un ramo `mie-modifiche/...` e lo dice. Così auto-miglioramento e
+ritorno alla versione sana del guardiano (che ora aggiunge al PATH il Git portatile) valgono anche per chi installa.
+Le copie installate si riconoscono da `tools/uv.exe` (le mette l'installatore), non più dall'assenza di `.git`.
+
+Se la release ha anche `Jarvis-X.Y.Z.bundle` (con impronta) e la copia è un repository, l'aggiornamento non usa
+l'installatore: `plan_update` dice "dentro" (già incluso), "avanti" (nessuna modifica locale: il processo a parte, a
+Jarvis chiuso, fa `git merge --ff-only`, poi `uv sync --frozen` con o senza strumenti di prova come prima, e riaccende)
+oppure "unione". In quel caso parte un compito `aggiornamento` (`UpdateMergeWorker`): ramo `aggiornamento/...` in
+una copia separata, `git merge` della versione; se si incastra da solo e le prove passano si applica senza domande,
+altrimenti un sotto-agente risolve i conflitti tenendo le due cose, Jarvis rifà le prove e chiede conferma; mai
+applicato con le prove rosse, conflitti aperti o la cartella principale sporca, e se le prove sul codice principale
+falliscono si torna al commit di prima. Entrato il codice nuovo (la versione sul disco supera quella che gira),
+l'aggiornatore riavvia quando Jarvis è fermo. Pytest e ruff non sono nell'installatore: `ensure_test_tools` li
+scarica (uv sync con il gruppo dev) la prima volta che servono.
+
 Per pubblicare una versione: alzare `version` in `pyproject.toml` (es. 0.2.0), fare il commit, costruire
-l'installatore (`python scripts/build_installer.py`) e creare la release con il tag e l'installatore:
-`gh release create v0.2.0 build/Jarvis-Setup-0.2.0.exe`. GitHub calcola da solo l'impronta dell'asset; il nome deve
-restare `Jarvis-Setup-<versione>.exe`, o le copie installate non la prendono.
+l'installatore (`python scripts/build_installer.py`, che prepara anche il bundle) e creare la release con il tag e i
+due file: `gh release create v0.2.0 build/Jarvis-Setup-0.2.0.exe build/Jarvis-0.2.0.bundle`. GitHub calcola da solo
+le impronte; i nomi devono restare `Jarvis-Setup-<versione>.exe` e `Jarvis-<versione>.bundle`, o le copie installate
+non li prendono.
 
 Provato il 22/11: il processo a parte con un installatore e un Jarvis finti, in un percorso con spazi e apostrofo,
 aspetta la chiusura, installa, riaccende dopo la fine dell'installatore, e finisce anche dopo l'uscita di chi l'ha
@@ -466,7 +486,9 @@ sono marcati `data-i18n*`. Cambiando lingua la grafica si rimonta, così anche i
 - Diario dei fallimenti: errori degli strumenti, correzioni ("no, intendevo..."), interruzioni.
 - Miglioramento: un sotto-agente lavora sul codice di Jarvis in un worktree git, esegue i test;
   se sono verdi e tu approvi, si applica e Jarvis si riavvia; se dopo il riavvio l'health check
-  fallisce, rollback automatico al commit precedente.
+  fallisce, rollback automatico al commit precedente. Dal 23/11 anche nelle copie installate (diventate repository,
+  `jarvis/localrepo.py`; pytest e ruff si scaricano la prima volta), e le migliorie sopravvivono agli aggiornamenti:
+  la versione nuova si unisce (`UpdateMergeWorker`).
 
 ## Audio che non fa cadere Jarvis
 

@@ -126,9 +126,14 @@ mai per far credere che una persona abbia detto qualcosa.
 
 ## Aggiornamenti e disinstallazione
 
-Le copie installate con l'`.exe` si aggiornano da sole dalle release di GitHub: Jarvis prende solo installatori con
-l'impronta SHA-256 pubblicata e installa quando è fermo da un quarto d'ora. Se preferisci decidere tu, digli di
+Le copie installate con l'`.exe` si aggiornano da sole dalle release di GitHub: Jarvis prende solo file con
+l'impronta SHA-256 pubblicata e si aggiorna quando è fermo da un quarto d'ora. Se preferisci decidere tu, digli di
 chiederti prima ("per gli aggiornamenti chiedimi"). Le copie prese con git si aggiornano con `git pull`.
+
+Anche la copia installata è un repository git (lo diventa al primo avvio), quindi le modifiche che Jarvis fa al suo
+codice su tua richiesta non si perdono con gli aggiornamenti: la versione nuova si unisce alle tue modifiche in una
+copia a parte, con le prove. Se le due cose toccano gli stessi punti le sistema un sotto-agente e Jarvis ti chiede
+conferma; se non si riesce resti sulla tua versione, che funziona, e lui te lo dice.
 
 Per disinstallarlo: Impostazioni, App, App installate, Jarvis. Ti chiede se tenere dati e modelli: se dici sì, una
 nuova installazione li ritrova.

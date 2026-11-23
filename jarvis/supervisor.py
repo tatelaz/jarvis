@@ -205,6 +205,9 @@ def main() -> int:
                                  "ritorno all'ultima versione sana.")
     _, rest = ap.parse_known_args()
     jlog.setup(filename="guardiano.log")
+    from . import toolbox
+
+    toolbox.use_downloaded_tools()  # il Git portatile del primo avvio: serve per tornare alla versione sana
     sup = Supervisor(rest)
     if os.environ.get("JARVIS_SUPERVISOR_DRYRUN") == "1":  # prova dell'avvio: dice cosa farebbe e basta
         log.info("prova di avvio: lancerei %s nella cartella %s", sup.child_cmd(sup.code_root), sup.code_root)

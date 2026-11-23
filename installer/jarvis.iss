@@ -73,6 +73,8 @@ Name: "{autodesktop}\Jarvis"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Param
 Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\avvia_jarvis.pyw"""; WorkingDir: "{app}"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
+Type: filesandordirs; Name: "{app}\.git"
+Type: files; Name: "{app}\jarvis.bundle"
 Type: filesandordirs; Name: "{app}\.venv"
 Type: filesandordirs; Name: "{app}\tools"
 Type: filesandordirs; Name: "{app}\jarvis"

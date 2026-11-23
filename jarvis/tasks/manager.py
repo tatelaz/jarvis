@@ -51,7 +51,7 @@ class Task:
     question: Question | None = None
     inbox: list[str] = field(default_factory=list)
     cost_usd: float = 0.0
-    kind: str = "lavoro"  # "lavoro" (qualunque compito) oppure "miglioria" (modifica al codice di Jarvis)
+    kind: str = "lavoro"  # "lavoro" (qualunque compito), "miglioria" (modifica al codice di Jarvis) o "aggiornamento"
 
     def summary(self) -> str:
         age = int(time.time() - (self.started or self.created))

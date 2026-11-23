@@ -33,6 +33,17 @@ async def _console(app) -> None:
             print(f"         [{t}] { {k: v for k, v in ev.items() if k not in ('type', 'ts')} }")
 
 
+def make_repo() -> str | None:
+    """jarvis/localrepo.py: mai un motivo per non partire. Cosa dire all'utente, se c'è."""
+    from . import localrepo
+
+    try:
+        return localrepo.ensure_repo().said()
+    except Exception:  # Git che non risponde, un bundle rovinato: Jarvis parte lo stesso, come prima
+        logging.getLogger("jarvis").exception("copia installata: repository non creato")
+        return None
+
+
 async def main(console: bool, window: bool, setup: bool = False) -> int:
     from . import certs
 
@@ -56,12 +67,15 @@ async def main(console: bool, window: bool, setup: bool = False) -> int:
         if not await run_setup(ConfigStore()):
             return 0  # chiuso prima della fine: la prossima volta si riprende da lì
         toolbox.use_downloaded_tools()  # quelli appena scaricati
+    repo_note = await asyncio.to_thread(make_repo)  # la copia installata diventa un repository (serve Git: dopo il setup)
     from .app import Jarvis
 
     app = Jarvis()
     win: asyncio.subprocess.Process | None = None
     try:
         await app.start()
+        if repo_note and app.conv is not None:
+            app.conv.notify(repo_note)
         if window:
             exe = PYTHONW if PYTHONW.exists() else Path(sys.executable)
             win = await asyncio.create_subprocess_exec(str(exe), "-m", "jarvis.ui.window", "--port",

@@ -21,3 +21,10 @@ privato/
 
 # installatore costruito da scripts/build_installer.py
 build/
+
+# nelle copie installate (diventano un repository al primo avvio, jarvis/localrepo.py): uv e Python, la storia
+# arrivata con l'installatore, il programma di disinstallazione
+/tools/
+/jarvis.bundle
+/unins*.exe
+/unins*.dat

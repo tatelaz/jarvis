@@ -22,7 +22,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 STAGING = BUILD / "installer"
-LEAVE_OUT = ("design/",)  # le prove di grafica non servono a chi installa
+# niente da lasciare fuori: la copia installata diventa un repository git (jarvis/localrepo.py) e deve coincidere con il
+# commit, o risulterebbe sempre "modificata" (fino al 23/11 restava fuori design/, 191 KB di prove di grafica)
+LEAVE_OUT: tuple[str, ...] = ()
+BUNDLE = "jarvis.bundle"  # la storia del progetto fino a questa versione: nella cartella di Jarvis e nella release
 ISCC_PLACES = (Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Inno Setup 6" / "ISCC.exe",
                Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"), Path(r"C:\Program Files\Inno Setup 6\ISCC.exe"))
 # misure delle immagini della procedura (stile modern di Inno Setup) a 100, 125 e 150 %
@@ -40,7 +43,7 @@ def code_files(dest: Path) -> int:
     n = 0
     with tarfile.open(fileobj=io.BytesIO(data)) as tar:
         for m in tar.getmembers():
-            if not m.isfile() or m.name.startswith(LEAVE_OUT):
+            if not m.isfile() or (LEAVE_OUT and m.name.startswith(LEAVE_OUT)):
                 continue
             out = dest / m.name
             if not out.resolve().is_relative_to(dest.resolve()):  # un archivio di git non lo fa, ma non si sa mai
@@ -49,6 +52,15 @@ def code_files(dest: Path) -> int:
             out.write_bytes(tar.extractfile(m).read())
             n += 1
     return n
+
+
+def history(dest: Path) -> Path:
+    """La storia git fino all'ultimo commit in un file solo (git bundle, ~3,5 MB): la copia installata ne fa il suo
+    repository, e gli aggiornamenti arrivano allo stesso modo, così si uniscono alle modifiche fatte da Jarvis."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "bundle", "create", str(dest), "HEAD"], cwd=ROOT, capture_output=True, check=True)
+    subprocess.run(["git", "bundle", "verify", str(dest)], cwd=ROOT, capture_output=True, check=True)
+    return dest
 
 
 def find_uv() -> Path:
@@ -102,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
     if STAGING.exists():
         shutil.rmtree(STAGING)
     n = code_files(STAGING / "app")
+    bundle = history(STAGING / "app" / BUNDLE)
     (STAGING / "tools").mkdir(parents=True)
     shutil.copy2(find_uv(), STAGING / "tools" / "uv.exe")
     images(STAGING / "images")
@@ -109,7 +122,9 @@ def main(argv: list[str] | None = None) -> int:
     subprocess.run([str(iscc), f"/DAppVersion={ver}", f"/DStaging={STAGING}", f"/DOutputDir={BUILD}",
                     str(ROOT / "installer" / "jarvis.iss")], check=True)
     out = BUILD / f"Jarvis-Setup-{ver}.exe"
+    shutil.copy2(bundle, BUILD / f"Jarvis-{ver}.bundle")  # il secondo file della release: gli aggiornamenti via git
     print(f"{out} ({out.stat().st_size // 2**20} MB, {n} file del codice)")
+    print(f"{BUILD / f'Jarvis-{ver}.bundle'} ({bundle.stat().st_size // 2**10} KB di storia git)")
     return 0
 
 

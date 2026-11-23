@@ -25,11 +25,13 @@ def app_root(tmp_path):
     root.mkdir()
     (root / "pyproject.toml").write_text('[project]\nname = "jarvis"\nversion = "0.1.0"\n', encoding="utf-8")
     (root / "avvia_jarvis.pyw").write_text("", encoding="utf-8")
+    (root / "tools").mkdir()
+    (root / "tools" / "uv.exe").write_bytes(b"uv")  # l'installatore porta uv: è così che si riconosce la copia installata
     return root
 
 
 class Harness:
-    def __init__(self, root, tmp_path, mode="automatici", releases=None):
+    def __init__(self, root, tmp_path, mode="automatici", releases=None, repo=False):
         self.mode = [mode]
         self.releases = [release()] if releases is None else releases
         self.notes, self.launched, self.downloads, self.exits = [], [], [], []
@@ -37,7 +39,7 @@ class Harness:
         self.fail_fetch = None
         self.u = U.Updater(lambda: self.mode[0], self.notes.append, lambda: self.exits.append(1), root=root,
                            state_dir=tmp_path / "state", fetch=self.fetch, download=self.download,
-                           launch=self.launched.append, clock=lambda: self.now[0])
+                           launch=self.launched.append, clock=lambda: self.now[0], repo=lambda: repo)
 
     async def fetch(self):
         if self.fail_fetch:
@@ -83,9 +85,15 @@ def test_only_a_newer_well_made_release_counts():
     assert best.name == "0.10.1" and best.sha256 == SHA and best.notes == "novità"  # 10 > 3: numeri, non testo
 
 
-def test_installed_copy_is_the_one_without_git(app_root):
+def developer_copy(root):
+    (root / "tools" / "uv.exe").unlink()  # presa con git da chi sviluppa: niente uv dell'installatore
+
+
+def test_installed_copy_is_the_one_with_the_installer_uv(app_root):
     assert U.installed_copy(app_root)
     (app_root / ".git").mkdir()
+    assert U.installed_copy(app_root)  # dal 23/11 anche la copia installata ha git (jarvis/localrepo.py)
+    developer_copy(app_root)
     assert not U.installed_copy(app_root)
     assert U.current_version(app_root) == (0, 1, 0)
 
@@ -123,7 +131,7 @@ async def test_off_means_not_even_asking_github(h):
 
 
 async def test_the_developer_copy_never_updates_by_itself(h, app_root):
-    (app_root / ".git").mkdir()
+    developer_copy(app_root)
     h.fail_fetch = AssertionError("non doveva chiedere")
     await h.u.tick(quiet_for=U.QUIET_S, busy=False)
     assert h.u.error == "" and h.downloads == []  # GitHub non è stato nemmeno interpellato
@@ -259,7 +267,7 @@ async def test_the_tool_checks_tells_and_installs(h, voice):
 
 async def test_the_tool_on_the_developer_copy_does_not_ask_github(h, voice, app_root):
     reg, _ = voice
-    (app_root / ".git").mkdir()
+    developer_copy(app_root)
     h.fail_fetch = AssertionError("non doveva chiedere")
     assert "copia di sviluppo" in await reg.call("aggiornamenti", {"azione": "controlla"})
 
@@ -337,3 +345,100 @@ async def test_the_installer_is_downloaded_and_checked_like_the_models(tmp_path,
         assert not path.exists()  # un installatore diverso da quello pubblicato non resta sul disco
     finally:
         await runner.cleanup()
+
+
+# --- copie che sono repository (jarvis/localrepo.py): il bundle al posto dell'installatore ---
+
+COMMIT = "c" * 40
+
+
+def with_bundle(tag="v0.2.0", digest=f"sha256:{'b' * 64}"):
+    r = release(tag)
+    v = tag.removeprefix("v")
+    r["assets"].append({"name": f"Jarvis-{v}.bundle", "digest": digest, "size": 3_500_000,
+                        "browser_download_url": f"{U.DOWNLOADS}{tag}/Jarvis-{v}.bundle"})
+    return r
+
+
+class Plan:
+    def __init__(self, how, commit=COMMIT):
+        self.how, self.commit = how, commit
+
+
+@pytest.fixture
+def g(app_root, tmp_path):
+    """Una copia installata che è già un repository, con la release che porta anche il bundle."""
+    h = Harness(app_root, tmp_path, releases=[with_bundle()], repo=True)
+    h.plans, h.merges = [Plan("avanti")], []
+    h.u.plan = lambda bundle: h.plans[0]
+    h.u.merge = lambda version, commit: h.merges.append((version, commit))
+    return h
+
+
+def test_the_bundle_counts_only_if_made_properly():
+    rel = U.pick([with_bundle()], (0, 1, 0))
+    assert rel.bundle.url.endswith("/v0.2.0/Jarvis-0.2.0.bundle") and rel.bundle.sha256 == "b" * 64
+    assert U.pick([with_bundle(digest="")], (0, 1, 0)).bundle is None  # senza impronta: solo l'installatore
+    assert U.pick([release()], (0, 1, 0)).bundle is None
+
+
+async def test_without_local_changes_it_moves_on_with_git(g):
+    await g.u.tick(U.QUIET_S, False)
+    assert g.u.bundled and g.exits == [1] and len(g.launched) == 1
+    script = g.launched[0][-1]
+    assert f"merge --ff-only {COMMIT}" in script and "sync --frozen --no-dev" in script
+    assert "avvia_jarvis.pyw" in script and "Jarvis-Setup" not in script  # niente installatore
+    assert script.index("merge --ff-only") < script.index("sync --frozen") < script.index("avvia_jarvis.pyw")
+
+
+async def test_with_local_changes_a_task_merges_and_jarvis_stays_on(g):
+    g.plans[0] = Plan("unione")
+    await g.u.tick(U.QUIET_S, False)
+    assert g.merges == [("0.2.0", COMMIT)] and g.launched == [] and g.exits == []
+    assert "unione con le modifiche locali in corso" in g.u.describe()
+    await g.u.tick(U.QUIET_S, False)
+    assert len(g.merges) == 1  # un compito solo per versione
+    g.u.merge_failed("0.2.0")
+    assert g.u.merging is None
+
+
+async def test_once_merged_only_a_restart_is_missing(g, app_root):
+    g.plans[0] = Plan("unione")
+    await g.u.tick(U.QUIET_S, False)
+    (app_root / "pyproject.toml").write_text('[project]\nversion = "0.2.0"\n', encoding="utf-8")  # unione entrata
+    assert "manca il riavvio" in g.u.describe()
+    await g.u.tick(U.QUIET_S, busy=True)
+    assert g.launched == []  # occupato: si aspetta
+    await g.u.tick(U.QUIET_S, False)
+    script = g.launched[0][-1]
+    assert "--ff-only" not in script and "sync --frozen --no-dev" in script and g.exits == [1]  # il codice c'è già
+
+
+async def test_ask_mode_asks_before_restarting_into_the_merged_code(g, app_root):
+    g.mode[0] = "chiedi"
+    (app_root / "pyproject.toml").write_text('[project]\nversion = "0.2.0"\n', encoding="utf-8")
+    await g.u.tick(U.QUIET_S, False)
+    await g.u.tick(U.QUIET_S, False)
+    assert g.launched == [] and len(g.notes) == 1 and "riavvio" in g.notes[0]
+    assert g.u.apply().startswith("passo alla versione 0.2.0") and len(g.launched) == 1
+
+
+async def test_a_version_already_inside_is_not_installed_again(g):
+    g.plans[0] = Plan("dentro")
+    g.mode[0] = "chiedi"
+    await g.u.tick(U.QUIET_S, False)
+    assert g.u.apply() == "la versione 0.2.0 è già nel mio codice" and g.launched == [] and g.u.available is None
+
+
+def test_the_git_helper(tmp_path):
+    root = tmp_path / "Jarvis dell'utente"
+    cmd = U.git_helper_command([11, 22], root, COMMIT, r"C:\Git\cmd\git.exe", True, tmp_path / "agg.log",
+                               tmp_path / "pythonw.exe")
+    script = cmd[-1]
+    assert cmd[:4] == ["powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle"]
+    assert "Wait-Process -Id 11 " in script and "Wait-Process -Id 22 " in script
+    assert "dell''utente" in script  # l'apostrofo nel percorso non rompe il comando
+    assert "sync --frozen --python-preference" in script  # con gli strumenti per le prove (c'erano): niente --no-dev
+    assert "UV_PYTHON_INSTALL_DIR" in script and str(root / "tools" / "python").replace("'", "''") in script
+    with pytest.raises(ValueError):
+        U.git_helper_command([1], root, "HEAD; Remove-Item", "git", False, tmp_path / "a.log", tmp_path / "p.exe")

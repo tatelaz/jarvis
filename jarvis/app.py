@@ -56,7 +56,7 @@ from .tasks.hands import DesktopLease, build_hands
 from .tasks.manager import ACTIVE, TaskManager
 from .tasks.opencode_worker import ClaudeQuota, FallbackWorker
 from .tasks.safety import SafetyPolicy
-from .tasks.self_improve import SelfImproveWorker
+from .tasks.self_improve import SelfImproveWorker, UpdateMergeWorker
 from .tools import system as system_tools
 from .tools.front import Services, build_front_tools
 from .ui.hotkeys import Hotkeys
@@ -89,7 +89,7 @@ class Jarvis:
         # la presentazione a voce dopo il primo avvio (solo il Jarvis vero: le prove non hanno un primo avvio)
         # versioni nuove dalle release di GitHub: solo il Jarvis vero (e da solo solo nelle copie installate)
         self.updates = (Updater(lambda: self.cfg.system.updates, lambda text: self.conv and self.conv.notify(text),
-                                self.request_shutdown) if backend is None else None)
+                                self.request_shutdown, merge=self._merge_update) if backend is None else None)
         self.welcome = (Welcome(paths.DATA_DIR / "setup" / "presentazione.json", paths.DATA_DIR / "setup" / "fatto.json",
                                 language=lambda: lang.norm(self.cfg.persona.language))
                         if backend is None else None)
@@ -228,12 +228,16 @@ class Jarvis:
         self.claude_quota = ClaudeQuota(lambda: self.conv.brain.provider_paused_until("claude") if self.conv else None)
 
         def worker_factory(task):
+            def inner(t, worktree, env):
+                t.cwd = worktree
+                return ClaudeWorker(t, cfg.persona.user_name, cfg.brain.worker_claude_model,
+                                    cfg.brain.worker_claude_effort, SafetyPolicy([worktree], True), env_extra=env)
+
             if task.kind == "miglioria":  # modifica al codice di Jarvis: copia separata, controlli, conferma
-                def inner(t, worktree, env):
-                    t.cwd = worktree
-                    return ClaudeWorker(t, cfg.persona.user_name, cfg.brain.worker_claude_model,
-                                        cfg.brain.worker_claude_effort, SafetyPolicy([worktree], True), env_extra=env)
                 return SelfImproveWorker(task, inner, cfg.persona.user_name)
+            if task.kind == "aggiornamento":  # versione nuova da unire alle modifiche locali (jarvis/updates.py)
+                return UpdateMergeWorker(task, inner, cfg.persona.user_name,
+                                         failed=lambda v: self.updates and self.updates.merge_failed(v))
             # di norma Claude Code; OpenCode solo se Claude è esaurito (prima o durante il compito)
             return FallbackWorker(task, lambda: ClaudeWorker(task, cfg.persona.user_name, cfg.brain.worker_claude_model,
                                                              cfg.brain.worker_claude_effort, safety,
@@ -428,6 +432,14 @@ class Jarvis:
                     await self.whatsapp.tick()
                 except Exception:  # un'app che non risponde non deve mai fermare Jarvis
                     log.exception("controllo di WhatsApp fallito")
+
+    def _merge_update(self, version: str, commit: str) -> None:
+        """La versione nuova va unita alle modifiche dell'auto-miglioramento: un compito (UpdateMergeWorker)."""
+        tasks = getattr(self, "tasks", None)  # esiste da start(): l'aggiornatore gira solo dopo
+        if tasks is None:
+            raise RuntimeError("i compiti non sono ancora pronti")
+        tasks.spawn(f"unisci la versione {version} (commit {commit}) alle modifiche locali",
+                         title=f"aggiornamento alla {version}", kind="aggiornamento")
 
     async def _keep_updated(self) -> None:
         """Ogni minuto: versioni nuove da GitHub; installate da sole solo con Jarvis fermo (jarvis/updates.py)."""
