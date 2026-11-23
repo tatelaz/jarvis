@@ -37,8 +37,10 @@ _ACCOUNT_LIMIT = ("session limit", "usage limit", "weekly limit", "rate limit", 
 _TRANSIENT = ("overloaded", "529", "503", "timeout", "timed out", "connection")
 # senza accesso (login mancante o scaduto, chiave API sbagliata o revocata): Claude è fuori per un po' e si passa
 # al cervello dopo, invece di rispondere con l'errore; "Invalid API key · Please run /login" è anche il login che manca
+# il 23/11 Claude Code ha scritto "Failed to authenticate: this login reached its time limit and cannot be renewed.
+# Run `claude auth login`..." (codice authentication_failed): non era tra queste e Jarvis diceva "problema nel formulare"
 _NO_ACCESS = ("invalid api key", "invalid x-api-key", "please run /login", "not logged in", "authentication_error",
-              "oauth token has expired")
+              "oauth token has expired", "authentication_failed", "failed to authenticate", "claude auth login")
 NO_ACCESS_PAUSE_S = 300.0
 # "You've hit your session limit", "... your 5-hour limit", "... your weekly limit": Claude Code cambia la parola in
 # mezzo (il 20/11 "5-hour" non era riconosciuto e Jarvis restava su Claude con una risposta vuota)
@@ -82,7 +84,7 @@ def classify_error(err: str, rejected_until: float | None = None) -> BrainUnavai
     """Errore del risultato -> BrainUnavailable (con portata e ora di ripristino) oppure None se è un errore normale."""
     low = err.lower()
     if any(k in low for k in _NO_ACCESS):
-        return BrainUnavailable(err, retry_at=time.time() + NO_ACCESS_PAUSE_S, scope="provider")
+        return BrainUnavailable(err, retry_at=time.time() + NO_ACCESS_PAUSE_S, scope="provider", kind="accesso")
     if rejected_until is not None or any(k in low for k in _ACCOUNT_LIMIT) or _HIT_LIMIT.search(low):
         return BrainUnavailable(err, retry_at=rejected_until or resets_at(err), scope="provider")
     if any(k in low for k in _TRANSIENT):
@@ -205,6 +207,7 @@ class ClaudeBrain:
             text = ""
             pending_tools: dict[str, str] = {}
             rejected_until: float | None = None  # limite d'uso raggiunto: fino a quando
+            model_error = ""  # il codice d'errore del messaggio del modello (es. authentication_failed)
             try:
                 await self._client.query(message)
                 self._unfinished = True  # finché non si legge il risultato (un'interruzione può fermarci prima)
@@ -225,6 +228,7 @@ class ClaudeBrain:
                                 yield ToolCall(b.name.removeprefix("mcp__jarvis__"), dict(b.input or {}))
                         if m.error:
                             log.warning("errore del modello: %s", m.error)
+                            model_error = str(m.error)
                     elif isinstance(m, UserMessage) and isinstance(m.content, list):
                         for b in m.content:
                             if type(b).__name__ == "ToolResultBlock" and b.tool_use_id in pending_tools:
@@ -248,7 +252,7 @@ class ClaudeBrain:
                         err = None
                         if m.is_error and not interrupted:
                             err = str(m.result or m.subtype)
-                            unavailable = classify_error(err, rejected_until)
+                            unavailable = classify_error(f"{err} {model_error}".strip(), rejected_until)
                             if unavailable is not None:
                                 raise unavailable
                         yield Done(text, interrupted=interrupted, error=err, usage=m.usage or {}, model=self.model)

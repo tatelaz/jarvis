@@ -1100,6 +1100,21 @@ MUTATIONS = [
     ('jarvis/speech/engine.py', '    for base in (f"base-{language}", "base-it", "base-en"):\n        if voice_dir(base, data_voices, bundled) is not None:\n            return base\n',
      '', 'tests/test_voices_base.py',
      'voce: senza la voce scelta si parte con quella di base (non si cade)'),
+    ('jarvis/brain/claude.py', '"oauth token has expired", "authentication_failed", "failed to authenticate", "claude auth login")',
+     '"oauth token has expired")', 'tests/test_claude_access.py',
+     'accesso: il login scaduto del 23/11 si riconosce'),
+    ('jarvis/brain/claude.py', 'unavailable = classify_error(f"{err} {model_error}".strip(), rejected_until)',
+     'unavailable = classify_error(err, rejected_until)', 'tests/test_brain_claude.py',
+     "accesso: conta anche il codice d'errore del modello"),
+    ('jarvis/core/conversation.py', '    if kind == "accesso" and provider == "claude":',
+     '    if False:', 'tests/test_claude_access.py',
+     'accesso: a voce si dice che il login va rifatto, non che è esaurito'),
+    ('jarvis/brain/router.py', '                "kind": getattr(why, "kind", "") if why else "",',
+     '                "kind": "",', 'tests/test_claude_access.py',
+     "accesso: il motivo arriva nell'avviso di cambio cervello"),
+    ('jarvis/brain/router.py', '                               kind=first_error.kind if first_error else "")',
+     '                               kind="")', 'tests/test_claude_access.py',
+     'accesso: il motivo resta anche senza cervello di riserva'),
 ]
 
 

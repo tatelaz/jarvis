@@ -119,7 +119,9 @@ def _when(until: float | None, language: str = "it") -> str:
     return lang.phrase(language, "until_day", day=t.tm_mday, hhmm=hhmm)
 
 
-def _why(scope: str, until: float | None, provider: str = "claude", language: str = "it") -> str:
+def _why(scope: str, until: float | None, provider: str = "claude", language: str = "it", kind: str = "") -> str:
+    if kind == "accesso" and provider == "claude":  # login scaduto o chiave rifiutata: aspettare non serve
+        return lang.phrase(language, "no_access")
     if scope == "provider":
         what = lang.phrase(language, "what_opencode" if provider == "opencode" else "what_claude")
         when = _when(until, language) or lang.phrase(language, "for_now")
@@ -133,7 +135,7 @@ def switch_sentence(info: dict, language: str = "it") -> str:
         why = _why(info.get("scope", "brain"), info.get("until"), "opencode", language)
         return lang.phrase(language, "switch", why=why, then=lang.phrase(language, "then_backup"))
     then = {"local": "then_local", "opencode": "then_opencode"}.get(info.get("to_provider", ""), "then_backup")
-    why = _why(info.get("scope", "brain"), info.get("until"), language=language)
+    why = _why(info.get("scope", "brain"), info.get("until"), language=language, kind=info.get("kind", ""))
     return lang.phrase(language, "switch", why=why, then=lang.phrase(language, then))
 
 
@@ -143,7 +145,8 @@ def unavailable_sentence(e: BrainUnavailable, address: str, already_switched: bo
     if already_switched:
         return lang.phrase(language, "backup_down", address=address)
     if e.exhausted:
-        return lang.phrase(language, "no_backup", why=_why(e.scope, e.retry_at, language=language))
+        return lang.phrase(language, "no_backup", why=_why(e.scope, e.retry_at, language=language,
+                                                           kind=getattr(e, "kind", "")))
     return lang.phrase(language, "cannot_think", address=address)
 
 

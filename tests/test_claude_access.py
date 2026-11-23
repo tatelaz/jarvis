@@ -121,12 +121,38 @@ def test_the_voice_brain_and_the_workers_use_it(tmp_path, monkeypatch):
     "Invalid API key · Please run /login",
     "API Error: 401 {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"}}",
     "OAuth token has expired. Please obtain a new token or refresh your existing token.",
+    # il 23/11, dal Jarvis vero: prima non era riconosciuto e diceva "ho avuto un problema nel formulare la risposta"
+    "Failed to authenticate: this login reached its time limit and cannot be renewed. Run `claude auth login` to sign "
+    "in again, or use `claude setup-token` and set CLAUDE_CODE_OAUTH_TOKEN.",
+    "authentication_failed",
 ])
 def test_no_access_pauses_claude_for_a_while(err):
     before = time.time()
     e = classify_error(err)
-    assert isinstance(e, BrainUnavailable) and e.scope == "provider"
+    assert isinstance(e, BrainUnavailable) and e.scope == "provider" and e.kind == "accesso"
     assert before + 290 <= e.retry_at <= time.time() + 310
+
+
+async def test_an_expired_login_switches_to_opencode_and_says_to_sign_in_again():
+    """Quello che sente l'utente: non "problema nel formulare", ma che il login va rifatto e chi risponde ora."""
+    from test_router import B, collect, switches
+
+    from jarvis.brain.router import BrainRouter
+    from jarvis.core.conversation import switch_sentence, unavailable_sentence
+
+    expired = classify_error("Failed to authenticate: this login reached its time limit and cannot be renewed.")
+    claude, opencode = B("claude", error=expired), B("opencode")
+    evs = await collect(BrainRouter([claude, opencode]))
+    info = switches(evs)[0].info
+    assert info["to_provider"] == "opencode" and info["kind"] == "accesso"
+    assert switch_sentence(info) == ("Claude non accetta più il mio accesso, va rifatto il login: continuo con un "
+                                     "modello gratuito di OpenCode.")
+    assert "sign-in, it needs to be redone" in switch_sentence(info, "en")
+    lonely = BrainRouter([B("claude", error=classify_error("authentication_failed"))])
+    with pytest.raises(BrainUnavailable) as e:
+        await collect(lonely)
+    assert unavailable_sentence(e.value, "signore") == ("Claude non accetta più il mio accesso, va rifatto il login, "
+                                                        "e non ho un cervello di riserva disponibile.")
 
 
 def test_an_ordinary_error_is_still_ordinary():

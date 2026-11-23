@@ -62,6 +62,18 @@ async def test_warning_level_rate_limit_does_not_block():
     assert isinstance(evs[-1], Done) and evs[-1].error is None
 
 
+async def test_the_model_error_code_counts_too():
+    """Il 23/11 il messaggio del modello aveva error="authentication_failed": anche se il risultato non dice parole
+    note, è un accesso scaduto e si passa al cervello dopo (prima: "problema nel formulare la risposta")."""
+    from claude_agent_sdk.types import AssistantMessage, TextBlock
+
+    b = brain_with([AssistantMessage([TextBlock("Failed")], "claude-opus-5-5", error="authentication_failed"),
+                    result(True, "error_during_execution")])
+    with pytest.raises(BrainUnavailable) as ei:
+        [ev async for ev in b.respond("ciao")]
+    assert ei.value.scope == "provider" and ei.value.kind == "accesso"
+
+
 async def test_ordinary_error_is_reported_in_done_not_as_unavailability():
     b = brain_with([result(True, "Tool input non valido")])
     evs = [ev async for ev in b.respond("ciao")]

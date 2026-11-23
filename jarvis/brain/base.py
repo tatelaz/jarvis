@@ -11,11 +11,12 @@ class BrainUnavailable(RuntimeError):
     """Il cervello non risponde (rete, limiti d'uso, processo caduto): si passa al ripiego."""
 
     def __init__(self, message: str = "", retry_at: float | None = None, scope: str = "brain",
-                 exhausted: bool = False) -> None:
+                 exhausted: bool = False, kind: str = "") -> None:
         super().__init__(message)
         self.retry_at = retry_at  # quando torna disponibile (epoch), se si sa
         self.scope = scope  # "brain" = solo questo cervello; "provider" = tutto l'account (es. abbonamento esaurito)
         self.exhausted = exhausted  # nessun ripiego rimasto
+        self.kind = kind  # "accesso" = login scaduto o chiave rifiutata: va rifatto, non basta aspettare
 
 
 @dataclass

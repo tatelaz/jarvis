@@ -118,6 +118,7 @@ class BrainRouter:
         return {"to": getattr(brain, "name", "?"), "to_provider": provider_of(brain), "back": back,
                 "from_provider": provider_of(primary),
                 "reason": str(why) if why else "", "scope": why.scope if why else "brain",
+                "kind": getattr(why, "kind", "") if why else "",
                 "until": None if back else self.paused_until.get(id(primary))}
 
     async def respond(self, message: str) -> AsyncIterator[BrainEvent]:
@@ -150,4 +151,5 @@ class BrainRouter:
                 self._active = None
         raise BrainUnavailable(str(first_error) if first_error else "nessun cervello disponibile",
                                retry_at=self.paused_until.get(id(primary)) or self.earliest_return(),
-                               scope=first_error.scope if first_error else "brain", exhausted=True)
+                               scope=first_error.scope if first_error else "brain", exhausted=True,
+                               kind=first_error.kind if first_error else "")
