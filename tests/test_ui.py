@@ -283,6 +283,37 @@ async def test_gmail_app_password_field():
         assert errors == []
 
 
+
+async def test_report_box_shows_what_leaves_before_sending():
+    """Segnala un problema: si vede il testo esatto, si manda solo quello; cambiato il testo va rivisto."""
+    async with window("mark3") as (page, v, errors):
+        await page.locator("#c-log").click()
+        await page.locator("#report-box summary").click()
+        assert await page.locator("#report-send").is_disabled()  # prima si guarda
+        await page.locator("#report-text").click()
+        await page.keyboard.type("si blocca quando apro Steam")
+        assert not await page.evaluate("document.getElementById('composer').classList.contains('on')")
+        await page.locator("#report-crash").check()
+        await page.locator("#report-look").click()
+        await page.wait_for_function("!document.getElementById('report-preview').hidden")
+        assert "si blocca quando apro Steam" in await page.locator("#report-preview").inner_text()
+        assert not await page.locator("#report-send").is_disabled()
+        await page.locator("#report-text").click()
+        await page.keyboard.press("Control+End")  # il clic mette il cursore dove capita
+        await page.keyboard.type(" e poi")
+        assert await page.locator("#report-send").is_disabled()  # cambiato: va rivisto prima di mandarlo
+        await page.locator("#report-look").click()
+        await page.wait_for_function("!document.getElementById('report-send').disabled")
+        await page.locator("#report-send").click()
+        await page.wait_for_function("document.getElementById('report-msg').textContent.includes('Segnalazione mandata')")
+        assert await page.locator("#report-text").input_value() == "" and await page.locator("#report-send").is_disabled()
+        sent = [c for c in v.commands if c.get("cmd", "").startswith("report")]
+        assert sent == [{"cmd": "report_preview", "text": "si blocca quando apro Steam", "crash": True},
+                        {"cmd": "report_preview", "text": "si blocca quando apro Steam e poi", "crash": True},
+                        {"cmd": "report_send"}]
+        assert not any(c.get("cmd") == "text" for c in v.commands)  # niente finito alla chat
+        assert errors == []
+
 ITALIAN = ("parla", "riposo", "registro", "ferma", "scrivi", "attesa", "ascolto", "ragiono", "decisione", "compit",
            "microfono", "approva", "nega", "procedi", "riaccend", "collegamento", "conversazione", "scheda video")
 

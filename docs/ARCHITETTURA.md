@@ -503,6 +503,37 @@ sono marcati `data-i18n*`. Cambiando lingua la grafica si rimonta, così anche i
   questo tipo avrebbero fermato per sempre migliorie e aggiornamenti con unione su quel PC. Le prove che dipendono
   dal PC si saltano quando manca quello che serve, ma su un altro PC ce ne può essere una che nessuno ha previsto.
 
+## Segnalazioni agli sviluppatori (dal 23/11)
+
+`jarvis/feedback.py` prepara un rapporto tecnico e lo manda a `servizi/segnalazioni`, un Cloudflare Worker che lo
+scrive come issue in un repository GitHub privato (la chiave di GitHub sta solo lì, come segreto). Chi usa Jarvis
+non ha bisogno di nessun account.
+
+- **Cosa parte:** versione e commit, Windows, Python, memoria, scheda video, cervello, lingua; le righe del registro
+  che servono (avvisi ed errori di tutti con il loro traceback, le righe normali solo dei registri tecnici:
+  guardiano, salute, motore, aggiornamenti, primo avvio...); le firme degli errori ripetuti nel diario (titolo
+  generico e quante volte, mai le correzioni); la descrizione dell'utente.
+- **Cosa non parte:** dai registri che possono portare testo della conversazione (cervello, voce, memoria, app, ui,
+  librerie esterne) arrivano solo livello, nome e punti del codice: né il messaggio né il testo dell'eccezione né le
+  righe di codice. Ogni riga passa poi da `scrub()`: segreti (`log.redact`), la cartella di Jarvis (`<jarvis>`), la
+  cartella utente, il nome dell'utente e di Windows, id di WhatsApp, email, numeri di telefono e testo fra
+  virgolette con spazi. I percorsi nei traceback diventano relativi (`jarvis/audio/vad.py`, `site-packages/...`):
+  le cartelle dicono come l'utente organizza il PC. Provato sul registro vero di tutti i giorni contando soltanto:
+  0 nomi, 0 parole di `privato/parole.txt` (prima della correzione dei percorsi ne passavano 6, tutte dal nome
+  della cartella del progetto), 0 email.
+- **Quando:** a voce è l'app `segnalazioni` (azioni `manda` e `anteprima`; gruppo "sistema", solo l'utente).
+  `manda` chiede sempre il sì (`Action.always_confirm`), anche con le conferme delle azioni delicate spente: parte
+  esattamente il rapporto letto all'utente. Dalla finestra (registro → "segnala un problema") si vede il testo
+  esatto e si manda solo quello, una volta. Dopo una caduta `system.crash_reports` ("rapporti_cadute" a voce): chiedi
+  (di base: l'avviso della ripresa dice al cervello di chiamare `manda` con tipo caduta, così la domanda è una sola),
+  sempre (parte da solo e lo dice) o mai.
+- **Senza rete** resta in `data/segnalazioni` e riparte al prossimo avvio. Senza `system.feedback_url` (vuoto finché
+  il server non è in funzione) l'app dice che le segnalazioni non sono ancora attive.
+- **Il server** (`logica.js`, provato con Node in `worker.test.mjs`): solo POST su `/segnala`, JSON fatto bene,
+  massimo 70 KB, limiti di Cloudflare per PC e in tutto se il piano li ha; non salva niente (l'IP serve solo a
+  contare); rende innocui `@nome` e `#12`. Come metterlo in funzione: `servizi/segnalazioni/README.md`. Le
+  segnalazioni si leggono con `gh issue list --repo <proprietario>/jarvis-segnalazioni`.
+
 ## Audio che non fa cadere Jarvis
 
 Il dispositivo vero è avvolto da `ResilientBackend` (`jarvis/audio/devices.py`): se non si apre o smette di

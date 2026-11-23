@@ -1,0 +1,7 @@
+{
+  "name": "jarvis-segnalazioni",
+  "private": true,
+  "type": "module",
+  "description": "Il server delle segnalazioni di Jarvis (Cloudflare Worker)",
+  "scripts": { "test": "node --test" }
+}

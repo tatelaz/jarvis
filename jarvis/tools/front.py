@@ -74,6 +74,7 @@ SETTABLE = {
     "cervello": ("brain.provider", lambda v: _provider(v)),
     "accesso_claude": ("brain.claude_access", lambda v: _access(v)),
     "aggiornamenti": ("system.updates", lambda v: _updates(v)),
+    "rapporti_cadute": ("system.crash_reports", lambda v: _crash_reports(v)),
     "grafica": ("ui.theme", lambda v: _theme(v)),
     "colore": ("ui.accent", lambda v: look.color(v)),
     "grandezza_testo": ("ui.text_scale", lambda v: _scale(v)),
@@ -121,6 +122,19 @@ _UPDATES = {"automatici": "automatici", "automatico": "automatici", "da solo": "
             "chiedi": "chiedi", "chiedimi": "chiedi", "chiedere": "chiedi", "avvisa": "chiedi", "avvisami": "chiedi",
             "prima chiedi": "chiedi",
             "spenti": "spenti", "spento": "spenti", "no": "spenti", "mai": "spenti", "off": "spenti"}
+
+
+_CRASH_REPORTS = {"chiedi": "chiedi", "chiedimi": "chiedi", "chiedere": "chiedi", "prima chiedi": "chiedi",
+                  "domanda": "chiedi", "sempre": "sempre", "da solo": "sempre", "da soli": "sempre",
+                  "automatici": "sempre", "automatico": "sempre", "sì": "sempre", "si": "sempre", "manda": "sempre",
+                  "mai": "mai", "no": "mai", "spenti": "mai", "spento": "mai", "niente": "mai", "off": "mai"}
+
+
+def _crash_reports(v: Any) -> str:
+    key = " ".join(str(v).strip().lower().split())
+    if key not in _CRASH_REPORTS:
+        raise ValueError(f"rapporti_cadute '{v}' sconosciuto (chiedi, sempre o mai)")
+    return _CRASH_REPORTS[key]
 
 
 def _updates(v: Any) -> str:

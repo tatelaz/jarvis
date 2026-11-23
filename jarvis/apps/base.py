@@ -42,6 +42,8 @@ class Action:
     # restituisce cosa si sta per fare, in parole da leggere all'utente
     confirm: Callable[[dict[str, Any]], Result] | None = None
     needs_ready: bool = True  # False = funziona anche con l'app non pronta (es. "collega")
+    # chiede il sì anche con le conferme delle azioni delicate spente (le segnalazioni: escono dal PC verso altri)
+    always_confirm: bool = False
 
     def required(self) -> list[str]:
         return [k for k, v in self.params.items() if not v.startswith("?")]
@@ -62,11 +64,12 @@ class App:
     actions: dict[str, Action] = field(default_factory=dict)
 
     def action(self, name: str, summary: str, params: dict[str, str] | None = None,
-               confirm: Callable[[dict[str, Any]], Result] | None = None, needs_ready: bool = True):
+               confirm: Callable[[dict[str, Any]], Result] | None = None, needs_ready: bool = True,
+               always_confirm: bool = False):
         def deco(fn):
             if name in self.actions:
                 raise ValueError(f"azione duplicata: {self.name}.{name}")
-            self.actions[name] = Action(name, summary, fn, params or {}, confirm, needs_ready)
+            self.actions[name] = Action(name, summary, fn, params or {}, confirm, needs_ready, always_confirm)
             return fn
         return deco
 
@@ -199,7 +202,7 @@ class Apps:
         if act.needs_ready and (why := app.ready()):
             return f"Errore: {app.title} non è pronta: {why}"
         params = dict(params or {})
-        delicate = act.confirm is not None and self.confirm_on()
+        delicate = act.confirm is not None and (act.always_confirm or self.confirm_on())
         if delicate and code:
             outcome = self._confirmed(app, act, str(code))
             if isinstance(outcome, str):

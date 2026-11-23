@@ -59,6 +59,20 @@
     </form>
     <p id="gmail-msg" aria-live="polite"></p>
   </details>
+  <!-- segnalazioni agli sviluppatori: prima si vede il testo esatto che parte, poi lo si manda (jarvis/feedback.py) -->
+  <details id="report-box">
+    <summary data-i18n="segnala un problema">segnala un problema</summary>
+    <p data-i18n="parte un rapporto tecnico ripulito: niente frasi delle conversazioni, nomi, email o numeri. Prima lo vedi.">parte un rapporto tecnico ripulito: niente frasi delle conversazioni, nomi, email o numeri. Prima lo vedi.</p>
+    <form id="report-form" autocomplete="off">
+      <textarea id="report-text" rows="3" placeholder="cosa è successo? (anche vuoto)" aria-label="Cosa è successo"
+                data-i18n-ph="cosa è successo? (anche vuoto)" data-i18n-aria="Cosa è successo"></textarea>
+      <label><input id="report-crash" type="checkbox"> <span data-i18n="con l'ultima caduta">con l'ultima caduta</span></label>
+      <button type="submit" id="report-look" data-i18n="vedi cosa parte">vedi cosa parte</button>
+      <button type="button" id="report-send" disabled data-i18n="manda">manda</button>
+    </form>
+    <p id="report-msg" aria-live="polite"></p>
+    <pre id="report-preview" hidden></pre>
+  </details>
 </aside>
 <section id="cards" aria-label="Schede" data-i18n-aria="Schede"></section>
 <div id="offline" hidden data-i18n="collegamento con Jarvis perso · riprovo…">collegamento con Jarvis perso · riprovo…</div>

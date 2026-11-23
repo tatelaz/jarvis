@@ -1,0 +1,27 @@
+# Il server delle segnalazioni di Jarvis (un Cloudflare Worker): vedi README.md in questa cartella.
+name = "jarvis-segnalazioni"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[vars]
+# il repository PRIVATO dove arrivano le issue: chi pubblica una sua versione di Jarvis mette il suo
+GITHUB_REPO = "tatelaz/jarvis-segnalazioni"
+
+# limiti di Cloudflare (approssimati, per località; serve Wrangler 4.36 o dopo). Se il piano non li ha, si toglie
+# questa parte: il Worker va avanti senza
+[[ratelimits]]
+name = "PER_PC"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 3
+  period = 60
+
+[[ratelimits]]
+name = "TUTTI"
+namespace_id = "1002"
+
+  [ratelimits.simple]
+  limit = 30
+  period = 60

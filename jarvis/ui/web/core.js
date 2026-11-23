@@ -31,6 +31,13 @@ const EN = {
   "password per le app": "app password", "Password per le app": "App password",
   "collega": "connect", "provo il collegamento…": "trying to connect…", "Gmail collegata": "Gmail connected",
   "non collegata": "not connected",
+  "segnala un problema": "report a problem",
+  "parte un rapporto tecnico ripulito: niente frasi delle conversazioni, nomi, email o numeri. Prima lo vedi.":
+    "a cleaned technical report is sent: no sentences from your conversations, names, emails or numbers. You see it first.",
+  "cosa è successo? (anche vuoto)": "what happened? (can be empty)", "Cosa è successo": "What happened",
+  "con l'ultima caduta": "with the last crash", "vedi cosa parte": "see what is sent", "manda": "send",
+  "preparo il rapporto…": "preparing the report…", "mando…": "sending…",
+  "questo è tutto ciò che parte:": "this is everything that is sent:",
 };
 /* Il motore della finestra di Jarvis.
    - Collegamento con Jarvis (WebSocket): fotografia iniziale, eventi in tempo reale, comandi.
@@ -206,6 +213,18 @@ function handle(ev) {
         const info = ev.info || {};
         $("gmail-msg").textContent = info.ok ? U.t("Gmail collegata") : `${U.t("non collegata")}: ${info.message || ""}`;
       }
+      if (ev.kind === "report_preview" && !ev.replay) {  // il testo esatto che partirà, prima del sì
+        const info = ev.info || {}, pre = $("report-preview");
+        pre.textContent = info.text || ""; pre.hidden = !info.text;
+        $("report-send").disabled = !info.ok;
+        $("report-msg").textContent = info.ok ? U.t("questo è tutto ciò che parte:") : (info.message || "");
+      }
+      if (ev.kind === "report" && !ev.replay) {
+        const info = ev.info || {};
+        $("report-msg").textContent = info.message || "";
+        $("report-send").disabled = true;
+        if (info.ok) { $("report-text").value = ""; $("report-preview").hidden = true; }
+      }
       if (ev.kind === "passphrase" && !ev.replay) {
         $("sec-msg").textContent = ev.info && ev.info.ok ? U.t("parola d'ordine salvata")
           : `${U.t("non salvata")}: ${(ev.info || {}).message || ""}`;
@@ -326,6 +345,19 @@ function wire() {
     if (!value.trim()) return;
     $("gmail-msg").textContent = U.t("provo il collegamento…");
     send({ cmd: "gmail_app_password", email, value });
+  });
+  $("report-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    $("report-send").disabled = true;
+    $("report-msg").textContent = U.t("preparo il rapporto…");
+    send({ cmd: "report_preview", text: $("report-text").value.trim(), crash: $("report-crash").checked });
+  });
+  $("report-text").addEventListener("input", () => { $("report-send").disabled = true; });  // cambiato: va rivisto
+  $("report-crash").addEventListener("change", () => { $("report-send").disabled = true; });
+  $("report-send").addEventListener("click", () => {
+    $("report-send").disabled = true;
+    $("report-msg").textContent = U.t("mando…");
+    send({ cmd: "report_send" });
   });
   addEventListener("keydown", (e) => {
     if (e.key === "Escape") {

@@ -42,6 +42,7 @@ CHOICES: dict[str, set[str]] = {
     "speech.stt_model": {"parakeet-ultra", "parakeet-v3"},
     "system.proposals": {"mai", "settimana", "giorno"},
     "system.updates": {"automatici", "chiedi", "spenti"},
+    "system.crash_reports": {"chiedi", "sempre", "mai"},
     "ui.theme": {"mark3", "cinema"},
     "ui.effects": {"pieni", "sobri"},
     "memory.keeper_brain": {"auto", "claude", "opencode", "cloud"},
@@ -174,6 +175,12 @@ class SystemConfig:
     # versioni nuove dalle release di GitHub (solo le copie installate, jarvis/updates.py): "automatici" le installa
     # da solo quando Jarvis è fermo, "chiedi" lo dice e aspetta un sì, "spenti" non controlla nemmeno
     updates: str = "automatici"
+    # segnalazioni agli sviluppatori (jarvis/feedback.py), ripulite dai dati personali. Dopo una caduta: "chiedi"
+    # domanda se mandare il rapporto, "sempre" lo manda da solo, "mai" niente. Quelle chieste a voce o dalla finestra
+    # partono sempre e solo dopo un sì
+    crash_reports: str = "chiedi"
+    # dove arrivano: il server di servizi/segnalazioni (vuoto = segnalazioni non ancora attive)
+    feedback_url: str = ""
 
 
 @dataclass
@@ -262,6 +269,7 @@ LIVE_SETTINGS = {
     "audio.echo_reference",  # la pipeline la rilegge a ogni blocco di 10 ms
     "system.proposals",  # il controllo del riepilogo la rilegge a ogni giro
     "system.updates",  # il controllo degli aggiornamenti la rilegge a ogni giro (jarvis/updates.py)
+    "system.crash_reports", "system.feedback_url",  # rilette a ogni avvio dopo una caduta e a ogni segnalazione
     "ui.theme", "ui.accent", "ui.text_scale", "ui.effects",  # la finestra le riceve e si ridisegna subito
     "memory.keeper", "memory.keeper_idle_s", "memory.keeper_brain",  # il custode le rilegge a ogni giro
     "identity.threshold", "identity.unlock_minutes",  # rilette a ogni frase

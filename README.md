@@ -42,6 +42,8 @@ Alcune cose che fa da solo:
   separata, fa girare i test e ti chiede conferma prima di usarlo.
 - Se si blocca un guardiano lo riavvia, e se una versione nuova non parte torna all'ultima che funzionava. Quando
   l'abbonamento a Claude è esaurito passa da solo ai modelli gratuiti.
+- Se qualcosa non va puoi segnalarlo a voce o dalla finestra: parte un rapporto tecnico ripulito dai tuoi dati, solo
+  se vuoi (vedi [Segnalare un problema](#segnalare-un-problema)).
 
 ## Cosa serve
 
@@ -111,7 +113,22 @@ Escono:
 - le ricerche sul web e le cose che gli chiedi tu di fare in rete;
 - una volta al giorno una domanda a GitHub per vedere se c'è una versione nuova (si spegne con "aggiornamenti
   spenti");
-- al primo avvio, i download dei modelli da GitHub e Hugging Face.
+- al primo avvio, i download dei modelli da GitHub e Hugging Face;
+- le segnalazioni agli sviluppatori, solo quando vuoi tu (vedi sotto).
+
+### Segnalare un problema
+
+Se qualcosa non va puoi dirlo a Jarvis ("segnala un problema: non mi ha capito quando...") o scriverlo nella
+finestra, in fondo al registro, alla voce "segnala un problema". Parte un rapporto tecnico che aiuta a correggere
+il difetto: versione, Windows, scheda video, gli errori del registro e le tue parole sul problema. Prima di partire
+il rapporto viene ripulito: niente frasi delle conversazioni né risposte di Jarvis, niente nome tuo o della tua
+cartella, email, numeri di telefono o contatti. Dalla finestra vedi il testo esatto prima di mandarlo; a voce Jarvis
+ti dice cosa sta per mandare e parte solo con un tuo sì.
+
+Dopo una caduta Jarvis ti chiede se mandare il rapporto. Puoi cambiare questa scelta a voce ("rapporti delle cadute
+sempre" o "mai"). Il rapporto arriva come issue in un repository privato degli sviluppatori, attraverso un piccolo
+server che non salva niente, nemmeno il tuo indirizzo IP (`servizi/segnalazioni`). Se la rete non c'è, riparte al
+prossimo avvio.
 
 Chiavi, password per le app e permessi di Gmail si salvano cifrati con Windows: li può leggere solo il tuo utente su
 questo PC. I tuoi dati stanno in `%LOCALAPPDATA%\Programs\Jarvis\data`.

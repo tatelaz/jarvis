@@ -9,7 +9,7 @@ import os
 import time
 from pathlib import Path
 
-from . import autostart, health, lang, paths, updates, winjob
+from . import autostart, feedback, health, lang, paths, updates, winjob
 from .apps import games, gmail, whatsapp
 from .apps.base import AppError, Apps
 from .audio.devices import ResilientBackend
@@ -346,8 +346,10 @@ class Jarvis:
         self._background(health.Heartbeat(commit=commit).run(lambda: getattr(self.conv, "state", "attivo")))
         note = health.take_recovery_note() if supervised else None
         if note:
+            crashed = note.get("reason") in ("crash", "hang")
             self.conv.notify(f"Avviso di sistema: {health.recovery_sentence(note, cfg.persona.address_as)} "
-                             f"Dillo all'utente in una frase.")
+                             f"Dillo all'utente in una frase.{self.after_crash() if crashed else ''}")
+        self._background(self._flush_reports())
         if problems:
             self.conv.notify("Avviso di sistema, problemi trovati all'avvio: " + " ".join(problems)
                              + " Riferiscili all'utente in breve.")
@@ -383,10 +385,65 @@ class Jarvis:
         self.gmail = gmail.Gmail(paths.data_path("gmail"), Path.home() / "Downloads",
                                  notify=lambda text: self.conv and self.conv.notify(text),
                                  show_form=lambda: self.bus.emit("gmail_form"))
-        return Apps([wa, gmail.build(self.gmail), games.build(games.Library(games.steam_path()))], may=may,
+        reports = feedback.build_app(self.make_report, self.deliver_report, self._reports_ready)
+        return Apps([wa, gmail.build(self.gmail), games.build(games.Library(games.steam_path())), reports], may=may,
                     turns=lambda: self.conv.user_turns if self.conv else 0,
                     last_text=lambda: self.conv.last_user_text if self.conv else "",
                     confirm=lambda: cfg.safety.confirm_destructive)
+
+    # ------------------------------------------------------------ segnalazioni agli sviluppatori
+
+    def _reports_ready(self) -> str | None:
+        return None if self.store.config.system.feedback_url else "le segnalazioni non sono ancora attive in questa versione"
+
+    def make_report(self, kind: str, description: str = "") -> feedback.Report:
+        """Il rapporto ripulito (jarvis/feedback.py): con "caduta" quello dell'ultima caduta del guardiano."""
+        try:
+            version = ".".join(map(str, updates.current_version()))
+        except (OSError, ValueError, KeyError):
+            version = "?"
+        return feedback.build(kind, description, cfg=self.store.config,
+                              crash_file=feedback.latest_crash() if kind == "caduta" else None,
+                              diary_lines=feedback.diary_summary(self.diary), version=version)
+
+    async def deliver_report(self, report: feedback.Report) -> str:
+        """Manda; senza rete la tiene e riprova al prossimo avvio. -> la frase per l'utente."""
+        try:
+            number = await feedback.send(report, self.store.config.system.feedback_url)
+        except feedback.SendError as e:
+            if not self.store.config.system.feedback_url:
+                return f"Non l'ho mandata: {e}."
+            await asyncio.to_thread(feedback.Outbox().put, report)
+            log.warning("segnalazione non partita (%s): riprovo al prossimo avvio", e)
+            return f"Non sono riuscito a mandarla adesso ({e}): la tengo e riprovo al prossimo avvio."
+        log.info("segnalazione mandata%s", f": numero {number}" if number else "")
+        return (f"Segnalazione mandata agli sviluppatori{f' (numero {number})' if number else ''}: la guarderanno "
+                f"per correggere il problema.")
+
+    def after_crash(self) -> str:
+        """Dopo una caduta (system.crash_reports): cosa aggiungere all'avviso della ripresa."""
+        sysc = self.store.config.system
+        if sysc.crash_reports == "mai" or not sysc.feedback_url or feedback.latest_crash() is None:
+            return ""
+        if sysc.crash_reports == "sempre":
+            self._background(self._send_crash_report())
+            return (" Il rapporto tecnico della caduta parte da solo verso gli sviluppatori, ripulito dai dati personali "
+                    "(impostazione rapporti_cadute): diglielo in mezza frase.")
+        return (" Poi, per chiedere se vuole mandare agli sviluppatori il rapporto tecnico della caduta, chiama usa_app "
+                "con app segnalazioni, azione manda e tipo caduta, e fagli la domanda che ricevi: parte solo con un sì.")
+
+    async def _send_crash_report(self) -> None:
+        with contextlib.suppress(Exception):  # una segnalazione non deve mai disturbare Jarvis
+            report = await asyncio.to_thread(self.make_report, "caduta")
+            log.info("rapporto della caduta: %s", await self.deliver_report(report))
+
+    async def _flush_reports(self) -> None:
+        """Le segnalazioni rimaste indietro per la rete: ripartono adesso."""
+        url = self.store.config.system.feedback_url
+        if url and feedback.Outbox().waiting():
+            with contextlib.suppress(Exception):
+                if n := await feedback.Outbox().flush(url):
+                    log.info("segnalazioni rimaste indietro: %d partite", n)
 
     def _build_media(self) -> MediaWatcher:
         """Guardare video e ascoltare audio (jarvis/media): le orecchie di Jarvis per il parlato, WhatsApp per i suoi

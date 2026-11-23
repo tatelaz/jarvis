@@ -56,9 +56,15 @@ canvas.scene { position: absolute; inset: 0; width: 100%; height: 100%; }
 .entry.sys .txt { color: var(--need, #ffb547); font-size: .92em; }
 .entry.err .txt { color: var(--bad, #ff6b6b); font-size: .92em; }
 .entry.guest .who { color: var(--need, #ffb547); }
-#security, #gmail-box { margin: 0 20px 18px; padding-top: 12px; border-top: 1px solid var(--hair); font: 12px/1.5 var(--mono); color: var(--dim); }
-#security summary, #gmail-box summary { cursor: pointer; font: 500 10px/1 var(--cond); letter-spacing: .3em; text-transform: uppercase; color: var(--faint); }
-#security p, #gmail-box p { margin: 10px 0; }
+#security, #gmail-box, #report-box { margin: 0 20px 18px; padding-top: 12px; border-top: 1px solid var(--hair); font: 12px/1.5 var(--mono); color: var(--dim); }
+#security summary, #gmail-box summary, #report-box summary { cursor: pointer; font: 500 10px/1 var(--cond); letter-spacing: .3em; text-transform: uppercase; color: var(--faint); }
+#security p, #gmail-box p, #report-box p { margin: 10px 0; }
+#report-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#report-form textarea { flex: 1 1 100%; min-width: 0; resize: vertical; background: transparent; border: 1px solid var(--hair); color: var(--ink); padding: 7px 9px; font: inherit; }
+#report-form label { flex: 1 1 auto; display: flex; gap: 6px; align-items: center; }
+#report-form button { background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer; padding: 6px 12px; font: inherit; }
+#report-form button:disabled { opacity: .4; cursor: default; }
+#report-preview { max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 10px 0 0; padding: 8px; border: 1px solid var(--hair); font: 11px/1.45 var(--mono); color: var(--dim); }
 #pass-form, #gmail-form { display: flex; flex-wrap: wrap; gap: 8px; }
 #pass-form input, #gmail-form input { flex: 1 1 140px; min-width: 0; background: transparent; border: 1px solid var(--hair); color: var(--ink); padding: 7px 9px; font: inherit; }
 #pass-form button, #gmail-form button { background: none; border: 1px solid var(--hair); color: var(--dim); cursor: pointer; padding: 0 12px; font: inherit; }

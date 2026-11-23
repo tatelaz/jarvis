@@ -119,6 +119,24 @@ class UiServer:
             except (ConnectionResetError, RuntimeError):
                 return
 
+    async def _report_preview(self, text: str, crash: bool) -> None:
+        why = self.app._reports_ready()
+        if why:
+            self._report = None
+            self.app.bus.emit("notice", kind="report_preview", info={"ok": False, "message": why.capitalize() + "."})
+            return
+        self._report = await asyncio.to_thread(self.app.make_report, "caduta" if crash else "segnalazione", text)
+        self.app.bus.emit("notice", kind="report_preview", info={"ok": True, "text": self._report.text})
+
+    async def _report_send(self) -> None:
+        report, self._report = getattr(self, "_report", None), None  # una volta sola: per rimandarla si rivede
+        if report is None:
+            message, ok = "Prima guarda cosa parte.", False
+        else:
+            message = await self.app.deliver_report(report)
+            ok = message.startswith("Segnalazione mandata")
+        self.app.bus.emit("notice", kind="report", info={"ok": ok, "message": message})
+
     async def _command(self, cmd: dict) -> None:
         conv = self.app.conv
         kind = cmd.get("cmd")
@@ -143,6 +161,10 @@ class UiServer:
         elif kind == "gmail_app_password":  # dalla finestra: la password non si scrive mai da nessuna parte
             result = await self.app.gmail_app_password(str(cmd.get("email", "")), str(cmd.get("value", "")))
             self.app.bus.emit("notice", kind="gmail", info={"ok": result == "ok", "message": result})
+        elif kind == "report_preview":  # dalla finestra: prima si vede il testo esatto, poi parte solo quello
+            await self._report_preview(str(cmd.get("text", "")), bool(cmd.get("crash")))
+        elif kind == "report_send":
+            await self._report_send()
         elif kind == "mute":
             self.app.pipeline.listener.enabled = not bool(cmd.get("muted"))
             self.app.bus.emit("muted", sticky=True, muted=bool(cmd.get("muted")))

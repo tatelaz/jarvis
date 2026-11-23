@@ -203,6 +203,14 @@ class Vetrina:
             ok = cmd.get("value", "").replace(" ", "") == "abcdefghijklmnop"
             await self.broadcast({"type": "notice", "kind": "gmail", "info": {
                 "ok": ok, "message": "ok" if ok else "Google non accetta indirizzo e password per le app"}})
+        elif kind == "report_preview":  # come il Jarvis vero: il testo esatto che partirà
+            self.report = f"**Segnalazione** da Jarvis\n\n### Cosa dice chi lo usa\n{cmd.get('text') or '(niente)'}" \
+                          f"{chr(10) + '- caduta: sì' if cmd.get('crash') else ''}"
+            await self.broadcast({"type": "notice", "kind": "report_preview", "info": {"ok": True, "text": self.report}})
+        elif kind == "report_send":
+            ok, self.report = bool(getattr(self, "report", None)), None
+            await self.broadcast({"type": "notice", "kind": "report", "info": {
+                "ok": ok, "message": "Segnalazione mandata agli sviluppatori (numero 7)." if ok else "Prima guarda cosa parte."}})
         elif kind == "text":
             await self.broadcast({"type": "user", "text": cmd.get("text", "")})
             self.spawn(self.say("Certamente, signore. Questa è una risposta di prova della vetrina."))
