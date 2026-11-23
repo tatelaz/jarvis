@@ -94,6 +94,25 @@ async function nameOf(raw) {
     return name;
 }
 
+// Dal 2026 quasi tutte le chat a due hanno un LID ("...@lid") al posto del numero, mentre la rubrica resta a numeri
+// ("...@c.us"): la stessa persona era la chat e il contatto, e Jarvis chiedeva "quale Bro?" tra tre "Bro" (23/11).
+// Per ogni LID si chiede il numero a WhatsApp una volta sola.
+const lidPhone = new Map();  // LID -> numero, senza "@c.us" ('' se WhatsApp non lo dice)
+
+async function phonesOf(ids) {
+    const todo = ids.filter((id) => !lidPhone.has(id));
+    if (todo.length) {
+        try {
+            const found = await client.getContactLidAndPhone(todo);  // stesso ordine degli id chiesti
+            todo.forEach((id, i) => {
+                const pn = found[i] && found[i].pn;
+                lidPhone.set(id, pn ? String(pn).split('@')[0] : '');
+            });
+        } catch { /* senza numeri le voci restano separate, come prima: la prossima volta si riprova */ }
+    }
+    return ids.map((id) => lidPhone.get(id) || '');
+}
+
 function chatInfo(c) {
     const last = c.lastMessage;
     return {
@@ -130,8 +149,15 @@ const ops = {
     }),
     directory: async () => {
         const chats = (await client.getChats()).map(chatInfo);
+        const people = chats.filter((c) => !c.group);
+        const lids = people.filter((c) => c.id.endsWith('@lid'));
+        const phones = await phonesOf(lids.map((c) => c.id));
+        lids.forEach((c, i) => { if (phones[i]) c.number = phones[i]; });
+        people.filter((c) => c.id.endsWith('@c.us')).forEach((c) => { c.number = c.id.split('@')[0]; });
+        const seen = new Set();  // WhatsApp Web dà lo stesso contatto anche due volte
         const contacts = (await client.getContacts())
             .filter((c) => c.isMyContact && !c.isGroup && c.id && c.id.server === 'c.us')
+            .filter((c) => !seen.has(ser(c.id)) && seen.add(ser(c.id)))
             .map((c) => ({ id: ser(c.id), name: c.name || c.pushname || c.number, pushname: c.pushname || '',
                 number: c.number }));
         return { chats, contacts };

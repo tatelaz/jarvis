@@ -497,12 +497,14 @@ class WhatsApp:
             return {"id": cid, "name": "+" + digits, "group": False}
         d = await self.directory()
         items, seen = [], set()
-        for c in d.get("chats") or []:
-            items.append({"id": c["id"], "name": c["name"], "group": bool(c.get("group"))})
-            seen.add(c["id"])
-        for c in d.get("contacts") or []:
-            if c["id"] not in seen:
-                items.append({"id": c["id"], "name": c["name"], "group": False})
+        # una voce per persona: la chat @lid e il contatto @c.us con lo stesso numero sono la stessa (23/11: tre "Bro");
+        # se una persona ha più chat vale la più recente, il contatto solo se di lei non c'è una chat
+        chats = sorted(d.get("chats") or [], key=lambda c: -(c.get("ts") or 0))
+        for c in [*chats, *(d.get("contacts") or [])]:
+            key = person_key(c)
+            if key not in seen:
+                seen.add(key)
+                items.append({"id": c["id"], "name": c["name"], "group": bool(c.get("group"))})
         if groups is not None:
             items = [c for c in items if c["group"] == groups]
         return pick_by_name(q, items, lambda c: c["name"], plural="chat", empty="quale chat?",
@@ -518,6 +520,17 @@ class WhatsApp:
         # chi scrive sì, il testo no: ad alta voce lo sentirebbe chiunque è nella stanza
         self.notify(f"Nuovo messaggio WhatsApp da {who}{where}. Dillo in una frase, senza leggerlo: lo leggi solo se "
                     "l'utente te lo chiede (usa_app whatsapp leggi).")
+
+
+def person_key(c: dict) -> str:
+    """Chi è una voce della rubrica: il numero se si sa, altrimenti l'id. Per un id @c.us il numero è l'id stesso: il
+    campo "number" dei contatti a volte è il LID (14 cifre, visto il 23/11); una chat @lid lo riceve dal ponte.
+    I gruppi restano il loro id."""
+    cid = str(c.get("id") or "")
+    if c.get("group"):
+        return cid
+    number = cid.split("@")[0] if cid.endswith("@c.us") else re.sub(r"\D", "", str(c.get("number") or ""))
+    return "+" + number if number else cid
 
 
 # ---------------------------------------------------------------------- come si dicono i messaggi

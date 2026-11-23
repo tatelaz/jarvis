@@ -1115,6 +1115,15 @@ MUTATIONS = [
     ('jarvis/brain/router.py', '                               kind=first_error.kind if first_error else "")',
      '                               kind="")', 'tests/test_claude_access.py',
      'accesso: il motivo resta anche senza cervello di riserva'),
+    ('jarvis/apps/whatsapp.py', '    number = cid.split("@")[0] if cid.endswith("@c.us") else re.sub(r"\\D", "", str(c.get("number") or ""))',
+     '    number = re.sub(r"\\D", "", str(c.get("number") or ""))', 'tests/test_whatsapp.py',
+     "whatsapp: per un id @c.us vale il numero dell'id, non il campo number (a volte è il LID)"),
+    ('jarvis/apps/whatsapp.py', '        for c in [*chats, *(d.get("contacts") or [])]:\n            key = person_key(c)\n',
+     '        for c in [*chats, *(d.get("contacts") or [])]:\n            key = c["id"]\n', 'tests/test_whatsapp.py',
+     'whatsapp: una voce per persona (chat @lid e contatto @c.us uniti, contatti doppi tolti)'),
+    ('jarvis/apps/whatsapp.py', '        chats = sorted(d.get("chats") or [], key=lambda c: -(c.get("ts") or 0))',
+     '        chats = d.get("chats") or []', 'tests/test_whatsapp.py',
+     'whatsapp: di una persona con più chat vale la più recente'),
 ]
 
 

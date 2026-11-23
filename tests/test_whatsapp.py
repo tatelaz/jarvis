@@ -567,6 +567,29 @@ async def test_resolve_names_numbers_and_me(wa, said, found):
     assert (await wa.wa.resolve(said))["id"] == found
 
 
+async def test_one_person_is_one_entry_even_with_a_lid_chat(wa, monkeypatch):
+    """23/11: "più chat corrispondono a 'Bro': Bro, Bro, Bro". Dal 2026 le chat a due hanno un LID (@lid) e la rubrica
+    i numeri (@c.us); WhatsApp Web dà pure lo stesso contatto due volte. Il ponte dice il numero dietro il LID."""
+    bro_chat = {"id": "88990011@lid", "number": "393337778888", "name": "Bro", "group": False, "ts": NOW - 60}
+    bro = {"id": "393337778888@c.us", "name": "Bro", "number": "12345678901234"}  # "number" a volte è il LID
+    old_chat = {"id": "393337778888@c.us", "name": "Bro", "group": False, "ts": NOW - 900000}  # la chat di prima
+    twins = [{"id": "77@lid", "number": "393330000001", "name": "Matteo", "group": False, "ts": NOW - 5},
+             {"id": "393330000002@c.us", "name": "Matteo", "number": "393330000002"}]  # due persone diverse
+    no_number = {"id": "55@lid", "name": "Nonno", "group": False, "ts": NOW - 7}  # il ponte non sa il numero
+    monkeypatch.setattr(sys.modules[__name__], "CHATS", [*CHATS, old_chat, bro_chat, twins[0], no_number])
+    monkeypatch.setattr(sys.modules[__name__], "CONTACTS", [*CONTACTS, bro, bro, twins[1],
+                                                            {"id": "393339990000@c.us", "name": "Nonno"}])
+    linked(wa)
+    await wa.wa.ensure()
+    assert (await wa.wa.resolve("bro"))["id"] == "88990011@lid"  # una sola: la chat più recente di quella persona
+    with pytest.raises(AppError, match=r"più chat corrispondono a 'matteo': Matteo, Matteo\. Chiedi quale\."):
+        await wa.wa.resolve("matteo")  # due persone vere con lo stesso nome: si chiede ancora
+    with pytest.raises(AppError, match="più chat corrispondono a 'nonno'"):
+        await wa.wa.resolve("nonno")  # senza il numero non si può sapere se sono la stessa persona: si chiede
+    assert W.person_key({"id": "120363@g.us", "group": True, "number": "39"}) == "120363@g.us"
+    assert W.person_key({"id": "1@lid", "number": "+39 333 777 8888"}) == "+393337778888"
+
+
 async def test_resolve_asks_when_unsure(wa):
     linked(wa)
     await wa.wa.ensure()
