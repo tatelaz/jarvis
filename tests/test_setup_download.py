@@ -317,6 +317,19 @@ async def test_archive_is_extracted_checked_and_removed(server, downloader, tmp_
     assert not await downloader.is_done(f)  # qualcuno ha tolto il motore: va rimesso
 
 
+async def test_an_extracted_engine_is_recognised_even_with_new_data(server, downloader, tmp_path):
+    """Dati nuovi (cancellati, o una copia di prova) e motore già estratto: niente download né estrazione sopra.
+    Il 22/11 una prova così ha riscritto il motore di tutti i giorni."""
+    f = archive(server, "motore.zip", {"server.exe": b"exe"})
+    await downloader.run([f])
+    fresh = dl.Downloader(downloader.roots, tmp_path / "dati_nuovi" / "scaricati.json")
+    assert await fresh.is_done(f)
+    await fresh.run([f])
+    assert len(server.requests("motore.zip")) == 1  # solo il primo download
+    other = archive(server, "motore2.zip", {"server.exe": b"nuovo"})  # un'altra versione nello stesso posto
+    assert not await fresh.is_done(other)  # quella si scarica e si estrae, come prima
+
+
 async def test_archive_without_the_expected_file_fails(server, downloader):
     f = archive(server, "motore.zip", {"altro.exe": b"exe"})
     with pytest.raises(dl.DownloadError, match="manca"):

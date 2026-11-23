@@ -33,6 +33,7 @@ CHUNK = 1 << 20
 BACKOFF_S = (1, 2, 5, 10, 20, 30)  # attese tra un tentativo e l'altro
 GONE = {401, 403, 404, 410}  # inutile riprovare: il file non c'è (o non è per noi)
 USER_AGENT = "Jarvis-setup"
+EXTRACTED_MARK = ".jarvis-estratti.json"  # nella cartella estratta: quali archivi ci sono già
 
 
 class DownloadError(RuntimeError):
@@ -121,8 +122,32 @@ class Downloader:
         """Il file (o l'archivio, già estratto) è a posto?"""
         if f.unzip_to:
             known = self._state().get(f.sha256) or {}
-            return bool(known.get("extracted")) and self.target(f.check).exists()
+            return (bool(known.get("extracted")) or self._marked(f)) and self.target(f.check).exists()
         return await self.on_disk(f)
+
+    # Il registro dei download sta nei dati; questo segno sta accanto ai file estratti. Con dati nuovi e motore già
+    # estratto (dati cancellati, una copia di prova) l'archivio non si riscarica e non si riestrae sopra: il 22/11 una
+    # prova così ha riscritto il motore di tutti i giorni (per fortuna con la stessa versione).
+    def _mark_path(self, f: File) -> Path:
+        return self.target(f.unzip_to) / EXTRACTED_MARK
+
+    def _marked(self, f: File) -> bool:
+        try:
+            return f.sha256 in json.loads(self._mark_path(f).read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            return False
+
+    def _mark(self, f: File) -> None:
+        path = self._mark_path(f)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = {}
+        data = data if isinstance(data, dict) else {}
+        data[f.sha256] = f.dest
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
+        os.replace(tmp, path)
 
     async def on_disk(self, f: File) -> bool:
         """Il file scaricato è al suo posto, con misura e impronta giuste?"""
@@ -254,6 +279,7 @@ class Downloader:
         if f.check and not self.target(f.check).exists():
             raise DownloadError(f"{f.dest}: dopo l'estrazione manca {f.check}", permanent=True)
         self._remember(f, extracted=True)
+        self._mark(f)
         with contextlib.suppress(OSError):
             archive.unlink()
 
