@@ -4,6 +4,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -55,6 +57,28 @@ def test_the_real_project_installed_becomes_a_clean_repository(tmp_path):
     assert out.what == "creato" and out.commit == head.strip()
     status = subprocess.run(["git", "status", "--porcelain"], cwd=app, capture_output=True, text=True, check=True)
     assert status.stdout == ""
+
+
+def test_the_visual_cpp_runtime_goes_in_and_never_an_old_one(tmp_path):
+    """Senza msvcp140.dll onnxruntime e soxr non si caricano (Windows Sandbox, 23/11): l'installatore lo porta in
+    tools/vcrt (jarvis/vcrt.py), ma mai uno più vecchio della 14.40, con cui onnxruntime si pianta."""
+    from jarvis import vcrt
+
+    src = tmp_path / "System32"
+    src.mkdir()
+    for n in ("vcruntime140.dll", "msvcp140.dll", "msvcp140_1.dll", "kernel32.dll"):
+        (src / n).write_bytes(b"MZ")
+    n = build_installer.runtime_files(tmp_path / "vcrt", src, version=lambda p: (14, 51, 36247, 0))
+    assert n == 3 and sorted(p.name for p in (tmp_path / "vcrt").iterdir()) == [
+        "msvcp140.dll", "msvcp140_1.dll", "vcruntime140.dll"]  # solo la famiglia di Visual C++
+    for old in ((14, 38, 33135, 0), None):
+        with pytest.raises(SystemExit, match=r"14\.40"):
+            build_installer.runtime_files(tmp_path / "vecchio", src, version=lambda p, v=old: v)
+    assert not (tmp_path / "vecchio").exists()
+    assert set(vcrt.FILES) >= {"msvcp140.dll", "msvcp140_1.dll", "vcruntime140_1.dll"}  # quelle che onnxruntime chiede
+    files = ISS[ISS.index("[Files]"):ISS.index("[Icons]")]
+    assert r'Source: "{#Staging}\tools\vcrt\*"; DestDir: "{app}\tools\vcrt"' in files
+    assert r'Name: "{app}\tools"' in ISS[ISS.index("[UninstallDelete]"):]  # e se ne va con la disinstallazione
 
 
 def test_version_comes_from_the_project():

@@ -53,7 +53,10 @@ async def main(console: bool, window: bool, setup: bool = False) -> int:
     from . import toolbox
     from .config import ConfigStore
     from .setup import flow
+    from .vcrt import LOADED
 
+    if LOADED:  # caricate da jarvis/__init__.py: il PC non aveva il runtime di Visual C++ (o l'aveva più vecchio)
+        logging.getLogger("jarvis").info("runtime di Visual C++ preso da tools/vcrt: %s", ", ".join(LOADED))
     toolbox.use_downloaded_tools()  # OpenCode, Node.js e Git scaricati dal primo avvio, se il PC non li aveva
 
     missing = flow.missing_files(ConfigStore().config)

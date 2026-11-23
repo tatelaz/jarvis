@@ -2,6 +2,8 @@
 sono inventate, l'installatore non parte mai (si guarda solo il comando che partirebbe)."""
 
 import json
+import os
+import shutil
 import subprocess
 
 import pytest
@@ -442,3 +444,18 @@ def test_the_git_helper(tmp_path):
     assert "UV_PYTHON_INSTALL_DIR" in script and str(root / "tools" / "python").replace("'", "''") in script
     with pytest.raises(ValueError):
         U.git_helper_command([1], root, "HEAD; Remove-Item", "git", False, tmp_path / "a.log", tmp_path / "p.exe")
+
+
+@pytest.mark.skipif(os.name != "nt" or not shutil.which("git"), reason="serve Windows con Git")
+def test_the_git_helper_log_is_readable_and_has_the_git_errors(tmp_path):
+    """Davvero, con PowerShell 5.1: nella Sandbox il registro usciva in UTF-16 (con *>>) e non si leggeva."""
+    root = tmp_path / "Jarvis è qui"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    log_file = tmp_path / "aggiornamento.log"
+    cmd = U.git_helper_command([], root, COMMIT, shutil.which("git"), False, log_file, tmp_path / "manca.exe")
+    subprocess.run(cmd, capture_output=True, timeout=120)
+    raw = log_file.read_bytes()
+    assert b"\x00" not in raw  # niente UTF-16
+    text = raw.decode("utf-8-sig")
+    assert "--- aggiornamento" in text and COMMIT in text  # l'errore di git (commit che non c'è) è nel registro

@@ -64,6 +64,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "{#Staging}\app\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "{#Staging}\tools\uv.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+; il runtime di Visual C++ per i PC che non l'hanno (jarvis/vcrt.py): senza, onnxruntime e soxr non si caricano
+Source: "{#Staging}\tools\vcrt\*"; DestDir: "{app}\tools\vcrt"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\Jarvis"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\avvia_jarvis.pyw"""; WorkingDir: "{app}"; IconFilename: "{app}\jarvis\ui\jarvis.ico"

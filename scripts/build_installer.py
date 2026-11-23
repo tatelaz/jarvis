@@ -1,7 +1,8 @@
 """Costruisce l'installatore di Jarvis (build/Jarvis-Setup-<versione>.exe) con Inno Setup.
 
 Mette insieme in build/installer: il codice (solo i file del repository, con `git archive`: niente dati, modelli o
-cartelle private), uv e le immagini della procedura in stile Monolite, disegnate da Chrome dall'icona. Poi compila
+cartelle private), uv, il runtime di Visual C++ (jarvis/vcrt.py: preso dalla cartella di sistema di chi costruisce, o
+da JARVIS_VCRT) e le immagini della procedura in stile Monolite, disegnate da Chrome dall'icona. Poi compila
 installer/jarvis.iss. Serve Inno Setup 6 (ISCC.exe) e, per le immagini, il gruppo dev (Playwright e Chrome).
 Uso: python scripts/build_installer.py [--iscc percorso\\ISCC.exe]
 """
@@ -20,6 +21,7 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))  # per jarvis.vcrt
 BUILD = ROOT / "build"
 STAGING = BUILD / "installer"
 # niente da lasciare fuori: la copia installata diventa un repository git (jarvis/localrepo.py) e deve coincidere con il
@@ -70,6 +72,28 @@ def find_uv() -> Path:
     return Path(found)
 
 
+def runtime_files(dest: Path, source: Path | None = None, version=None) -> int:
+    """Le librerie di Visual C++ per i PC che non le hanno (jarvis/vcrt.py), in tools/vcrt: sono "codice
+    ridistribuibile" di Microsoft, le stesse che installa il Visual C++ Redistributable. Mai più vecchie della 14.40."""
+    from jarvis import vcrt
+
+    source = source or Path(os.environ.get("JARVIS_VCRT") or vcrt.system_dir())
+    version = version or vcrt.file_version
+    v = version(source / "msvcp140.dll")
+    if v is None or v[:2] < vcrt.MIN_VERSION:
+        need = ".".join(map(str, vcrt.MIN_VERSION))
+        raise SystemExit(f"runtime di Visual C++ in {source}: serve msvcp140.dll {need} o più nuovo (trovato "
+                         f"{'.'.join(map(str, v)) if v else 'niente'}): installa il Visual C++ Redistributable o "
+                         f"indica JARVIS_VCRT")
+    dest.mkdir(parents=True, exist_ok=True)
+    n = 0
+    for name in vcrt.FILES:
+        if (source / name).is_file():
+            shutil.copy2(source / name, dest / name)
+            n += 1
+    return n
+
+
 def images(dest: Path) -> None:
     """Le immagini della procedura: nero, l'icona e la scritta, come la Monolite."""
     from PIL import Image
@@ -117,6 +141,7 @@ def main(argv: list[str] | None = None) -> int:
     bundle = history(STAGING / "app" / BUNDLE)
     (STAGING / "tools").mkdir(parents=True)
     shutil.copy2(find_uv(), STAGING / "tools" / "uv.exe")
+    runtime_files(STAGING / "tools" / "vcrt")
     images(STAGING / "images")
     ver = version()
     subprocess.run([str(iscc), f"/DAppVersion={ver}", f"/DStaging={STAGING}", f"/DOutputDir={BUILD}",

@@ -183,16 +183,18 @@ def git_helper_command(pids: list[int], root: Path, commit: str | None, git: str
     senza unire: --ff-only), rimette le librerie di uv.lock (anche gli strumenti per le prove, se c'erano) e riaccende.
     Un passo che fallisce non tocca il resto: alla ripartenza Jarvis dice com'è andata (jarvis/updates.py)."""
     waits = "; ".join(f"Wait-Process -Id {int(p)} -Timeout 300 -ErrorAction SilentlyContinue" for p in pids)
-    log = _ps(log_file)
+    # nel registro tutto in UTF-8: con *>> PowerShell 5.1 scriverebbe in UTF-16 e il registro non si leggerebbe
+    # (visto nella Sandbox il 23/11); 2>&1 perché anche gli errori di git e uv ci finiscano
+    to_log = f"2>&1 | ForEach-Object {{ \"$_\" }} | Out-File -Append -Encoding utf8 {_ps(log_file)}"
     steps = [waits, f"Set-Location {_ps(root)}",
-             f"('--- aggiornamento ' + (Get-Date -Format s)) | Out-File -Append -Encoding utf8 {log}"]
+             f"('--- aggiornamento ' + (Get-Date -Format s)) | Out-File -Append -Encoding utf8 {_ps(log_file)}"]
     if commit:
         if not re.fullmatch(r"[0-9a-f]{40}", commit):
             raise ValueError("commit non valido")
-        steps.append(f"& {_ps(git)} merge --ff-only {commit} *>> {log}")
+        steps.append(f"& {_ps(git)} merge --ff-only {commit} {to_log}")
     steps += [f"$env:UV_PYTHON_INSTALL_DIR = {_ps(root / 'tools' / 'python')}", "$env:UV_LINK_MODE = 'copy'",
               f"& {_ps(root / 'tools' / 'uv.exe')} sync --frozen{'' if dev else ' --no-dev'} "
-              f"--python-preference only-managed *>> {log}",
+              f"--python-preference only-managed {to_log}",
               f"Start-Process -FilePath {_ps(pythonw)} -ArgumentList {_ps(chr(34) + str(root / 'avvia_jarvis.pyw') + chr(34))}"
               f" -WorkingDirectory {_ps(root)}"]
     return ["powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", "; ".join(steps)]
