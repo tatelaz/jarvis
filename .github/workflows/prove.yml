@@ -25,4 +25,4 @@ jobs:
       - name: Stile
         run: uv run ruff check jarvis tests scripts
       - name: Prove
-        run: uv run pytest -q -m "not engine and not claude and not hardware and not desktop" -W error -p no:cacheprovider
+        run: uv run python -m pytest -q -m "not engine and not claude and not hardware and not desktop" -W error -p no:cacheprovider  # con -m, come scripts/check.sh: la cartella del progetto è nei percorsi di Python

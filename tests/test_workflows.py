@@ -18,6 +18,7 @@ def test_every_commit_runs_the_same_checks_as_check_sh():
     check = (ROOT / "scripts" / "check.sh").read_text(encoding="utf-8")
     markers = re.search(r'-m "([^"]+)"', check)[1]
     assert f'-m "{markers}"' in flow and "-W error" in flow and "ruff check jarvis tests scripts" in flow
+    assert "uv run python -m pytest" in flow  # "uv run pytest" non trova jarvis: provato su GitHub il 24/11
     assert "windows-latest" in flow and "uv sync --frozen" in flow and "fetch-depth: 0" in flow
 
 

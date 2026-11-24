@@ -161,10 +161,9 @@ nuova installazione li ritrova.
   solo processore impiegherebbe circa 13 secondi a frase. Il primo avvio lo dice prima di scaricare qualsiasi cosa.
 - Provato solo su Windows 11 e su pochi PC.
 - Parla solo italiano e inglese.
-- L'installatore non è firmato. Un certificato per firmare i programmi costa circa 200 € l'anno, che questo progetto
-  non ha. Quando il progetto sarà pubblico chiederò la firma gratuita di [SignPath Foundation](https://signpath.org/),
-  che la offre ai progetti open source. Intanto ogni release riporta l'impronta SHA-256 dell'installatore, così puoi
-  controllare che sia proprio quello pubblicato.
+- L'installatore non è ancora firmato (vedi [Firma del codice](#firma-del-codice-code-signing-policy)). Intanto ogni
+  release ha le impronte SHA-256 dei suoi file (`SHA256SUMS.txt`), così puoi controllare che siano proprio quelli
+  pubblicati.
 
 ## Sviluppo
 
@@ -186,12 +185,33 @@ dell'hardware; quelle che ne hanno bisogno hanno i marcatori `engine`, `claude`,
 `python scripts/mutation_check.py` inserisce di proposito dei difetti nel codice e controlla che le prove se ne
 accorgano: un controllo che resta verde con un difetto dentro non protegge niente.
 
+Ogni commit passa dalle stesse prove su GitHub Actions ([prove.yml](.github/workflows/prove.yml)). Una versione
+nuova si pubblica così: versione in `pyproject.toml`, note in `docs/versioni/X.Y.Z.md`, poi il tag `vX.Y.Z`; il
+resto (installatore, bundle per gli aggiornamenti, impronte, release) lo fa
+[installatore.yml](.github/workflows/installatore.yml).
+
 Per lavorare su una copia senza toccare quella che usi tutti i giorni vedi
 [Copia di prova](docs/ARCHITETTURA.md#copia-di-prova). Gli altri documenti:
 
 - [docs/ARCHITETTURA.md](docs/ARCHITETTURA.md): com'è fatto e perché.
 - [docs/STATO.md](docs/STATO.md): cosa funziona, le misure, i problemi già incontrati, i prossimi passi.
 - [docs/GMAIL.md](docs/GMAIL.md): come collegare Gmail.
+
+## Firma del codice (Code signing policy)
+
+Un certificato per firmare i programmi costa circa 200 € l'anno, che questo progetto non ha. La firma gratuita che
+[SignPath Foundation](https://signpath.org/) offre ai progetti open source si chiede dopo la prima release: finché non
+arriva, l'installatore non è firmato e Windows mostra "PC protetto". Se la concedono, qui comparirà: *Free code signing
+provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org)*.
+
+- L'installatore si costruisce solo su GitHub Actions, dal codice di questo repository e dal tag della versione
+  ([.github/workflows/installatore.yml](.github/workflows/installatore.yml)), mai su un PC.
+- Ruoli: autore, revisore (ogni modifica proposta da altri passa da una revisione) e approvatore delle firme:
+  [tatelaz](https://github.com/tatelaz).
+- Privacy: Jarvis non manda niente ad altri sistemi se non quello descritto in
+  [Cosa resta sul PC e cosa esce](#cosa-resta-sul-pc-e-cosa-esce), che l'installatore mostra prima di installare; ciò
+  che parte da solo (il controllo delle versioni nuove, i rapporti delle cadute se li vuoi automatici) si spegne a
+  voce.
 
 ## Licenza
 
