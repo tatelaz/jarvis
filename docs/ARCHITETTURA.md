@@ -386,6 +386,14 @@ la frase senza errori.
 
 ## Installatore (dal 21/11)
 
+Dal 24/11 l'installatore delle release si costruisce solo su GitHub Actions (`.github/workflows/installatore.yml`):
+con il tag `vX.Y.Z`, uguale alla versione di `pyproject.toml` e con le note in `docs/versioni/X.Y.Z.md`, costruisce
+installatore, bundle e `SHA256SUMS.txt` e crea la release (i nomi che cerca `jarvis/updates.py`). È la compilazione
+verificabile che chiede la firma gratuita di SignPath. Lanciato a mano costruisce soltanto. `prove.yml` fa ruff e la
+suite di `scripts/check.sh` a ogni commit, su Windows (con `python -m pytest`: `pytest` da solo non trova il modulo
+`jarvis`). Prima di installare l'installatore mostra l'informativa (`installer/privacy-it.txt`, `privacy-en.txt`,
+a capo CRLF per il riquadro di Windows) e porta nome e versione nelle proprietà del file.
+
 `installer/jarvis.iss` (Inno Setup 6) e `scripts/build_installer.py`, che mette insieme il codice dell'ultimo commit
 (`git archive`: niente dati, modelli o cartelle private; dal 23/11 anche `design/`, perché la copia installata deve
 coincidere con il commit), `uv`, il runtime di Visual C++ e le immagini della procedura in stile Monolite (disegnate

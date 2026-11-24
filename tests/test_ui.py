@@ -62,6 +62,12 @@ class Showcase:
         self.proc.wait(10)
 
 
+def windows_hiccup(text: str) -> bool:
+    """Windows che per un attimo non ha memoria per le connessioni (WSAENOBUFS): visto il 24/11 sui computer
+    condivisi di GitHub Actions, non c'entra con la finestra. Solo questo errore preciso; gli altri contano tutti."""
+    return text == "Failed to load resource: net::ERR_NO_BUFFER_SPACE"
+
+
 @contextlib.asynccontextmanager
 async def window(theme="mark3", scene="attesa"):
     v = Showcase(theme, scene)
@@ -74,7 +80,7 @@ async def window(theme="mark3", scene="attesa"):
         page = await browser.new_page(viewport={"width": 1060, "height": 720})
         errors: list[str] = []
         page.on("pageerror", lambda e: errors.append(str(e)))
-        page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+        page.on("console", lambda m: errors.append(m.text) if m.type == "error" and not windows_hiccup(m.text) else None)
         await page.goto(v.url + "/")
         await page.wait_for_function(f"document.body.dataset.theme === '{theme}' && window.JarvisCore.J.connected")
         try:

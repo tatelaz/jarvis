@@ -1288,6 +1288,18 @@ MUTATIONS = [
      'tests/test_feedback.py', 'segnalazioni: Jarvis si presenta con un nome suo (Cloudflare rifiuta urllib)'),
     ('servizi/segnalazioni/logica.js', '${why ? `: ${why}` : ""}', '', 'tests/test_feedback_server.py',
      'server delle segnalazioni: il motivo di GitHub arriva a Jarvis'),
+    # pubblicazione: informativa, GitHub Actions
+    ('installer/jarvis.iss', '; InfoBeforeFile: "privacy-en.txt"', '', 'tests/test_installer.py',
+     "pubblicazione: l'informativa sulla privacy anche in inglese"),
+    ('.github/workflows/installatore.yml', '          if ("v$v" -ne $env:TAG)', '          if ($false)',
+     'tests/test_workflows.py', 'pubblicazione: il tag è la versione del progetto'),
+    ('.github/workflows/installatore.yml', 'fetch-depth: 0  # il bundle', 'fetch-depth: 1  # il bundle',
+     'tests/test_workflows.py', "pubblicazione: il bundle dell'installatore ha tutta la storia"),
+    ('.github/workflows/prove.yml', 'run: uv run python -m pytest', 'run: uv run pytest', 'tests/test_workflows.py',
+     'pubblicazione: su GitHub le prove trovano il modulo jarvis'),
+    ('.github/workflows/installatore.yml', '          $v = $env:TAG.TrimStart("v")',
+     '          $v = "${{ github.ref_name }}".TrimStart("v")', 'tests/test_workflows.py',
+     'pubblicazione: il nome del tag non entra negli script'),
 ]
 
 

@@ -22,6 +22,16 @@ from jarvis.apps.base import Apps
 NOW = time.mktime((2026, 10, 27, 15, 0, 0, 0, 0, -1))
 TODAY = "Tue, 27 Oct 2026 14:32:00 +0100"
 YESTERDAY = "Mon, 26 Oct 2026 09:10:00 +0100"
+
+
+def hm(header: str) -> str:
+    """L'ora come la mostra Jarvis: nel fuso del PC (qui l'ora italiana, su GitHub UTC: lì "14:32" diventava 13:32)."""
+    from email.utils import parsedate_to_datetime
+
+    return parsedate_to_datetime(header).astimezone().strftime("%H:%M")
+
+
+H_TODAY, H_YESTERDAY = hm(TODAY), hm(YESTERDAY)
 ME = "andrea@gmail.com"
 SHOWN = "abcd efgh ijkl mnop"  # come la mostra Google
 PW = "abcdefghijklmnop"
@@ -498,8 +508,8 @@ async def test_a_dropped_connection_is_reopened_once(quick):
 async def test_unread_newest_first_then_read_without_marking_it_read(quick):
     await linked(quick)
     out = await quick.apps.use("gmail", "non_lette")
-    assert out == ("1. da Luca Bianchi: «Calcetto» (ieri 09:10) [da leggere]\n"
-                   "2. da Luca Rossi: «Riunione» (14:32) [da leggere]")
+    assert out == (f"1. da Luca Bianchi: «Calcetto» (ieri {H_YESTERDAY}) [da leggere]\n"
+                   f"2. da Luca Rossi: «Riunione» ({H_TODAY}) [da leggere]")
     read = await quick.apps.use("gmail", "leggi", {"mail": "2"})
     assert "la riunione è spostata a giovedì" in read and "Allegati: verbale.pdf (1 KB)" in read
     assert "Cc: giulia@verdi.it" in read

@@ -18,6 +18,16 @@ from jarvis.apps.base import Apps
 NOW = time.mktime((2026, 10, 27, 15, 0, 0, 0, 0, -1))
 TODAY = "Tue, 27 Oct 2026 14:32:00 +0100"
 YESTERDAY = "Mon, 26 Oct 2026 09:10:00 +0100"
+
+
+def hm(header: str) -> str:
+    """L'ora come la mostra Jarvis: nel fuso del PC (qui l'ora italiana, su GitHub UTC: lì "14:32" diventava 13:32)."""
+    from email.utils import parsedate_to_datetime
+
+    return parsedate_to_datetime(header).astimezone().strftime("%H:%M")
+
+
+H_TODAY, H_YESTERDAY = hm(TODAY), hm(YESTERDAY)
 ME = "andrea@gmail.com"
 
 
@@ -288,16 +298,16 @@ async def test_mail_is_only_for_the_owner(gm):
 async def test_unread_list_then_read_by_number(gm):
     link(gm)
     assert await gm.apps.use("gmail", "non_lette") == (
-        "1. da Luca Rossi: «Riunione» (14:32) [da leggere]\n"
-        "2. da Luca Bianchi: «Calcetto» (ieri 09:10) [da leggere]")
+        f"1. da Luca Rossi: «Riunione» ({H_TODAY}) [da leggere]\n"
+        f"2. da Luca Bianchi: «Calcetto» (ieri {H_YESTERDAY}) [da leggere]")
     out = await gm.apps.use("gmail", "leggi", {"mail": "1"})
     assert out.startswith('Da: "Luca Rossi" <luca@rossi.it>\nA: andrea@gmail.com\nCc: giulia@verdi.it\n'
-                          "Data: 14:32\nOggetto: Riunione\nAllegati: verbale.pdf (244 KB)\n\nCiao Andrea,")
+                          f"Data: {H_TODAY}\nOggetto: Riunione\nAllegati: verbale.pdf (244 KB)\n\nCiao Andrea,")
     assert "spostata a giovedì" in out
     assert "Caffè è pronto" in await gm.apps.use("gmail", "leggi", {"mail": "2"})  # charset latin-1
     assert not any(p.endswith("/modify") for _m, p, _b in gm.api.calls)  # leggere non segna come letta
     assert await gm.apps.use("gmail", "cerca", {"cosa": "from:amazon"}) == (
-        "1. da Amazon: «Il tuo ordine è stato spedito» (ieri 09:10)")
+        f"1. da Amazon: «Il tuo ordine è stato spedito» (ieri {H_YESTERDAY})")
     html = await gm.apps.use("gmail", "leggi", {"mail": "1"})  # "1" ora è la mail di Amazon (ultimo elenco)
     assert html.endswith("Ciao Andrea,\n\nil tuo ordine è in viaggio.\nArriva domani.")
     assert await gm.apps.use("gmail", "cerca", {"cosa": "zzz"}) == "nessuna mail per «zzz»"
@@ -307,8 +317,8 @@ async def test_unread_list_then_read_by_number(gm):
 async def test_conversation_labels_attachments(gm):
     link(gm)
     conv = await gm.apps.use("gmail", "conversazione", {"mail": "riunione"})
-    assert conv == ("[14:32] Luca Rossi: Ciao Andrea, la riunione è spostata a giovedì. Luca\n"
-                    f"[14:32] {ME}: Va bene, a giovedì.")
+    assert conv == (f"[{H_TODAY}] Luca Rossi: Ciao Andrea, la riunione è spostata a giovedì. Luca\n"
+                    f"[{H_TODAY}] {ME}: Va bene, a giovedì.")
     assert await gm.apps.use("gmail", "etichette") == "Lavoro (3 da leggere), posta in arrivo (3 da leggere), speciali"
     out = await gm.apps.use("gmail", "allegati", {"mail": "riunione"})
     saved = gm.downloads / "Gmail" / "verbale.pdf"
@@ -349,7 +359,7 @@ async def test_reply_and_reply_all_stay_in_the_thread(gm):
     msg, thread = gm.api.sent[-1]
     assert thread == "t1" and msg["Subject"] == "Re: Riunione" and msg["In-Reply-To"] == "<m1@rossi.it>"
     body = msg.get_body().get_content()
-    assert body.startswith("Perfetto, ci sarò.\n\nIl giorno 14:32") and "> la riunione è spostata" in body
+    assert body.startswith(f"Perfetto, ci sarò.\n\nIl giorno {H_TODAY}") and "> la riunione è spostata" in body
     assert msg["Cc"] is None
     ask, _ = await confirmed(gm, "rispondi", {"mail": "riunione", "testo": "ok", "tutti": "sì"})
     assert "e in copia giulia@verdi.it" in ask and ME not in ask.split("copia")[1]
