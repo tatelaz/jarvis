@@ -20,6 +20,8 @@ jobs:
         with:
           fetch-depth: 0  # le prove dell'installatore fanno il bundle di tutta la storia
       - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.0"  # lo stesso dell'installatore
       - name: Librerie
         run: uv sync --frozen
       - name: Stile

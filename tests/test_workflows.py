@@ -30,6 +30,11 @@ def test_the_installer_is_built_from_the_repository_and_released_with_what_the_u
     assert '"build/Jarvis-Setup-$v.exe" "build/Jarvis-$v.bundle"' in flow and "--verify-tag" in flow
     assert '"v$v" -ne $env:TAG' in flow and "docs/versioni/$v.md" in flow
     assert "contents: write" in flow and "GH_TOKEN: ${{ github.token }}" in flow
+    # uv fissato, lo stesso nei due flussi: l'ultima versione (0.13.9) è arrivata da sola nella 0.1.0 e, dentro Inno
+    # Setup, non preparava Python sul PC vero (provato il 24/11: la 0.10.0 sì, con e senza RedirectionGuard)
+    pins = [re.search(r'setup-uv@v6\n\s+with:\n(?:\s+#.*\n)*\s+version: "(\d+\.\d+\.\d+)"', read(f)) for f in
+            ("installatore.yml", "prove.yml")]
+    assert all(pins) and pins[0][1] == pins[1][1] == "0.10.0"
 
 
 def test_no_value_from_github_goes_straight_into_a_script():

@@ -24,6 +24,11 @@ jobs:
         with:
           fetch-depth: 0  # il bundle porta tutta la storia: la copia installata ne fa il suo repository
       - uses: astral-sh/setup-uv@v6
+        with:
+          # l'installatore porta questo uv: sempre lo stesso, cambiato solo apposta e riprovato in un installatore vero
+          # su un PC senza amministratore. La 0.13.9, presa da sola nella 0.1.0, dentro Inno Setup non preparava Python
+          # (si inciampava nella sua junction in tools\python: errore 448); la 0.10.0, quella di uv.lock, sì
+          version: "0.10.0"
       - name: Librerie (anche Playwright, per le immagini della procedura)
         run: uv sync --frozen
       - name: Inno Setup

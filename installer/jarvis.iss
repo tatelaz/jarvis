@@ -82,7 +82,7 @@ Name: "{autoprograms}\Jarvis"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Para
 Name: "{autodesktop}\Jarvis"; Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\avvia_jarvis.pyw"""; WorkingDir: "{app}"; IconFilename: "{app}\jarvis\ui\jarvis.ico"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\avvia_jarvis.pyw"""; WorkingDir: "{app}"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\.venv\Scripts\pythonw.exe"; Parameters: """{app}\avvia_jarvis.pyw"""; WorkingDir: "{app}"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent; Check: LibrariesReady
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\.git"
@@ -116,6 +116,12 @@ begin
   if not Exec(ExpandConstant('{cmd}'), Cmd, ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, Code) then
     Code := -1;
   Result := Code;
+end;
+
+{ "Avvia Jarvis" solo se Python e le librerie ci sono: senza, Windows diceva solo che il file non esiste (24/11) }
+function LibrariesReady(): Boolean;
+begin
+  Result := FileExists(ExpandConstant('{app}\.venv\Scripts\pythonw.exe'));
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

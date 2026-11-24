@@ -202,3 +202,46 @@ async def main():
 
 asyncio.run(main())
 '''
+
+
+FIRST_START = Policy(backoff_s=(0.01,), crashes_for_rollback=3, heartbeat_timeout_s=1.0, startup_grace_s=1.0,
+                     poll_s=0.05)
+
+
+def test_a_long_first_start_keeps_beating_and_is_not_killed(tmp_path):
+    """Il primo avvio dura minuti (download dei modelli): il guardiano lo credeva bloccato, lo chiudeva dopo 3 minuti e
+    alla terza volta si arrendeva (24/11, la prima installazione vera). Qui "scarica" il triplo dell'attesa."""
+    root = Path(__file__).resolve().parents[1]
+    script = f'''
+import asyncio, os, sys, pathlib
+sys.path.insert(0, r"{root}")
+from jarvis.__main__ import early_heartbeat
+async def main():
+    beat = early_heartbeat(pathlib.Path(r"{tmp_path / 'state'}"), interval_s=0.2)
+    await asyncio.sleep(3.0)
+    beat.cancel()
+asyncio.run(main())
+'''
+    sup = make(tmp_path, script, FIRST_START)
+    assert sup.run() == 0 and sup.restarts == 0 and sup.outcome == "chiuso"
+    assert json.loads((tmp_path / "state" / health.HEARTBEAT).read_text(encoding="utf-8"))["status"] == "avvio"
+
+
+def test_without_the_guardian_there_is_no_early_beat(monkeypatch):
+    import asyncio
+
+    from jarvis import __main__ as main_module
+
+    monkeypatch.delenv("JARVIS_SUPERVISED", raising=False)
+    assert asyncio.run(asyncio.to_thread(main_module.early_heartbeat)) is None
+
+
+def test_the_early_beat_starts_before_the_first_start_and_stops_after_jarvis_beats():
+    import inspect
+
+    from jarvis import __main__ as main_module
+
+    main, run = inspect.getsource(main_module.main), inspect.getsource(main_module._run)
+    assert main.index("early_heartbeat()") < main.index("_run(")
+    assert run.index("run_setup(") < run.index("await app.start()") < run.index("early.cancel()")
+

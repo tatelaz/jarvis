@@ -1,6 +1,6 @@
 [project]
 name = "jarvis"
-version = "0.1.0"
+version = "0.1.1"
 description = "Assistente personale vocale in stile JARVIS: voce locale, cervello Claude o locale, sotto-agenti, memoria, browser e computer use."
 requires-python = ">=3.12,<3.13"
 dependencies = [

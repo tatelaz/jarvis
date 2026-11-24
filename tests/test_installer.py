@@ -134,3 +134,11 @@ def test_name_and_version_are_written_in_the_setup_file():
     for line in ("VersionInfoVersion={#AppVersion}", "VersionInfoProductName=Jarvis",
                  "VersionInfoProductVersion={#AppVersion}", "AppPublisherURL=https://github.com/tatelaz/jarvis"):
         assert line in setup
+
+
+def test_jarvis_is_offered_only_if_python_is_ready():
+    run = ISS[ISS.index("[Run]"):ISS.index("[UninstallDelete]")]
+    assert "Check: LibrariesReady" in run
+    code = ISS[ISS.index("function LibrariesReady"):]
+    assert "FileExists(ExpandConstant('{app}\\.venv\\Scripts\\pythonw.exe'))" in code[:200]
+

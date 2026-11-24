@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import contextlib
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -33,6 +34,18 @@ async def _console(app) -> None:
             print(f"         [{t}] { {k: v for k, v in ev.items() if k not in ('type', 'ts')} }")
 
 
+def early_heartbeat(state_dir: Path | None = None, interval_s: float = 5.0) -> asyncio.Task | None:
+    """Il battito per il guardiano già dall'inizio, finché non parte quello di Jarvis acceso (dentro app.start). Il
+    primo avvio scarica qualche GB e dura minuti: senza battito il guardiano dopo 3 minuti lo credeva bloccato, lo
+    chiudeva e alla terza volta si arrendeva (24/11, la prima installazione vera da GitHub). Solo sotto il guardiano."""
+    if os.environ.get("JARVIS_SUPERVISED") != "1":
+        return None
+    from . import health, paths
+
+    beat = health.Heartbeat(state_dir=state_dir or paths.STATE_DIR, interval_s=interval_s)
+    return asyncio.ensure_future(beat.run(lambda: "avvio"))
+
+
 def make_repo() -> str | None:
     """jarvis/localrepo.py: mai un motivo per non partire. Cosa dire all'utente, se c'è."""
     from . import localrepo
@@ -50,6 +63,15 @@ async def main(console: bool, window: bool, setup: bool = False) -> int:
     # prima di ogni download e PRIMA di importare aiohttp, che prepara la sua verifica dei certificati una volta sola,
     # quando lo si importa (provato in Windows Sandbox: chiamato dopo, i download fallivano lo stesso)
     certs.trust_windows()
+    early = early_heartbeat()  # primo avvio, download, motori: il guardiano non deve crederlo bloccato
+    try:
+        return await _run(console, window, setup, early)
+    finally:
+        if early is not None:
+            early.cancel()
+
+
+async def _run(console: bool, window: bool, setup: bool, early: asyncio.Task | None) -> int:
     from . import toolbox
     from .config import ConfigStore
     from .setup import flow
@@ -77,6 +99,8 @@ async def main(console: bool, window: bool, setup: bool = False) -> int:
     win: asyncio.subprocess.Process | None = None
     try:
         await app.start()
+        if early is not None:  # da qui batte Jarvis acceso (app.start), con la versione sana
+            early.cancel()
         if repo_note and app.conv is not None:
             app.conv.notify(repo_note)
         if window:
