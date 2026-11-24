@@ -1284,6 +1284,10 @@ MUTATIONS = [
      'server delle segnalazioni: niente segnalazioni enormi'),
     ('servizi/segnalazioni/logica.js', 'if (!KINDS.has(data.tipo))', 'if (false)', 'tests/test_feedback_server.py',
      'server delle segnalazioni: solo segnalazioni di Jarvis'),
+    ('jarvis/feedback.py', '        headers = {"user-agent": f"Jarvis/{report.version} (segnalazioni)"}', '        headers = {}',
+     'tests/test_feedback.py', 'segnalazioni: Jarvis si presenta con un nome suo (Cloudflare rifiuta urllib)'),
+    ('servizi/segnalazioni/logica.js', '${why ? `: ${why}` : ""}', '', 'tests/test_feedback_server.py',
+     'server delle segnalazioni: il motivo di GitHub arriva a Jarvis'),
 ]
 
 

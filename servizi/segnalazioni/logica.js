@@ -77,7 +77,16 @@ export async function handle(request, env, post) {
     },
     body: JSON.stringify(issueFor(data)),
   });
-  if (r.status !== 201) return json({ ok: false, errore: `GitHub ha risposto ${r.status}` }, 502);
+  if (r.status !== 201) {
+    // il motivo di GitHub (es. "Resource not accessible by personal access token": chiave senza il permesso giusto)
+    let why = "";
+    try {
+      why = String((await r.json()).message || "").slice(0, 120);
+    } catch {
+      // risposta senza JSON: basta il codice
+    }
+    return json({ ok: false, errore: `GitHub ha risposto ${r.status}${why ? `: ${why}` : ""}` }, 502);
+  }
   const issue = await r.json();
   return json({ ok: true, numero: issue.number }, 201);
 }

@@ -34,7 +34,12 @@ account.
    segnalazioni sono attive per tutti.
 
 Se `wrangler deploy` rifiuta i limiti di richieste (`[[ratelimits]]`), si tolgono da `wrangler.toml`: il server va
-avanti anche senza.
+avanti anche senza (sul piano gratuito, il 24/11, li ha accettati).
+
+Se le segnalazioni tornano indietro con "GitHub ha risposto 403: Resource not accessible by personal access token",
+alla chiave manca *Issues: Read and write* su quel repository: si corregge modificando la chiave su GitHub, senza
+ricaricarla su Cloudflare. Chi prova il server a mano deve dare un User-Agent: Cloudflare rifiuta quello di urllib
+(403, errore 1010).
 
 ## Leggere le segnalazioni
 

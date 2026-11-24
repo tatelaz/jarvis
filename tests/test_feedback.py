@@ -101,7 +101,7 @@ def test_a_crash_report_from_the_guardian(tmp_path, monkeypatch):
     r = F.build("caduta", "si è chiuso mentre parlavo con Giulia, scrivetemi a m.r@example.com", cfg=cfg,
                 crash_file=crash, machine_lines=["- Jarvis 0.1.0"], diary_lines=["Jarvis cade (3 volte in 30 giorni)"],
                 version="0.1.0")
-    assert r.kind == "caduta" and r.title == "Caduta: FileNotFoundError in jarvis/health.py:88"
+    assert r.kind == "caduta" and r.title == "FileNotFoundError in jarvis/health.py:88"
     assert "- motivo: crash" in r.text and "- codice d'uscita: 1" in r.text
     assert "si è chiuso mentre parlavo con Giulia, scrivetemi a [EMAIL]" in r.text  # le sue parole, senza email
     assert "- Jarvis 0.1.0" in r.text and "Jarvis cade (3 volte in 30 giorni)" in r.text
@@ -114,7 +114,7 @@ def test_a_long_log_keeps_the_newest_lines(tmp_path):
                                                    f"jarvis.health: errore numero {i:05d}" for i in range(4000)))
     r = F.build("segnalazione", "va lento", log_file=log, machine_lines=[])
     assert len(r.text) <= F.MAX_TEXT and "errore numero 03999" in r.text and "errore numero 00000" not in r.text
-    assert r.title == "Segnalazione: va lento" and r.text.rstrip().endswith("```")
+    assert r.title == "va lento" and r.text.rstrip().endswith("```")
 
 
 def test_the_diary_gives_titles_and_counts_never_the_corrections():
@@ -148,6 +148,12 @@ async def test_sending_says_the_issue_number_and_every_way_it_can_fail():
 
     async def refused(url, data):
         return 429, "troppe"
+
+    async def github_says_no(url, data):
+        return 502, json.dumps({"ok": False, "errore": "GitHub ha risposto 403: Resource not accessible"})
+
+    with pytest.raises(F.SendError, match="502: GitHub ha risposto 403: Resource not accessible"):
+        await F.send(REPORT, "https://x.example", github_says_no)  # il motivo arriva fino all'utente
 
     async def offline(url, data):
         raise OSError("rete assente")
@@ -210,7 +216,7 @@ async def test_sending_always_asks_and_sends_exactly_what_was_read():
     apps, t = app_with(made, sent)
     t.say("segnala che non mi ha capito")
     out = await apps.use("segnalazioni", "manda", {"descrizione": "non mi ha capito"})
-    assert out.startswith("DA CONFERMARE") and "«segnalazione: non mi ha capito»" in out and sent == []
+    assert out.startswith("DA CONFERMARE") and "la segnalazione «segnalazione: non mi ha capito»" in out and sent == []
     code = out.split("codice ")[1].split(")")[0]
     t.say("sì, mandala")
     assert await apps.use("segnalazioni", "manda", {"descrizione": "altro"}, code) == "segnalazione #7 mandata"
@@ -352,3 +358,28 @@ async def test_the_window_sends_only_what_was_shown_and_only_once():
     await srv._command({"cmd": "report_preview", "text": "x", "crash": False})
     assert q.get_nowait()["info"] == {"ok": False, "message": "Le segnalazioni non sono ancora attive in questa versione."}
     assert len(made) == 1  # senza server niente rapporto
+
+
+async def test_the_real_sending_goes_by_http_with_a_name_of_its_own():
+    """Senza post finto: un server vero sul PC riceve il JSON e il nome di Jarvis (Cloudflare blocca alcune firme
+    di Python: quella di urllib riceve 403, errore 1010, provato il 24/11)."""
+    from aiohttp import web
+
+    got = []
+
+    async def segnala(request):
+        got.append((request.headers.get("user-agent"), await request.json()))
+        return web.json_response({"ok": True, "numero": 5}, status=201)
+
+    app = web.Application()
+    app.router.add_post("/segnala", segnala)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = site._server.sockets[0].getsockname()[1]
+    try:
+        assert await F.send(REPORT, f"http://127.0.0.1:{port}/segnala") == "5"
+    finally:
+        await runner.cleanup()
+    assert got == [("Jarvis/0.1.0 (segnalazioni)", REPORT.payload())]

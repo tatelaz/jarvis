@@ -22,7 +22,7 @@ def test_the_server_tests_pass():
     r = subprocess.run([node(), "--test", str(SERVER / "worker.test.mjs")], capture_output=True, text=True,
                        encoding="utf-8", timeout=120)
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-1000:]
-    assert "# fail 0" in r.stdout and "# pass 6" in r.stdout
+    assert "# fail 0" in r.stdout and "# pass 6" in r.stdout  # sei gruppi di prove
 
 
 def test_the_worker_only_hands_over_to_the_tested_logic():

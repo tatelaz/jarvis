@@ -221,9 +221,9 @@ def build(kind: str, description: str = "", *, cfg: Any = None, log_file: Path |
     where = where_it_broke(lines)
     said = scrub(" ".join(description.split()), names)  # le sue parole, ma senza email, numeri e nomi
     if kind == "caduta":
-        title = f"Caduta: {where}" if where else "Caduta senza errore nel registro"
+        title = where or "senza errore nel registro"  # il server ci mette davanti [caduta]
     else:
-        title = "Segnalazione: " + (said[:70] + ("…" if len(said) > 70 else "") if said else (where or "senza testo"))
+        title = said[:70] + ("…" if len(said) > 70 else "") if said else (where or "senza testo")
     parts = [f"**{'Caduta' if kind == 'caduta' else 'Segnalazione'}** da Jarvis", ""]
     if said:
         parts += ["### Cosa dice chi lo usa", said, ""]
@@ -271,16 +271,23 @@ async def send(report: Report, url: str, post: Callable[..., Any] | None = None,
     if post is None:
         import aiohttp
 
+        # un nome suo: Cloudflare rifiuta alcune firme di Python (con quella di urllib: 403, errore 1010)
+        headers = {"user-agent": f"Jarvis/{report.version} (segnalazioni)"}
+
         async def post(u: str, data: dict) -> tuple[int, str]:
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as s, \
-                    s.post(u, json=data) as r:
+                    s.post(u, json=data, headers=headers) as r:
                 return r.status, await r.text()
     try:
         status, body = await post(url, report.payload())
     except Exception as e:  # rete assente, server spento: si riprova più tardi
         raise SendError(f"server non raggiungibile ({type(e).__name__})") from e
     if status not in (200, 201):
-        raise SendError(f"il server ha risposto {status}")
+        try:  # il motivo del server, se lo dice (es. "GitHub ha risposto 403: ...")
+            why = str(json.loads(body).get("errore", ""))[:160]
+        except (ValueError, AttributeError):
+            why = ""
+        raise SendError(f"il server ha risposto {status}{f': {why}' if why else ''}")
     try:
         return str(json.loads(body).get("numero", ""))
     except (ValueError, AttributeError):
@@ -346,7 +353,8 @@ def build_app(make: Callable[[str, str], Report], deliver: Callable[[Report], An
         report = make(kind_of(p), str(p.get("descrizione") or ""))
         p["_rapporto"] = report  # parte esattamente questo, quello letto all'utente
         lines = report.text.count("\n")
-        return (f"mando agli sviluppatori «{report.title}» ({lines} righe tecniche: versione, PC ed errori, senza frasi "
+        what = "il rapporto della caduta" if report.kind == "caduta" else "la segnalazione"
+        return (f"mando agli sviluppatori {what} «{report.title}» ({lines} righe tecniche: versione, PC ed errori, senza frasi "
                 f"delle conversazioni né dati personali; il testo esatto si vede nella finestra con Segnala)")
 
     @app.action("anteprima", "cosa partirebbe, senza mandare niente",

@@ -179,8 +179,9 @@ class SystemConfig:
     # domanda se mandare il rapporto, "sempre" lo manda da solo, "mai" niente. Quelle chieste a voce o dalla finestra
     # partono sempre e solo dopo un sì
     crash_reports: str = "chiedi"
-    # dove arrivano: il server di servizi/segnalazioni (vuoto = segnalazioni non ancora attive)
-    feedback_url: str = ""
+    # dove arrivano: il server di servizi/segnalazioni (vuoto = segnalazioni spente). Chi pubblica una sua versione di
+    # Jarvis mette il suo server, o lo lascia vuoto
+    feedback_url: str = "https://jarvis-segnalazioni.jarvis-assistente-it.workers.dev/segnala"
 
 
 @dataclass

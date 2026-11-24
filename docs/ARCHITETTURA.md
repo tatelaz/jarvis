@@ -529,6 +529,10 @@ non ha bisogno di nessun account.
   sempre (parte da solo e lo dice) o mai.
 - **Senza rete** resta in `data/segnalazioni` e riparte al prossimo avvio. Senza `system.feedback_url` (vuoto finché
   il server non è in funzione) l'app dice che le segnalazioni non sono ancora attive.
+- **In funzione dal 24/11** su `https://jarvis-segnalazioni.jarvis-assistente-it.workers.dev/segnala`
+  (`system.feedback_url`), issue nel repository privato `jarvis-segnalazioni`. Jarvis si presenta con un nome suo
+  (`Jarvis/<versione> (segnalazioni)`): Cloudflare rifiuta alcune firme di Python (quella di urllib: 403, errore
+  1010). Se GitHub rifiuta, il server dice il suo motivo e Jarvis lo riferisce.
 - **Il server** (`logica.js`, provato con Node in `worker.test.mjs`): solo POST su `/segnala`, JSON fatto bene,
   massimo 70 KB, limiti di Cloudflare per PC e in tutto se il piano li ha; non salva niente (l'IP serve solo a
   contare); rende innocui `@nome` e `#12`. Come metterlo in funzione: `servizi/segnalazioni/README.md`. Le

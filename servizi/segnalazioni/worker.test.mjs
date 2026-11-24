@@ -77,6 +77,11 @@ test("senza chiave o se GitHub dice di no, Jarvis lo sa (e la tiene per dopo)", 
   const r = await handle(request(JSON.stringify(GOOD)), ENV, github(401).post);
   assert.equal(r.status, 502);
   assert.equal((await r.json()).errore, "GitHub ha risposto 401");
+  // il motivo di GitHub arriva fino a Jarvis: così si capisce se è la chiave (visto il 24/11 con una chiave sbagliata)
+  const forbidden = async () => new Response(JSON.stringify({ message: "Resource not accessible by personal access token" }),
+    { status: 403 });
+  const why = await handle(request(JSON.stringify(GOOD)), ENV, forbidden);
+  assert.equal((await why.json()).errore, "GitHub ha risposto 403: Resource not accessible by personal access token");
 });
 
 test("il testo arriva tale e quale: Jarvis lo ha già ripulito, qui non si aggiunge niente", async () => {
