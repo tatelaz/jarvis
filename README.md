@@ -1,5 +1,7 @@
 # Jarvis
 
+**Italiano** · [English](README.en.md)
+
 Jarvis è un assistente vocale per Windows. Lo chiami per nome, gli parli normalmente e ti risponde a voce, in
 italiano o in inglese. Può usare il PC al posto tuo: apre programmi e siti, legge e scrive su WhatsApp e Gmail, cerca
 sul web, guarda un video e ti dice cosa c'è dentro, si ricorda le cose che gli dici. Nome e stile vengono dal JARVIS
@@ -10,7 +12,9 @@ linguistico, il "cervello": Claude (con il tuo abbonamento o con una chiave API)
 OpenCode, che non chiede nemmeno un account.
 
 > Versione di prova. Funziona tutti i giorni sul PC su cui è nato, ma su altri PC è stato provato poco. Se qualcosa
-> non va, apri una segnalazione nella pagina Issues e allega `data\logs\jarvis.log`.
+> non va, di' a Jarvis "segnala un problema" (vedi [Segnalare un problema](#segnalare-un-problema)) o apri una issue
+> su GitHub. Non allegare a una issue pubblica il registro `data\logs\jarvis.log` così com'è: contiene le tue
+> conversazioni.
 
 ## Cosa gli si può chiedere
 
@@ -64,14 +68,15 @@ Python, Node.js, Git e OpenCode non serve installarli prima: se mancano li scari
 2. Windows mostra "PC protetto" perché l'installatore non è firmato (sotto spiego perché): premi "Ulteriori
    informazioni" e poi "Esegui comunque".
 3. Si installa per il tuo utente, senza permessi di amministratore, in `%LOCALAPPDATA%\Programs\Jarvis`. Dura circa
-   un minuto: intanto prepara Python e le librerie.
+   un minuto: intanto prepara Python e le librerie. Prima di installare ti mostra cosa resta sul PC e cosa esce.
 4. Alla fine si apre il primo avvio: controlla il PC, ti fa scegliere il cervello, scarica i modelli (circa 5 GB da
    GitHub e Hugging Face, si riprende da dove era rimasto se la connessione cade) e prova microfono e casse.
 5. Jarvis si accende e si presenta. Ti chiede come ti chiami, se dargli del tu o del Lei, impara la tua voce, ti
    aiuta a collegare le app. Puoi dire "dopo" e riprendere con "continuiamo la configurazione".
 
 Chi preferisce i sorgenti: `git clone`, poi `uv sync` e `python -m jarvis` (serve [uv](https://docs.astral.sh/uv/)).
-Porta allo stesso primo avvio.
+Porta allo stesso primo avvio. Ogni release ha anche i sorgenti in uno zip, ma senza la storia git Jarvis non può
+modificare il proprio codice: per quello serve `git clone`.
 
 Per parlargli chiamalo per nome ("Jarvis, ...") oppure premi Ctrl+Alt+J e parla. Ctrl+Alt+K ferma tutto. Se
 preferisci scrivere, nella sua finestra basta iniziare a digitare.
@@ -191,11 +196,14 @@ resto (installatore, bundle per gli aggiornamenti, impronte, release) lo fa
 [installatore.yml](.github/workflows/installatore.yml).
 
 Per lavorare su una copia senza toccare quella che usi tutti i giorni vedi
-[Copia di prova](docs/ARCHITETTURA.md#copia-di-prova). Gli altri documenti:
+[Copia di prova](docs/ARCHITETTURA.md#copia-di-prova). Codice, commenti e documenti sono in italiano. Gli altri
+documenti:
 
 - [docs/ARCHITETTURA.md](docs/ARCHITETTURA.md): com'è fatto e perché.
-- [docs/STATO.md](docs/STATO.md): cosa funziona, le misure, i problemi già incontrati, i prossimi passi.
+- [docs/STATO.md](docs/STATO.md): cosa funziona, le misure, i problemi già incontrati, i prossimi passi. Lo leggono,
+  con l'architettura, anche i sotto-agenti di Jarvis prima di modificare il suo codice.
 - [docs/GMAIL.md](docs/GMAIL.md): come collegare Gmail.
+- [CLAUDE.md](CLAUDE.md): le regole per chi lavora al progetto con l'aiuto di un'intelligenza artificiale.
 
 ## Firma del codice (Code signing policy)
 

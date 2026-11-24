@@ -182,3 +182,23 @@ async def test_the_included_voice_follows_the_language(tools):
     store.set("speech.tts_voice", "jarvis")  # una voce tua resta
     await reg.call("impostazione", {"chiave": "lingua", "valore": "italiano"})
     assert store.get("speech.tts_voice") == "jarvis"
+
+
+@pytest.mark.parametrize("italian, english", [
+    ("Gmail non è disponibile in questo Jarvis", "Gmail is not available in this Jarvis"),
+    ("manca l'indirizzo Gmail (per esempio nome@gmail.com)", "the Gmail address is missing (for example name@gmail.com)"),
+    ("la password per le app di Google ha 16 lettere (come «abcd efgh ijkl mnop»)",
+     "a Google app password has 16 letters (like “abcd efgh ijkl mnop”)"),
+    ("Google chiede una password per le app, non la password dell'account: controlla indirizzo e password per le app",
+     "Google wants an app password, not the account password: check the address and the app password"),
+    ("Gmail non risponde (TimeoutError): riprova tra poco", "Gmail is not answering (TimeoutError): try again shortly"),
+    ("parola d'ordine troppo corta (almeno 4 lettere)", "passphrase too short (at least 4 letters)"),
+    ("il server ha risposto 502: GitHub ha risposto 403: Resource not accessible by personal access token",
+     "the server answered 502: GitHub answered 403: Resource not accessible by personal access token"),
+    ("il server ha risposto 429", "the server answered 429"),
+])
+def test_window_messages_written_in_italian_are_shown_in_english(italian, english):
+    """La finestra mostra così come sono i messaggi di Gmail, della parola d'ordine e delle segnalazioni."""
+    assert lang.in_language("en", italian) == english
+    assert lang.in_language("it", italian) == italian
+    assert lang.in_language("en", "un messaggio che non si conosce") == "un messaggio che non si conosce"

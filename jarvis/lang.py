@@ -8,6 +8,8 @@ lingua è `persona.language`: "it" o "en"; qualsiasi altro valore vale italiano.
 
 from __future__ import annotations
 
+import re
+
 LANGS = ("it", "en")
 TTS_LANGUAGE = {"it": "Italian", "en": "English"}  # come la chiama il modello della voce
 
@@ -45,6 +47,11 @@ PHRASES = {
         "until_today": "fino alle {hhmm}",
         "until_tomorrow": "fino a domani alle {hhmm}",
         "until_day": "fino al {day} alle {hhmm}",
+        "report_sent": "Segnalazione mandata agli sviluppatori{number}: la guarderanno per correggere il problema.",
+        "report_number": " (numero {n})",
+        "report_kept": "Non sono riuscito a mandarla adesso ({why}): la tengo e riprovo al prossimo avvio.",
+        "report_not_sent": "Non l'ho mandata: {why}.",
+        "report_look_first": "Prima guarda cosa parte.",
     },
     "en": {
         "checking": "Let me check.",
@@ -67,12 +74,57 @@ PHRASES = {
         "until_today": "until {hhmm}",
         "until_tomorrow": "until {hhmm} tomorrow",
         "until_day": "until {hhmm} on the {day}",
+        "report_sent": "Report sent to the developers{number}: they will look at it to fix the problem.",
+        "report_number": " (number {n})",
+        "report_kept": "I couldn't send it now ({why}): I'll keep it and try again at the next start.",
+        "report_not_sent": "I didn't send it: {why}.",
+        "report_look_first": "First look at what will be sent.",
     },
 }
 
 
 def phrase(lang: str | None, key: str, **values) -> str:
     return PHRASES[norm(lang)][key].format(**values)
+
+
+# Messaggi che il programma scrive in italiano e che la finestra mostra così come sono (Gmail, parola d'ordine,
+# segnalazioni): in inglese si traducono qui. Le parti variabili (i gruppi) si traducono a loro volta.
+WINDOW_EN = [
+    (r"Gmail non è disponibile in questo Jarvis", "Gmail is not available in this Jarvis"),
+    (r"manca l'indirizzo Gmail \(per esempio nome@gmail\.com\)", "the Gmail address is missing (for example name@gmail.com)"),
+    (r"la password per le app di Google ha 16 lettere \(come «abcd efgh ijkl mnop»\)",
+     "a Google app password has 16 letters (like “abcd efgh ijkl mnop”)"),
+    (r"(.+): controlla indirizzo e password per le app", "{0}: check the address and the app password"),
+    (r"Google non accetta indirizzo e password per le app", "Google doesn't accept the address and app password"),
+    (r"Google chiede una password per le app, non la password dell'account",
+     "Google wants an app password, not the account password"),
+    (r"su questo account l'accesso IMAP è spento \(negli account di lavoro lo decide l'amministratore\)",
+     "IMAP access is turned off on this account (on work accounts the administrator decides)"),
+    (r"Gmail non risponde \((.+)\): riprova tra poco", "Gmail is not answering ({0}): try again shortly"),
+    (r"parola d'ordine troppo corta \(almeno 4 lettere\)", "passphrase too short (at least 4 letters)"),
+    (r"[Ll]e segnalazioni non sono ancora attive in questa versione(\.?)", "Reports are not active yet in this version{0}"),
+    (r"server non raggiungibile \((.+)\)", "server unreachable ({0})"),
+    (r"il server ha risposto (\d+)(?:: (.+))?", "the server answered {0}{1}"),
+    (r"GitHub ha risposto (\d+)(?:: (.+))?", "GitHub answered {0}{1}"),
+]
+
+
+def in_language(lang: str | None, text: str) -> str:
+    """Un messaggio per la finestra nella lingua di Jarvis: in italiano com'è, in inglese tradotto se è noto."""
+    if norm(lang) != "en":
+        return text
+    for pattern, english in WINDOW_EN:
+        m = re.fullmatch(pattern, text)
+        if m:
+            parts = []
+            for i, g in enumerate(m.groups()):
+                g = g or ""
+                if pattern.startswith(("il server", "GitHub")) and i == 1:
+                    parts.append(f": {in_language(lang, g)}" if g else "")
+                else:
+                    parts.append(in_language(lang, g) if len(g) > 3 else g)
+            return english.format(*parts)
+    return text
 
 
 # frasi brevi tenute pronte nella cache della voce: la prima risposta suona senza attesa

@@ -396,6 +396,9 @@ class Jarvis:
     def _reports_ready(self) -> str | None:
         return None if self.store.config.system.feedback_url else "le segnalazioni non sono ancora attive in questa versione"
 
+    def ui_language(self) -> str:
+        return self.store.config.persona.language
+
     def make_report(self, kind: str, description: str = "") -> feedback.Report:
         """Il rapporto ripulito (jarvis/feedback.py): con "caduta" quello dell'ultima caduta del guardiano."""
         try:
@@ -407,18 +410,24 @@ class Jarvis:
                               diary_lines=feedback.diary_summary(self.diary), version=version)
 
     async def deliver_report(self, report: feedback.Report) -> str:
-        """Manda; senza rete la tiene e riprova al prossimo avvio. -> la frase per l'utente."""
+        return (await self.send_report(report))[1]
+
+    async def send_report(self, report: feedback.Report) -> tuple[bool, str]:
+        """Manda; senza rete la tiene e riprova al prossimo avvio. -> (partita?, la frase per l'utente, nella sua
+        lingua: la finestra la mostra così com'è)."""
+        language = self.store.config.persona.language
         try:
             number = await feedback.send(report, self.store.config.system.feedback_url)
         except feedback.SendError as e:
+            why = lang.in_language(language, str(e))
             if not self.store.config.system.feedback_url:
-                return f"Non l'ho mandata: {e}."
+                return False, lang.phrase(language, "report_not_sent", why=why)
             await asyncio.to_thread(feedback.Outbox().put, report)
             log.warning("segnalazione non partita (%s): riprovo al prossimo avvio", e)
-            return f"Non sono riuscito a mandarla adesso ({e}): la tengo e riprovo al prossimo avvio."
+            return False, lang.phrase(language, "report_kept", why=why)
         log.info("segnalazione mandata%s", f": numero {number}" if number else "")
-        return (f"Segnalazione mandata agli sviluppatori{f' (numero {number})' if number else ''}: la guarderanno "
-                f"per correggere il problema.")
+        return True, lang.phrase(language, "report_sent",
+                                 number=lang.phrase(language, "report_number", n=number) if number else "")
 
     def after_crash(self) -> str:
         """Dopo una caduta (system.crash_reports): cosa aggiungere all'avviso della ripresa."""

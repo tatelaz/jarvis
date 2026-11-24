@@ -1300,6 +1300,18 @@ MUTATIONS = [
     ('.github/workflows/installatore.yml', '          $v = $env:TAG.TrimStart("v")',
      '          $v = "${{ github.ref_name }}".TrimStart("v")', 'tests/test_workflows.py',
      'pubblicazione: il nome del tag non entra negli script'),
+    # due lingue: README e messaggi della finestra
+    ('jarvis/lang.py', '    if norm(lang) != "en":\n        return text\n    for pattern', '    return text\n    for pattern',
+     'tests/test_lang.py', 'lingue: i messaggi della finestra in inglese'),
+    ('jarvis/ui/server.py', '            self.app.bus.emit("notice", kind="passphrase",\n                              info={"ok": result == "ok", "message": lang.in_language(self._language(), result)})',
+     '            self.app.bus.emit("notice", kind="passphrase",\n                              info={"ok": result == "ok", "message": result})',
+     'tests/test_feedback.py', "lingue: l'esito della parola d'ordine nella lingua di Jarvis"),
+    ('jarvis/app.py', '            why = lang.in_language(language, str(e))', '            why = str(e)', 'tests/test_feedback.py',
+     'lingue: il motivo di una segnalazione non partita nella lingua di Jarvis'),
+    ('README.md', '**Italiano** · [English](README.en.md)', '**Italiano**', 'tests/test_readme.py',
+     "lingue: dal README italiano si arriva all'inglese"),
+    ('jarvis/feedback.py', "_{report.kind}_{secrets.token_hex(4)}.json", "_{report.kind}.json", 'tests/test_feedback.py',
+     'segnalazioni: due in attesa nello stesso secondo non si cancellano'),
 ]
 
 

@@ -20,6 +20,7 @@ import logging
 import os
 import platform
 import re
+import secrets
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -302,7 +303,8 @@ class Outbox:
 
     def put(self, report: Report) -> Path:
         self.folder.mkdir(parents=True, exist_ok=True)
-        path = self.folder / f"{time.strftime('%Y%m%d_%H%M%S')}_{report.kind}_{os.getpid()}.json"
+        # anche un pezzo a caso: due nello stesso secondo avevano lo stesso nome e la seconda cancellava la prima
+        path = self.folder / f"{time.strftime('%Y%m%d_%H%M%S')}_{report.kind}_{secrets.token_hex(4)}.json"
         path.write_text(json.dumps(report.payload(), ensure_ascii=False), encoding="utf-8")
         return path
 

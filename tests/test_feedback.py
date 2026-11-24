@@ -305,14 +305,22 @@ async def test_delivering_says_the_number_or_keeps_it_for_later(tmp_path, monkey
         raise F.SendError("server non raggiungibile (OSError)")
 
     j, _ = jarvis_like(tmp_path)
+    j.send_report = lambda r: Jarvis.send_report(j, r)
     monkeypatch.setattr(F, "send", ok)
     assert await Jarvis.deliver_report(j, REPORT) == ("Segnalazione mandata agli sviluppatori (numero 12): la "
                                                      "guarderanno per correggere il problema.")
     monkeypatch.setattr(F, "send", offline)
-    said = await Jarvis.deliver_report(j, REPORT)
-    assert "riprovo al prossimo avvio" in said and len(box.waiting()) == 1
+    ok_, said = await Jarvis.send_report(j, REPORT)
+    assert not ok_ and "riprovo al prossimo avvio" in said and len(box.waiting()) == 1
+    j.store.config.persona.language = "en"  # la finestra lo mostra così com'è: nella lingua di Jarvis
+    assert (await Jarvis.send_report(j, REPORT))[1] == ("I couldn't send it now (server unreachable (OSError)): I'll "
+                                                         "keep it and try again at the next start.")
+    monkeypatch.setattr(F, "send", ok)
+    assert await Jarvis.send_report(j, REPORT) == (True, "Report sent to the developers (number 12): they will look at "
+                                                         "it to fix the problem.")
+    monkeypatch.setattr(F, "send", offline)
     j, _ = jarvis_like(tmp_path, url="")
-    assert (await Jarvis.deliver_report(j, REPORT)).startswith("Non l'ho mandata") and len(box.waiting()) == 1
+    assert (await Jarvis.send_report(j, REPORT))[1].startswith("Non l'ho mandata") and len(box.waiting()) == 2
 
 
 def test_the_crash_setting_can_be_changed_by_voice():
@@ -338,14 +346,15 @@ async def test_the_window_sends_only_what_was_shown_and_only_once():
         made.append(F.Report(kind, f"{kind}: {text}", f"testo {len(made)}", "0.1.0"))
         return made[-1]
 
-    async def deliver(report):
+    async def send(report):
         sent.append(report)
-        return "Segnalazione mandata agli sviluppatori (numero 3): la guarderanno per correggere il problema."
+        return True, "Segnalazione mandata agli sviluppatori (numero 3): la guarderanno per correggere il problema."
 
     bus = Bus()
     q = bus.subscribe(50)
+    language = ["it"]
     srv = UiServer(SimpleNamespace(bus=bus, conv=None, _reports_ready=lambda: None, make_report=make,
-                                   deliver_report=deliver), port=0)
+                                   send_report=send, ui_language=lambda: language[0]), port=0)
     await srv._command({"cmd": "report_send"})  # senza aver guardato: non parte niente
     await srv._command({"cmd": "report_preview", "text": "si blocca", "crash": True})
     await srv._command({"cmd": "report_send"})
@@ -358,6 +367,22 @@ async def test_the_window_sends_only_what_was_shown_and_only_once():
     await srv._command({"cmd": "report_preview", "text": "x", "crash": False})
     assert q.get_nowait()["info"] == {"ok": False, "message": "Le segnalazioni non sono ancora attive in questa versione."}
     assert len(made) == 1  # senza server niente rapporto
+    language[0] = "en"  # Jarvis in inglese: la finestra non mostra frasi italiane
+    await srv._command({"cmd": "report_preview", "text": "x", "crash": False})
+    assert q.get_nowait()["info"]["message"] == "Reports are not active yet in this version."
+    await srv._command({"cmd": "report_send"})
+    assert q.get_nowait()["info"] == {"ok": False, "message": "First look at what will be sent."}
+
+    async def gmail(address, password):
+        return "Google non accetta indirizzo e password per le app: controlla indirizzo e password per le app"
+
+    srv.app.set_passphrase = lambda text: "parola d'ordine troppo corta (almeno 4 lettere)"
+    srv.app.gmail_app_password = gmail
+    await srv._command({"cmd": "passphrase", "value": "ab"})
+    await srv._command({"cmd": "gmail_app_password", "email": "nome@gmail.com", "value": "x"})
+    assert [q.get_nowait()["info"]["message"] for _ in range(2)] == [
+        "passphrase too short (at least 4 letters)",
+        "Google doesn't accept the address and app password: check the address and the app password"]
 
 
 async def test_the_real_sending_goes_by_http_with_a_name_of_its_own():

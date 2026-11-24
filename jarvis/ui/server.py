@@ -23,6 +23,7 @@ from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
+from .. import lang
 from .look import ui_config
 
 log = logging.getLogger("jarvis.ui")
@@ -119,11 +120,15 @@ class UiServer:
             except (ConnectionResetError, RuntimeError):
                 return
 
+    def _language(self) -> str:
+        return self.app.ui_language() if hasattr(self.app, "ui_language") else "it"
+
     async def _report_preview(self, text: str, crash: bool) -> None:
         why = self.app._reports_ready()
         if why:
             self._report = None
-            self.app.bus.emit("notice", kind="report_preview", info={"ok": False, "message": why.capitalize() + "."})
+            message = lang.in_language(self._language(), why.capitalize() + ".")
+            self.app.bus.emit("notice", kind="report_preview", info={"ok": False, "message": message})
             return
         self._report = await asyncio.to_thread(self.app.make_report, "caduta" if crash else "segnalazione", text)
         self.app.bus.emit("notice", kind="report_preview", info={"ok": True, "text": self._report.text})
@@ -131,10 +136,9 @@ class UiServer:
     async def _report_send(self) -> None:
         report, self._report = getattr(self, "_report", None), None  # una volta sola: per rimandarla si rivede
         if report is None:
-            message, ok = "Prima guarda cosa parte.", False
+            ok, message = False, lang.phrase(self._language(), "report_look_first")
         else:
-            message = await self.app.deliver_report(report)
-            ok = message.startswith("Segnalazione mandata")
+            ok, message = await self.app.send_report(report)
         self.app.bus.emit("notice", kind="report", info={"ok": ok, "message": message})
 
     async def _command(self, cmd: dict) -> None:
@@ -157,10 +161,12 @@ class UiServer:
                 await self.app.rest()
         elif kind == "passphrase":  # dalla finestra: il testo non si scrive mai da nessuna parte
             result = self.app.set_passphrase(str(cmd.get("value", "")))
-            self.app.bus.emit("notice", kind="passphrase", info={"ok": result == "ok", "message": result})
+            self.app.bus.emit("notice", kind="passphrase",
+                              info={"ok": result == "ok", "message": lang.in_language(self._language(), result)})
         elif kind == "gmail_app_password":  # dalla finestra: la password non si scrive mai da nessuna parte
             result = await self.app.gmail_app_password(str(cmd.get("email", "")), str(cmd.get("value", "")))
-            self.app.bus.emit("notice", kind="gmail", info={"ok": result == "ok", "message": result})
+            self.app.bus.emit("notice", kind="gmail",
+                              info={"ok": result == "ok", "message": lang.in_language(self._language(), result)})
         elif kind == "report_preview":  # dalla finestra: prima si vede il testo esatto, poi parte solo quello
             await self._report_preview(str(cmd.get("text", "")), bool(cmd.get("crash")))
         elif kind == "report_send":

@@ -511,6 +511,15 @@ sono marcati `data-i18n*`. Cambiando lingua la grafica si rimonta, così anche i
   questo tipo avrebbero fermato per sempre migliorie e aggiornamenti con unione su quel PC. Le prove che dipendono
   dal PC si saltano quando manca quello che serve, ma su un altro PC ce ne può essere una che nessuno ha previsto.
 
+## Due lingue anche fuori dal cervello (dal 24/11)
+
+Il README c'è in italiano (`README.md`) e in inglese (`README.en.md`), con il passaggio dall'uno all'altro nella terza
+riga; `tests/test_readme.py` controlla che abbiano le stesse parti e nessun collegamento rotto. Codice, commenti e
+documenti tecnici restano in italiano. I messaggi che il programma scrive in italiano e che la finestra mostra così
+come sono (Gmail, parola d'ordine, segnalazioni) passano da `lang.in_language`: con `persona.language` "en" si
+traducono (regole in `lang.WINDOW_EN`, anche annidate: "il server ha risposto 502: GitHub ha risposto 403..."); un
+messaggio sconosciuto resta com'è. Le frasi delle segnalazioni stanno in `lang.PHRASES`.
+
 ## Segnalazioni agli sviluppatori (dal 23/11)
 
 `jarvis/feedback.py` prepara un rapporto tecnico e lo manda a `servizi/segnalazioni`, un Cloudflare Worker che lo
