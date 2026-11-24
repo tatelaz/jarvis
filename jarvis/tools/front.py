@@ -127,7 +127,8 @@ _UPDATES = {"automatici": "automatici", "automatico": "automatici", "da solo": "
 _CRASH_REPORTS = {"chiedi": "chiedi", "chiedimi": "chiedi", "chiedere": "chiedi", "prima chiedi": "chiedi",
                   "domanda": "chiedi", "sempre": "sempre", "da solo": "sempre", "da soli": "sempre",
                   "automatici": "sempre", "automatico": "sempre", "sì": "sempre", "si": "sempre", "manda": "sempre",
-                  "mai": "mai", "no": "mai", "spenti": "mai", "spento": "mai", "niente": "mai", "off": "mai"}
+                  "mai": "mai", "no": "mai", "spenti": "mai", "spento": "mai", "niente": "mai", "off": "mai",
+                  "ask": "chiedi", "always": "sempre", "never": "mai"}  # le parole dell'informativa in inglese
 
 
 def _crash_reports(v: Any) -> str:

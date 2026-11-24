@@ -4,3 +4,5 @@
 *.png binary
 *.wav binary
 *.onnx binary
+# le informative dell'installatore: Inno Setup le mostra in un riquadro di Windows, che vuole gli a capo CRLF
+installer/*.txt text eol=crlf

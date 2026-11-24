@@ -113,3 +113,24 @@ def test_messages_in_both_languages():
     keys = {lang: {m.group(1) for m in re.finditer(rf"^{lang}\.(\w+)=", section, re.M)} for lang in ("it", "en")}
     assert keys["it"] == keys["en"] and len(keys["it"]) >= 5
     assert 'Name: "it"' in ISS and 'Name: "en"' in ISS
+
+
+def test_before_installing_it_says_what_leaves_the_pc():
+    """L'informativa sulla privacy (la chiede anche la firma gratuita di SignPath): in tutte e due le lingue, con le
+    segnalazioni e come spegnerle, e a capo CRLF perché il riquadro di Windows le mostri."""
+    langs = ISS[ISS.index("[Languages]"):ISS.index("[CustomMessages]")]
+    for lang, words in (("it", ("segnalazioni", "rapporti delle cadute mai", "aggiornamenti spenti", "l'audio non esce")),
+                        ("en", ("reports to the developers", "crash reports never", "updates off", "never leaves"))):
+        assert f'InfoBeforeFile: "privacy-{lang}.txt"' in langs
+        raw = (ROOT / "installer" / f"privacy-{lang}.txt").read_bytes()
+        assert raw.startswith(b"\xef\xbb\xbf") and b"\r\n" in raw and b"\n" not in raw.replace(b"\r\n", b"")
+        text = raw.decode("utf-8-sig")
+        assert all(w in text for w in words), lang
+    assert "installer/*.txt text eol=crlf" in (ROOT / ".gitattributes").read_text(encoding="utf-8")
+
+
+def test_name_and_version_are_written_in_the_setup_file():
+    setup = ISS[ISS.index("[Setup]"):ISS.index("[Languages]")]
+    for line in ("VersionInfoVersion={#AppVersion}", "VersionInfoProductName=Jarvis",
+                 "VersionInfoProductVersion={#AppVersion}", "AppPublisherURL=https://github.com/tatelaz/jarvis"):
+        assert line in setup

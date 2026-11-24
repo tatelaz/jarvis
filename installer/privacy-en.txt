@@ -1,0 +1,16 @@
+﻿What stays on your PC and what leaves it
+
+Jarvis works on your PC. Speech recognition, Jarvis's voice, memory and the voices it knows stay here: audio never leaves the PC.
+
+Only these leave it:
+
+- the text of what you ask, sent to the brain you choose at first start (Anthropic for Claude, OpenCode for the free models; nothing with the local model);
+- web searches and the things you ask it to do online;
+- WhatsApp and Gmail, if you connect them, talk to their own services;
+- once a day a question to GitHub to check for a new version (turn it off by saying "updates off");
+- at first start, the model downloads from GitHub and Hugging Face;
+- reports to the developers, only if you send them or, after a crash, if you answer yes: a technical report with no sentences from your conversations, names, emails or numbers. After a crash they can be turned off by saying "crash reports never".
+
+No ads and no usage statistics. Keys and app passwords are saved encrypted by Windows, readable only by your user. Your data stays in the Jarvis folder, under data.
+
+Jarvis is open source (Apache 2.0 license): https://github.com/tatelaz/jarvis

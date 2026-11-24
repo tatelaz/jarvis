@@ -1,0 +1,28 @@
+# Le prove di ogni commit: lo stile (ruff) e la suite che non ha bisogno di motori audio, Claude, hardware o desktop
+# (le stesse di scripts/check.sh). Su Windows, come Jarvis.
+name: Prove
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # le prove dell'installatore fanno il bundle di tutta la storia
+      - uses: astral-sh/setup-uv@v6
+      - name: Librerie
+        run: uv sync --frozen
+      - name: Stile
+        run: uv run ruff check jarvis tests scripts
+      - name: Prove
+        run: uv run pytest -q -m "not engine and not claude and not hardware and not desktop" -W error -p no:cacheprovider

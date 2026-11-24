@@ -21,6 +21,15 @@ AppName=Jarvis
 AppVersion={#AppVersion}
 AppVerName=Jarvis {#AppVersion}
 AppPublisher=Jarvis
+AppPublisherURL=https://github.com/tatelaz/jarvis
+AppSupportURL=https://github.com/tatelaz/jarvis
+AppUpdatesURL=https://github.com/tatelaz/jarvis/releases
+; nome e versione scritti nell'installatore (le proprietà del file; li chiede anche la firma di SignPath)
+VersionInfoVersion={#AppVersion}
+VersionInfoProductName=Jarvis
+VersionInfoProductVersion={#AppVersion}
+VersionInfoDescription=Jarvis Setup
+VersionInfoCompany=Jarvis
 DefaultDirName={localappdata}\Programs\Jarvis
 DefaultGroupName=Jarvis
 DisableProgramGroupPage=yes
@@ -43,8 +52,9 @@ ShowLanguageDialog=auto
 CloseApplications=yes
 
 [Languages]
-Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
-Name: "en"; MessagesFile: "compiler:Default.isl"
+; prima di installare: cosa resta sul PC e cosa esce (l'informativa sulla privacy, la stessa del README)
+Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"; InfoBeforeFile: "privacy-it.txt"
+Name: "en"; MessagesFile: "compiler:Default.isl"; InfoBeforeFile: "privacy-en.txt"
 
 [CustomMessages]
 it.Preparing=Preparo Jarvis

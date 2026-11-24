@@ -1,0 +1,16 @@
+﻿Cosa resta sul PC e cosa esce
+
+Jarvis lavora sul tuo PC. Il riconoscimento della voce, la voce di Jarvis, la memoria e le voci che conosce restano qui: l'audio non esce mai.
+
+Escono soltanto:
+
+- il testo di quello che chiedi, verso il cervello che scegli al primo avvio (Anthropic per Claude, OpenCode per i modelli gratuiti; niente con il modello locale);
+- le ricerche sul web e le cose che gli chiedi tu di fare in rete;
+- WhatsApp e Gmail, se li colleghi, parlano con i loro servizi;
+- una volta al giorno una domanda a GitHub per vedere se c'è una versione nuova (si spegne dicendo "aggiornamenti spenti");
+- al primo avvio, i download dei modelli da GitHub e Hugging Face;
+- le segnalazioni agli sviluppatori, solo se le mandi tu oppure, dopo una caduta, se rispondi di sì: un rapporto tecnico senza frasi delle conversazioni, nomi, email o numeri. Dopo una caduta si possono spegnere dicendo "rapporti delle cadute mai".
+
+Niente pubblicità e niente statistiche d'uso. Chiavi e password per le app si salvano cifrate con Windows, leggibili solo dal tuo utente. I tuoi dati stanno nella cartella di Jarvis, in data.
+
+Jarvis è open source (licenza Apache 2.0): https://github.com/tatelaz/jarvis
