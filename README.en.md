@@ -204,8 +204,8 @@ Code, comments and documents are in Italian. The other documents:
 ## Code signing policy
 
 A certificate to sign programs costs about 200 € a year, which this project does not have. The free signing that
-[SignPath Foundation](https://signpath.org/) offers to open source projects is requested after the first release:
-until it arrives the installer is not signed and Windows shows "Windows protected your PC". If it is granted, this
+[SignPath Foundation](https://signpath.org/) offers to open source projects was requested on 24/11/2026: until it
+arrives the installer is not signed and Windows shows "Windows protected your PC". If it is granted, this
 will read: *Free code signing provided by [SignPath.io](https://signpath.io), certificate by
 [SignPath Foundation](https://signpath.org)*.
 

@@ -208,7 +208,7 @@ documenti:
 ## Firma del codice (Code signing policy)
 
 Un certificato per firmare i programmi costa circa 200 € l'anno, che questo progetto non ha. La firma gratuita che
-[SignPath Foundation](https://signpath.org/) offre ai progetti open source si chiede dopo la prima release: finché non
+[SignPath Foundation](https://signpath.org/) offre ai progetti open source è stata chiesta il 24/11/2026: finché non
 arriva, l'installatore non è firmato e Windows mostra "PC protetto". Se la concedono, qui comparirà: *Free code signing
 provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org)*.
 
